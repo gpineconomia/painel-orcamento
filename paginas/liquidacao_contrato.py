@@ -586,7 +586,7 @@ with tab_contrato:
         with kc5:
             st.markdown(
                 f'<div class="kpi"><div class="label">{label_card_prop}</div>'
-                f'<div class="value">{pct_prop:.1f}%</div>'
+                f'<div class="value">{pct_prop_c:.1f}%</div>'
                 f'<div class="sub">{sub_card_prop}</div></div>',
                 unsafe_allow_html=True
             )
