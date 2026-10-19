@@ -34,14 +34,14 @@ FILES_TO_SYNC = [
     "paginas/supressoes_2027.py",
     "paginas/visao_2026.py",
     "paginas/visao_analitica.py",
-    "paginas/planejamento_vs_ipof.py",
-    "ploa_ipof_data.py",
+    "paginas/liquidacao_contrato.py",
+    "liquidado_mensal_data.py",
     "teste_sap_bo.py",
     "sync_github.py",
     "data/planilha_2026_cache.xlsx",
     "data/planilha_cache.xlsx",
     "data/supressoes_2027_cache.xlsx",
-    "data/ploa_ipof_oficial_sap.csv",
+    "data/liquidado_mensal_sap.csv",
     "atualizar_siafic_07h30.vbs",
     "iniciar_segundo_plano.vbs",
 ]
@@ -73,12 +73,12 @@ def should_refresh_sap_bo() -> bool:
 
 
 def refresh_sap_bo() -> bool:
-    """Extrai o relatório oficial do SIAFIC (SAP BO) e salva em data/ploa_ipof_oficial_sap.csv."""
+    """Extrai os relatórios oficiais do SIAFIC (SAP BO) para a pasta data/."""
     try:
-        import ploa_ipof_data
+        import liquidado_mensal_data
 
-        print(f"[{datetime.now():%H:%M:%S}] Iniciando extração do SIAFIC (SAP BO - Relatório IPOF)...")
-        ok = ploa_ipof_data.download_sap_ipof_csv()
+        print(f"[{datetime.now():%H:%M:%S}] Iniciando extração do SIAFIC (SAP BO - ConsultaLiquidadoMensal ID: 32115483)...")
+        ok = liquidado_mensal_data.download_liquidado_mensal_csv()
         if ok:
             last_sync_file = BASE_DIR / "data" / ".last_sap_sync.txt"
             last_sync_file.write_text(datetime.now().isoformat(), encoding="utf-8")

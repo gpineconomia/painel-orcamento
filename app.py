@@ -15,14 +15,12 @@ pages = {
     "Orçamento 2026 (Execução)": [
         st.Page("paginas/execucao_2026.py", title="Despesas por Unidade", icon="🏢", default=True),
         st.Page("paginas/visao_2026.py", title="Visão Analítica", icon="📊"),
+        st.Page("paginas/liquidacao_contrato.py", title="Liquidação por Contrato", icon="📜"),
     ],
     "Orçamento 2027 (Planejamento)": [
         st.Page("paginas/despesas_unidade.py", title="Despesas por Unidade", icon="🏢"),
         st.Page("paginas/visao_analitica.py", title="Visão Analítica", icon="📊"),
         st.Page("paginas/supressoes_2027.py", title="Supressões", icon="✂️"),
-    ],
-    "Conciliação Oficial": [
-        st.Page("paginas/planejamento_vs_ipof.py", title="Planejamento vs IPOF", icon="⚖️"),
     ],
 }
 
