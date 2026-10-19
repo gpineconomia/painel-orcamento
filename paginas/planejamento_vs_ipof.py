@@ -22,7 +22,7 @@ except Exception as exc:
     st.stop()
 
 if df_planilha_raw.empty or df_sap.empty:
-    st.warning("Não há dados suficientes da Planilha ou do SAP BO para conciliação.")
+    st.warning("Não há dados suficientes da Planilha ou do SIAFIC para conciliação.")
     st.stop()
 
 # ------------------------------------------------------------------ BANNER SUPERIOR
@@ -35,7 +35,7 @@ st.html(
         ⚖️ Planejamento vs IPOF · Conciliação Orçamentária {ano_selecionado}
       </h2>
       <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
-        <strong>Fonte Oficial SAP BO:</strong> PDF PLOA (ID: 32837188)<br>
+        <strong>Fonte Oficial SIAFIC:</strong> PDF PLOA (ID: 32837188)<br>
         <span style="font-size:0.75rem; color:#D1FAE5;">Sincronizado em: {dt_sap_str}</span>
       </div>
     </div>"""
@@ -129,7 +129,7 @@ def classificar_status(r):
     if num_ipof == "(Sem IPOF na Planilha)":
         return "🔴 Sem IPOF na Planilha"
     if pd.isna(val_sap) or val_sap == 0:
-        return "🟡 IPOF não localizado no SAP BO"
+        return "🟡 IPOF não localizado no SIAFIC"
     
     # Se o item tem múltiplos IPOFs, avaliamos por proximidade
     dif = abs(val_plan - val_sap)
@@ -195,7 +195,7 @@ with k2:
     )
 with k3:
     st.markdown(
-        f'<div class="kpi"><div class="label">IPOFs Localizados no SAP</div>'
+        f'<div class="kpi"><div class="label">IPOFs Localizados no SIAFIC</div>'
         f'<div class="value">{ipofs_encontrados_sap}</div>'
         f'<div class="sub">Convalidados na base oficial do Estado</div></div>',
         unsafe_allow_html=True
@@ -204,7 +204,7 @@ with k4:
     st.markdown(
         f'<div class="kpi"><div class="label">Valor Oficial Validado</div>'
         f'<div class="value">{brl(total_valor_oficial_casado)}</div>'
-        f'<div class="sub">Total de parcelas registradas no SAP BO</div></div>',
+        f'<div class="sub">Total de parcelas registradas no SIAFIC</div></div>',
         unsafe_allow_html=True
     )
 
@@ -214,11 +214,11 @@ st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
 tab_tabela, tab_graficos, tab_sap_sobras = st.tabs([
     "📋 Tabela de Conciliação Cruzada",
     "📊 Diagnóstico Visual de Aderência",
-    "🔍 IPOFs no SAP BO sem Vínculo na Planilha"
+    "🔍 IPOFs no SIAFIC sem Vínculo na Planilha"
 ])
 
 with tab_tabela:
-    st.subheader("Confronto: Estimativa da Unidade vs Registro Oficial no SAP BO")
+    st.subheader("Confronto: Estimativa da Unidade vs Registro Oficial no SIAFIC")
     
     cols_display = [
         "Item", "Unidade", "Objeto", "Num_IPOF", 
@@ -229,10 +229,10 @@ with tab_tabela:
     tabela_fmt = df_view[cols_display].copy()
     tabela_fmt = tabela_fmt.rename(columns={
         "Valor_Estimado_Item": f"Estimado {ano_selecionado} (R$)",
-        "Valor_Parcela_Oficial": "Oficial SAP BO (R$)",
+        "Valor_Parcela_Oficial": "Oficial SIAFIC (R$)",
         "Num_IPOF": "Nº IPOF",
         "Status_Conformidade": "Status",
-        "Situacao_IPOF_Oficial": "Situação SAP BO",
+        "Situacao_IPOF_Oficial": "Situação SIAFIC",
         "Acao_Oficial": "Ação Oficial",
         "Natureza_Despesa_Oficial": "Natureza Despesa"
     })
@@ -288,7 +288,7 @@ with tab_graficos:
         st.plotly_chart(fig_uni, use_container_width=True)
 
 with tab_sap_sobras:
-    st.subheader("IPOFs Ativos no SAP BO que não foram mapeados na Planilha")
+    st.subheader("IPOFs Ativos no SIAFIC que não foram mapeados na Planilha")
     st.caption("Esta listagem aponta despesas registradas oficialmente no sistema orçamentário estadual que não possuem correspondência direta nos itens da planilha.")
     
     ipofs_na_planilha = set(df_plan_exploded["Num_IPOF"].unique())
@@ -299,7 +299,7 @@ with tab_sap_sobras:
     cols_sobra = ["Num_IPOF_Oficial", "Processo_SEI_Oficial", "Situacao_IPOF_Oficial", "Valor_Parcela_Oficial", "Acao_Oficial", "Descricao_Despesa_Oficial"]
     st.dataframe(
         df_sobras_sap[cols_sobra].rename(columns={
-            "Num_IPOF_Oficial": "Nº IPOF (SAP BO)",
+            "Num_IPOF_Oficial": "Nº IPOF (SIAFIC)",
             "Processo_SEI_Oficial": "Processo SEI",
             "Situacao_IPOF_Oficial": "Situação",
             "Valor_Parcela_Oficial": "Valor Oficial (R$)",
