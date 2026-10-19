@@ -416,20 +416,34 @@ if busca_livre:
     df_view = df_view[m]
 
 # ------------------------------------------------------------------ KPIS NO TOPO
-k1, k2, k3, k4 = st.columns(4)
+hoje = datetime.now()
+dia_atual = hoje.day
+mes_atual = hoje.month
+
+# Regra: % Executado Proporcional DO ANO até o momento (Janeiro até mês de corte)
+# Devido ao delay operacional para apresentação e liquidação de notas fiscais, considera-se até 2 meses anteriores
+idx_fim_prop = max(1, mes_atual - 2)
+nome_fim_prop = meses_nomes[idx_fim_prop - 1]
+meses_prop_lista = meses_nomes[:idx_fim_prop]
 
 total_estimado_geral = df_view["Estimado_Total_2026"].sum()
 total_liquidado_geral = df_view["Total_Liquidado_SIAFIC"].sum()
 saldo_restante_geral = total_estimado_geral - total_liquidado_geral
 pct_geral = (total_liquidado_geral / total_estimado_geral * 100) if total_estimado_geral > 0 else 0.0
 
+total_est_prop_geral = sum(df_view[f"Estimado_{m}"].sum() for m in meses_prop_lista)
+total_liq_prop_geral = sum(df_view[f"Liquidado_{m}"].sum() for m in meses_prop_lista)
+pct_prop_geral = (total_liq_prop_geral / total_est_prop_geral * 100) if total_est_prop_geral > 0 else (100.0 if total_liq_prop_geral > 0 else 0.0)
+
 contratos_com_liq_count = (df_view["Total_Liquidado_SIAFIC"] > 0).sum()
+
+k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Estimado 2026</div>'
         f'<div class="value">{fmt_card_mi(total_estimado_geral)}</div>'
-        f'<div class="sub">{num(len(df_view))} contratos/despesas filtradas</div></div>',
+        f'<div class="sub">{num(len(df_view))} contratos/despesas</div></div>',
         unsafe_allow_html=True
     )
 with k2:
@@ -443,14 +457,21 @@ with k3:
     st.markdown(
         f'<div class="kpi"><div class="label">Saldo a Liquidar</div>'
         f'<div class="value">{fmt_card_mi(saldo_restante_geral)}</div>'
-        f'<div class="sub">Restante para execução orçamentária</div></div>',
+        f'<div class="sub">Restante orçamentário anual</div></div>',
         unsafe_allow_html=True
     )
 with k4:
     st.markdown(
-        f'<div class="kpi"><div class="label">Índice de Execução</div>'
+        f'<div class="kpi"><div class="label">% Executado Total</div>'
         f'<div class="value">{pct_geral:.1f}%</div>'
-        f'<div class="sub">Executado do orçamento estimado 2026</div></div>',
+        f'<div class="sub">Do orçamento anual 2026</div></div>',
+        unsafe_allow_html=True
+    )
+with k5:
+    st.markdown(
+        f'<div class="kpi"><div class="label">% Exec. Proporcional</div>'
+        f'<div class="value">{pct_prop_geral:.1f}%</div>'
+        f'<div class="sub">Jan a {nome_fim_prop[:3]}/26 (delay 2 meses)</div></div>',
         unsafe_allow_html=True
     )
 
@@ -519,40 +540,13 @@ with tab_contrato:
             unsafe_allow_html=True
         )
         
-        # Cálculo do % Executado Proporcional
-        hoje = datetime.now()
-        dia_atual = hoje.day
-        mes_atual = hoje.month
-
-        if dia_atual >= 15:
-            idx_ref = max(1, mes_atual - 1)
-            nome_ref = meses_nomes[idx_ref - 1]
-            est_prop = float(c_row.get(f"Estimado_{nome_ref}", 0.0) or 0.0)
-            liq_prop = float(c_row.get(f"Liquidado_{nome_ref}", 0.0) or 0.0)
-            pct_prop = (liq_prop / est_prop * 100) if est_prop > 0 else (100.0 if liq_prop > 0 else 0.0)
-            label_card_prop = f"% Exec. Proporcional"
-            sub_card_prop = f"Ref: {nome_ref}/2026 (dia {dia_atual} ≥ 15)"
-        else:
-            idx_ref1 = max(1, mes_atual - 2)
-            idx_ref2 = max(1, mes_atual - 1)
-            nome_ref1 = meses_nomes[idx_ref1 - 1]
-            nome_ref2 = meses_nomes[idx_ref2 - 1]
-            est1 = float(c_row.get(f"Estimado_{nome_ref1}", 0.0) or 0.0)
-            liq1 = float(c_row.get(f"Liquidado_{nome_ref1}", 0.0) or 0.0)
-            est2 = float(c_row.get(f"Estimado_{nome_ref2}", 0.0) or 0.0)
-            liq2 = float(c_row.get(f"Liquidado_{nome_ref2}", 0.0) or 0.0)
-            
-            tot_est_2m = est1 + est2
-            tot_liq_2m = liq1 + liq2
-            if tot_est_2m > 0:
-                pct_prop = (tot_liq_2m / tot_est_2m) * 100
-            else:
-                pct1 = (liq1 / est1 * 100) if est1 > 0 else (100.0 if liq1 > 0 else 0.0)
-                pct2 = (liq2 / est2 * 100) if est2 > 0 else (100.0 if liq2 > 0 else 0.0)
-                pct_prop = (pct1 + pct2) / 2
-                
-            label_card_prop = f"% Exec. Proporcional"
-            sub_card_prop = f"Média: {nome_ref1[:3]}+{nome_ref2[:3]} (dia {dia_atual} < 15)"
+        # Cálculo do % Executado Proporcional DO ANO até o momento (Janeiro até 2 meses anteriores)
+        # Devido ao delay operacional para apresentação e liquidação de notas fiscais no SIAFIC
+        est_prop_c = sum(float(c_row.get(f"Estimado_{m}", 0.0) or 0.0) for m in meses_prop_lista)
+        liq_prop_c = sum(float(c_row.get(f"Liquidado_{m}", 0.0) or 0.0) for m in meses_prop_lista)
+        pct_prop_c = (liq_prop_c / est_prop_c * 100) if est_prop_c > 0 else (100.0 if liq_prop_c > 0 else 0.0)
+        label_card_prop = "% Exec. Proporcional"
+        sub_card_prop = f"Jan a {nome_fim_prop[:3]}/26 · {fmt_card_mi(liq_prop_c)} de {fmt_card_mi(est_prop_c)}"
 
         # KPIs individuais do contrato
         kc1, kc2, kc3, kc4, kc5 = st.columns(5)
