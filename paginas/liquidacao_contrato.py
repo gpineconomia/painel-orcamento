@@ -50,6 +50,19 @@ def fmt_card_mi(v: float | int | None) -> str:
         return str(v)
 
 
+def safe_float(v: object) -> float:
+    """Converte valor para float de forma segura tratando NaN, None e strings vazias como 0.0."""
+    if v is None:
+        return 0.0
+    try:
+        val = pd.to_numeric(v, errors="coerce")
+        if pd.isna(val) or val != val:
+            return 0.0
+        return float(val)
+    except Exception:
+        return 0.0
+
+
 def extrair_procs(val: object) -> list[str]:
     """Extrai sequências de 10 a 16 dígitos correspondentes a Processos SEI."""
     if val is None or pd.isna(val):
@@ -183,7 +196,7 @@ for _, r_pl in df_plan.iterrows():
     chave_contrato = c_raw.replace(".0", "") if tem_contrato_formal else f"(Sem Contrato Formal - Item {item_str})"
     
     procs_item = extrair_procs(r_pl.get(col_proc, ""))
-    val_est_tot = float(pd.to_numeric(r_pl.get(col_total_est), errors="coerce") or 0)
+    val_est_tot = safe_float(r_pl.get(col_total_est))
     
     if chave_contrato not in contratos_agrupados:
         contratos_agrupados[chave_contrato] = {
@@ -221,7 +234,7 @@ for _, r_pl in df_plan.iterrows():
     contratos_agrupados[chave_contrato]["Estimado_Total"] += val_est_tot
     for m in meses_nomes:
         c_m = f"Estimado {m}"
-        contratos_agrupados[chave_contrato]["Estimado_Meses"][m] += float(pd.to_numeric(r_pl.get(c_m), errors="coerce") or 0)
+        contratos_agrupados[chave_contrato]["Estimado_Meses"][m] += safe_float(r_pl.get(c_m))
 
     for p in procs_item:
         proc_to_c_keys.setdefault(p, set()).add(chave_contrato)
@@ -234,7 +247,7 @@ for _, row_sap in df_sap_2026.iterrows():
     p = str(row_sap.get("Processo_SEI", "")).strip()
     b = str(row_sap.get("Beneficiario_Nome", "")).strip()
     nat = str(row_sap.get("Natureza_Despesa_Nome", "")).strip()
-    v = float(row_sap.get("Valor_Liquidado_Saldo", 0) or 0)
+    v = safe_float(row_sap.get("Valor_Liquidado_Saldo", 0))
     m_cod = str(row_sap.get("Periodo_AnoMes", "")).strip()
     m_nome = map_cod_to_nome.get(m_cod)
 
@@ -542,9 +555,10 @@ with tab_contrato:
         
         # Cálculo do % Executado Proporcional DO ANO até o momento (Janeiro até 2 meses anteriores)
         # Devido ao delay operacional para apresentação e liquidação de notas fiscais no SIAFIC
-        est_prop_c = sum(float(c_row.get(f"Estimado_{m}", 0.0) or 0.0) for m in meses_prop_lista)
-        liq_prop_c = sum(float(c_row.get(f"Liquidado_{m}", 0.0) or 0.0) for m in meses_prop_lista)
+        est_prop_c = sum(safe_float(c_row.get(f"Estimado_{m}", 0.0)) for m in meses_prop_lista)
+        liq_prop_c = sum(safe_float(c_row.get(f"Liquidado_{m}", 0.0)) for m in meses_prop_lista)
         pct_prop_c = (liq_prop_c / est_prop_c * 100) if est_prop_c > 0 else (100.0 if liq_prop_c > 0 else 0.0)
+        pct_prop = pct_prop_c
         label_card_prop = "% Exec. Proporcional"
         sub_card_prop = f"Jan a {nome_fim_prop[:3]}/26 · {fmt_card_mi(liq_prop_c)} de {fmt_card_mi(est_prop_c)}"
 
