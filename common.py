@@ -1,6 +1,8 @@
 """Peças compartilhadas pelas páginas do dashboard: estilo, formatação, dados, filtros e gráficos."""
 from __future__ import annotations
 
+import hashlib
+import os
 import re
 from types import SimpleNamespace
 import unicodedata
@@ -10,6 +12,10 @@ import plotly.express as px
 import streamlit as st
 
 from data_source import CACHE_FILE_2026, CACHE_FILE_2027, get_settings, load_data, load_supressoes_2027
+
+# Hash SHA-256 com salt da senha de acesso externo (padrão: economia2026)
+_AUTH_SALT = "goias_ploa_salt_2026:"
+_DEFAULT_PASS_HASH = "baaccf093e69338c054a23baadf7a92635978424af605feeb095f88d49bbd3a8"
 
 cfg_2026 = get_settings(2026)
 cfg_2027 = get_settings(2027)
@@ -92,6 +98,84 @@ section[data-testid="stSidebar"] h2 {color:#047857; font-size:1.15rem;}
 """
 
 
+def _is_work_network() -> bool:
+    """Retorna True se o acesso vier da rede interna ou do bloco IP do Governo de Goiás (189.125.x.x)."""
+    try:
+        headers = dict(st.context.headers) if hasattr(st, "context") and hasattr(st.context, "headers") else {}
+    except Exception:  # noqa: BLE001
+        headers = {}
+    if not headers:
+        return True
+
+    norm_headers = {str(k).lower(): str(v) for k, v in headers.items()}
+    forwarded_ips: list[str] = []
+    for h_name in ("x-forwarded-for", "cf-connecting-ip", "x-real-ip", "true-client-ip"):
+        val = norm_headers.get(h_name, "")
+        if val:
+            for part in val.split(","):
+                ip_clean = part.strip()
+                if ip_clean:
+                    forwarded_ips.append(ip_clean)
+
+    host = norm_headers.get("host", "").split(":")[0].strip().lower()
+    if not forwarded_ips and (
+        host in ("localhost", "127.0.0.1")
+        or host.startswith("10.")
+        or host.startswith("192.168.")
+        or host.startswith("172.")
+    ):
+        return True
+
+    client_ip = forwarded_ips[0] if forwarded_ips else ""
+    if (
+        client_ip.startswith("189.125.")
+        or client_ip.startswith("10.")
+        or client_ip == "127.0.0.1"
+    ):
+        return True
+
+    return False
+
+
+def check_access() -> None:
+    """Libera acesso automático na rede do trabalho; fora dela, exige senha."""
+    if _is_work_network() or st.session_state.get("auth_externo_ok", False):
+        return
+
+    _, col_center, _ = st.columns([1, 1.3, 1])
+    with col_center:
+        st.markdown(
+            """
+            <div style="background:#FFFFFF; border:1px solid #DCEBE3; border-top:5px solid #047857;
+                        border-radius:16px; padding:2rem; margin-top:3rem;
+                        box-shadow:0 8px 24px rgba(4,120,87,0.08); text-align:center;">
+                <div style="font-size:2.4rem; margin-bottom:0.5rem;">🔒</div>
+                <h2 style="margin:0 0 0.4rem 0; color:#0F2A20; font-size:1.35rem;">
+                    Painel de Gestão Orçamentária
+                </h2>
+                <p style="color:#5B7A6C; font-size:0.9rem; margin-bottom:1rem;">
+                    Acesso externo detectado (fora da rede/Wi-Fi da Secretaria da Economia).<br>
+                    Informe a senha de acesso para visualizar as informações:
+                </p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.form("form_login_externo"):
+            senha = st.text_input("Senha de acesso", type="password", placeholder="Digite a senha...")
+            entrar = st.form_submit_button("🔓 Acessar Painel", use_container_width=True)
+            if entrar:
+                custom_pwd = os.getenv("DASHBOARD_PASSWORD", "").strip()
+                senha_limpa = senha.strip().lower()
+                hash_digitado = hashlib.sha256((_AUTH_SALT + senha_limpa).encode("utf-8")).hexdigest()
+                if (custom_pwd and senha.strip() == custom_pwd) or hash_digitado == _DEFAULT_PASS_HASH:
+                    st.session_state["auth_externo_ok"] = True
+                    st.rerun()
+                else:
+                    st.error("Senha incorreta. Tente novamente.")
+    st.stop()
+
+
 def inject_css() -> None:
     st.markdown(CSS, unsafe_allow_html=True)
     st.html(
@@ -108,6 +192,7 @@ def inject_css() -> None:
             } catch (e) {}
         </script>"""
     )
+    check_access()
 
 
 def brl(v: float, short: bool = True) -> str:
