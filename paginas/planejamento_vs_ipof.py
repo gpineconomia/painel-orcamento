@@ -309,20 +309,25 @@ with tab_tabela:
     )
 
 with tab_graficos:
-    g1, g2 = st.columns(2)
+    st.subheader("Distribuição por Status de Conformidade")
     
-    with g1:
-        st.subheader("Distribuição por Status de Conformidade")
-        status_counts = df_cruzado["Status_Conformidade"].value_counts().reset_index()
-        status_counts.columns = ["Status", "Quantidade"]
-        
-        cores_map = {
-            "🟢 Conforme Oficial": "#10B981",
-            "🔴 Sem IPOF na Planilha": "#EF4444",
-            "🟡 IPOF não localizado no SIAFIC": "#F59E0B",
-            "🔵 Oficial Maior que Estimado": "#3B82F6",
-            "🟠 Oficial Menor que Estimado": "#F97316",
-        }
+    status_counts = df_cruzado["Status_Conformidade"].value_counts().reset_index()
+    status_counts.columns = ["Status", "Quantidade"]
+    status_counts["Percentual"] = (status_counts["Quantidade"] / status_counts["Quantidade"].sum() * 100).apply(
+        lambda x: f"{x:,.1f}%".replace(".", ",")
+    )
+    
+    cores_map = {
+        "🟢 Conforme Oficial": "#10B981",
+        "🔴 Sem IPOF na Planilha": "#EF4444",
+        "🟡 IPOF não localizado no SIAFIC": "#F59E0B",
+        "🔵 Oficial Maior que Estimado": "#3B82F6",
+        "🟠 Oficial Menor que Estimado": "#F97316",
+    }
+    
+    col_chart, col_stats = st.columns([1.2, 1])
+    
+    with col_chart:
         fig_status = px.pie(
             status_counts,
             values="Quantidade",
@@ -331,22 +336,16 @@ with tab_graficos:
             color_discrete_map=cores_map,
             hole=0.45
         )
-        fig_status = style(fig_status, height=360)
+        fig_status = style(fig_status, height=380)
         st.plotly_chart(fig_status, use_container_width=True)
-
-    with g2:
-        st.subheader("Aderência Oficial por Unidade")
-        uni_conf = df_cruzado.groupby(["Unidade", "Status_Conformidade"]).size().reset_index(name="Qtd")
-        fig_uni = px.bar(
-            uni_conf,
-            x="Unidade",
-            y="Qtd",
-            color="Status_Conformidade",
-            color_discrete_map=cores_map,
-            barmode="stack"
+        
+    with col_stats:
+        st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+        st.dataframe(
+            status_counts.rename(columns={"Quantidade": "Qtd Itens", "Percentual": "% Total"}),
+            use_container_width=True,
+            hide_index=True,
         )
-        fig_uni = style(fig_uni, height=360)
-        st.plotly_chart(fig_uni, use_container_width=True)
 
 with tab_sap_sobras:
     st.subheader("IPOFs Ativos no SIAFIC que não foram mapeados na Planilha")
