@@ -391,11 +391,11 @@ with st.sidebar:
         "Faixa de Execução:",
         [
             "Todos os Contratos",
-            "Com Saldo a Liquidar (> R$ 0)",
-            "Com Liquidação no SIAFIC (> R$ 0)",
-            "Sem Nenhuma Liquidação (0%)",
-            "Liquidado Acima do Estimado (> 100%)",
-            "Conforme / 100% Liquidado (99% - 101%)"
+            "Sem percentual",
+            "Maior que zero até 49%",
+            "De 50 a 75%",
+            "Acima de 75% até 100%",
+            "Acima de 100%"
         ],
         key="f_liq_faixa"
     )
@@ -423,16 +423,16 @@ if tipo_contrato == "Apenas Contratos Formalizados":
 elif tipo_contrato == "Sem Contrato Formalizado":
     df_view = df_view[~df_view["Tem_Contrato_Formal"]]
 
-if filtro_faixa == "Com Saldo a Liquidar (> R$ 0)":
-    df_view = df_view[df_view["Saldo_A_Liquidar"] > 0]
-elif filtro_faixa == "Com Liquidação no SIAFIC (> R$ 0)":
-    df_view = df_view[df_view["Total_Liquidado_SIAFIC"] > 0]
-elif filtro_faixa == "Sem Nenhuma Liquidação (0%)":
-    df_view = df_view[df_view["Total_Liquidado_SIAFIC"] == 0]
-elif filtro_faixa == "Liquidado Acima do Estimado (> 100%)":
-    df_view = df_view[(df_view["Total_Liquidado_SIAFIC"] > df_view["Estimado_Total_2026"]) & (df_view["Estimado_Total_2026"] > 0)]
-elif filtro_faixa == "Conforme / 100% Liquidado (99% - 101%)":
-    df_view = df_view[df_view["Pct_Executado"].between(99.0, 101.0)]
+if filtro_faixa == "Sem percentual":
+    df_view = df_view[(df_view["Total_Liquidado_SIAFIC"] == 0) | (df_view["Pct_Executado"] == 0)]
+elif filtro_faixa == "Maior que zero até 49%":
+    df_view = df_view[(df_view["Pct_Executado"] > 0) & (df_view["Pct_Executado"] < 50.0)]
+elif filtro_faixa == "De 50 a 75%":
+    df_view = df_view[(df_view["Pct_Executado"] >= 50.0) & (df_view["Pct_Executado"] <= 75.0)]
+elif filtro_faixa == "Acima de 75% até 100%":
+    df_view = df_view[(df_view["Pct_Executado"] > 75.0) & (df_view["Pct_Executado"] <= 100.0)]
+elif filtro_faixa == "Acima de 100%":
+    df_view = df_view[df_view["Pct_Executado"] > 100.0]
 
 if busca_livre:
     m = (
