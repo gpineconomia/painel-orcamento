@@ -1,6 +1,7 @@
 """Página: Liquidação Mensal por Contrato — Execução 2026 vs SAP BO (ConsultaLiquidadoMensal ID: 32115483)."""
 from __future__ import annotations
 
+from datetime import datetime
 import re
 import pandas as pd
 import plotly.express as px
