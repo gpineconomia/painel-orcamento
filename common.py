@@ -99,17 +99,18 @@ section[data-testid="stSidebar"] h2 {color:#047857; font-size:1.15rem;}
 
 
 def _is_work_network() -> bool:
-    """Retorna True se o acesso vier da rede interna ou do bloco IP do Governo de Goiás (189.125.x.x)."""
+    """Retorna True SOMENTE se o acesso vier da intranet local (10.7.44.27) ou do IP do Governo de Goiás (189.125.x.x)."""
     try:
         headers = dict(st.context.headers) if hasattr(st, "context") and hasattr(st.context, "headers") else {}
     except Exception:  # noqa: BLE001
         headers = {}
     if not headers:
-        return True
+        return os.environ.get("STREAMLIT_APPTEST") == "1"
 
     norm_headers = {str(k).lower(): str(v) for k, v in headers.items()}
+
     forwarded_ips: list[str] = []
-    for h_name in ("x-forwarded-for", "cf-connecting-ip", "x-real-ip", "true-client-ip"):
+    for h_name in ("cf-connecting-ip", "x-real-ip", "true-client-ip", "x-forwarded-for"):
         val = norm_headers.get(h_name, "")
         if val:
             for part in val.split(","):
@@ -117,22 +118,21 @@ def _is_work_network() -> bool:
                 if ip_clean:
                     forwarded_ips.append(ip_clean)
 
-    host = norm_headers.get("host", "").split(":")[0].strip().lower()
-    if not forwarded_ips and (
-        host in ("localhost", "127.0.0.1")
-        or host.startswith("10.")
-        or host.startswith("192.168.")
-        or host.startswith("172.")
-    ):
+    # 1. Na internet/nuvem: só libera automaticamente se o IP público for da rede do Governo de Goiás (189.125.x.x)
+    if any(ip.startswith("189.125.") for ip in forwarded_ips):
         return True
 
-    client_ip = forwarded_ips[0] if forwarded_ips else ""
-    if (
-        client_ip.startswith("189.125.")
-        or client_ip.startswith("10.")
-        or client_ip == "127.0.0.1"
-    ):
-        return True
+    # 2. No servidor Windows local: libera acesso direto via cabo/intranet (http://10.7.44.27:8501 ou localhost),
+    #    mas bloqueia se vier via túnel externo (Cloudflare)
+    host = norm_headers.get("host", "").split(":")[0].strip().lower()
+    is_external_proxy = (
+        any(k in norm_headers for k in ("cf-ray", "cf-connecting-ip", "x-forwarded-host"))
+        or "streamlit.app" in host
+        or "trycloudflare.com" in host
+    )
+    if os.name == "nt" and not is_external_proxy and not forwarded_ips:
+        if host in ("localhost", "127.0.0.1") or host.startswith("10."):
+            return True
 
     return False
 
