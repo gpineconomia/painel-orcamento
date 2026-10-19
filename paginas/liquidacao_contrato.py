@@ -339,7 +339,7 @@ with tab_detalhada:
     # Seletor de modo de detalhamento mensal
     modo_meses = st.radio(
         "Detalhamento Mensal na Tabela:",
-        ["Meses Executados (Jan a Abr)", "Todos os Meses (Jan a Dez)", "Foco em Mês Único", "Apenas Totais"],
+        ["Meses Realizados (Jan a Out)", "Todos os Meses (Jan a Dez)", "Foco em Mês Único", "Apenas Totais"],
         horizontal=True,
         key="f_modo_meses"
     )
@@ -367,8 +367,8 @@ with tab_detalhada:
         df_table_fmt[f"{abbr_m} Est. (R$)"] = df_table_fmt[f"Estimado_{nome_m}"].apply(fmt_brl)
         df_table_fmt[f"{abbr_m} Liq. (R$)"] = df_table_fmt[f"Liquidado_{nome_m}"].apply(fmt_brl)
         
-    if modo_meses == "Meses Executados (Jan a Abr)":
-        meses_selecionados = meses_info[:4]
+    if modo_meses == "Meses Realizados (Jan a Out)":
+        meses_selecionados = meses_info[:10]
         cols_mensais = []
         for _, abbr in meses_selecionados:
             cols_mensais.extend([f"{abbr} Est. (R$)", f"{abbr} Liq. (R$)"])
@@ -608,19 +608,24 @@ with tab_sobras_sap:
     st.caption("Despesas liquidadas oficialmente no SIAFIC em 2026 cujo Processo SEI não foi encontrado na planilha de planejamento/execução de 2026.")
     
     # Processos do SIAFIC que não estão em processos_mapeados_planilha
+    meses_sobras = [
+        ("Jan", "202601"), ("Fev", "202602"), ("Mar", "202603"), ("Abr", "202604"),
+        ("Mai", "202605"), ("Jun", "202606"), ("Jul", "202607"), ("Ago", "202608"),
+        ("Set", "202609"), ("Out", "202610")
+    ]
+    
     sobras_sap_list = []
     for p_sap, data_sap in sap_by_proc.items():
         if p_sap not in processos_mapeados_planilha and data_sap["total_liquidado"] > 0:
-            sobras_sap_list.append({
+            item_sobra = {
                 "Processo_SEI": p_sap,
                 "Beneficiario": ", ".join(sorted(data_sap["beneficiarios"])) or "-",
                 "Natureza_Despesa": "; ".join(sorted(data_sap["naturezas"])) or "-",
                 "Total_Liquidado": data_sap["total_liquidado"],
-                "Jan": data_sap["meses"].get("202601", 0.0),
-                "Fev": data_sap["meses"].get("202602", 0.0),
-                "Mar": data_sap["meses"].get("202603", 0.0),
-                "Abr": data_sap["meses"].get("202604", 0.0),
-            })
+            }
+            for sigla, cod in meses_sobras:
+                item_sobra[sigla] = data_sap["meses"].get(cod, 0.0)
+            sobras_sap_list.append(item_sobra)
             
     df_sobras = pd.DataFrame(sobras_sap_list)
     
@@ -650,16 +655,19 @@ with tab_sobras_sap:
         
         df_sobras_fmt = df_sobras.copy()
         df_sobras_fmt["Total Liquidado (R$)"] = df_sobras_fmt["Total_Liquidado"].apply(fmt_brl)
-        df_sobras_fmt["Jan/26 (R$)"] = df_sobras_fmt["Jan"].apply(fmt_brl)
-        df_sobras_fmt["Fev/26 (R$)"] = df_sobras_fmt["Fev"].apply(fmt_brl)
-        df_sobras_fmt["Mar/26 (R$)"] = df_sobras_fmt["Mar"].apply(fmt_brl)
-        df_sobras_fmt["Abr/26 (R$)"] = df_sobras_fmt["Abr"].apply(fmt_brl)
         
-        cols_sobras_display = [
-            "Processo_SEI", "Beneficiario", "Natureza_Despesa",
-            "Jan/26 (R$)", "Fev/26 (R$)", "Mar/26 (R$)", "Abr/26 (R$)",
-            "Total Liquidado (R$)"
-        ]
+        cols_sobras_display = ["Processo_SEI", "Beneficiario", "Natureza_Despesa"]
+        col_cfg_sobras = {
+            "Total Liquidado (R$)": st.column_config.TextColumn(alignment="right"),
+        }
+        
+        for sigla, _ in meses_sobras:
+            col_name = f"{sigla}/26 (R$)"
+            df_sobras_fmt[col_name] = df_sobras_fmt[sigla].apply(fmt_brl)
+            cols_sobras_display.append(col_name)
+            col_cfg_sobras[col_name] = st.column_config.TextColumn(alignment="right")
+            
+        cols_sobras_display.append("Total Liquidado (R$)")
         
         st.dataframe(
             df_sobras_fmt[cols_sobras_display].rename(columns={
@@ -669,11 +677,5 @@ with tab_sobras_sap:
             }),
             use_container_width=True,
             hide_index=True,
-            column_config={
-                "Total Liquidado (R$)": st.column_config.TextColumn(alignment="right"),
-                "Jan/26 (R$)": st.column_config.TextColumn(alignment="right"),
-                "Fev/26 (R$)": st.column_config.TextColumn(alignment="right"),
-                "Mar/26 (R$)": st.column_config.TextColumn(alignment="right"),
-                "Abr/26 (R$)": st.column_config.TextColumn(alignment="right"),
-            }
+            column_config=col_cfg_sobras
         )

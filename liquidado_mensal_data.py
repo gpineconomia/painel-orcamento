@@ -15,7 +15,7 @@ CSV_PATH = BASE_DIR / "data" / "liquidado_mensal_sap.csv"
 
 
 def download_liquidado_mensal_csv(timeout: int = 60) -> bool:
-    """Faz login no SAP BO e baixa o CSV do relatório ConsultaLiquidadoMensal (ID: 32115483, Report: 145)."""
+    """Faz login no SAP BO e baixa o CSV da instância mais recente do relatório ConsultaLiquidadoMensal (ID: 32115483, Report: 145)."""
     user = os.getenv("SAP_BO_USER", "joao-pbv")
     pwd = os.getenv("SAP_BO_PASS", "3J9h8w3d$")
 
@@ -26,7 +26,22 @@ def download_liquidado_mensal_csv(timeout: int = 60) -> bool:
     try:
         doc_id = 32115483
         rep_id = 145
-        url = f"{client.base_url}/raylight/v1/documents/{doc_id}/reports/{rep_id}"
+        target_id = doc_id
+
+        # Consulta os metadados do documento para identificar a instância executada mais recente
+        try:
+            url_meta = f"{client.base_url}/raylight/v1/documents/{doc_id}"
+            r_meta = client.session.get(url_meta, headers={"Accept": "application/json"}, timeout=15)
+            if r_meta.status_code == 200:
+                doc_info = r_meta.json().get("document", {})
+                last_inst = doc_info.get("lastSuccessfulInstanceId")
+                if last_inst:
+                    target_id = int(last_inst)
+                    print(f"Baixando dados da instância mais recente do SAP BO: ID {target_id}")
+        except Exception as e_meta:
+            print(f"Aviso ao consultar instância mais recente: {e_meta}")
+
+        url = f"{client.base_url}/raylight/v1/documents/{target_id}/reports/{rep_id}"
         headers = {"Accept": "text/csv"}
         resp = client.session.get(url, headers=headers, timeout=timeout)
         if resp.status_code == 200:
