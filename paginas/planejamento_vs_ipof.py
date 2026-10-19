@@ -135,6 +135,12 @@ df_sap_ano = df_sap[df_sap["Ano_Referencia"].isin([ano_selecionado, 0])].copy() 
 if df_sap_ano.empty:
     df_sap_ano = df_sap.copy()
 
+# Desconsidera linhas de resumo/soma e IPOFs não numéricos do relatório oficial
+df_sap_ano = df_sap_ano[
+    df_sap_ano["Num_IPOF_Oficial"].astype(str).str.isdigit()
+    & (~df_sap_ano["Num_IPOF_Oficial"].astype(str).str.lower().str.contains("soma|total"))
+].copy()
+
 # Agrupa valores do SAP BO por número de IPOF (um IPOF pode ter mais de uma parcela ou dotação)
 sap_resumo = df_sap_ano.groupby("Num_IPOF_Oficial", as_index=False).agg({
     "Valor_Parcela_Oficial": "sum",
@@ -347,7 +353,11 @@ with tab_sap_sobras:
     st.caption("Esta listagem aponta despesas registradas oficialmente no sistema orçamentário estadual que não possuem correspondência direta nos itens da planilha.")
     
     ipofs_na_planilha = set(df_plan_exploded["Num_IPOF"].unique())
-    df_sobras_sap = sap_resumo[~sap_resumo["Num_IPOF_Oficial"].isin(ipofs_na_planilha)].copy()
+    df_sobras_sap = sap_resumo[
+        (~sap_resumo["Num_IPOF_Oficial"].isin(ipofs_na_planilha))
+        & (sap_resumo["Num_IPOF_Oficial"].astype(str).str.isdigit())
+        & (~sap_resumo["Num_IPOF_Oficial"].astype(str).str.lower().str.contains("soma|total"))
+    ].copy()
     df_sobras_sap = df_sobras_sap.sort_values(by="Valor_Parcela_Oficial", ascending=False)
     
     total_sobras_val = df_sobras_sap["Valor_Parcela_Oficial"].sum()

@@ -93,6 +93,12 @@ def load_sap_ipof_data(auto_download_if_missing: bool = True) -> tuple[pd.DataFr
     else:
         df["Num_IPOF_Oficial"] = ""
 
+    # Desconsidera linhas de totalização/resumo do relatório SAP BO (ex: "Soma:", "Total", etc.)
+    df = df[
+        df["Num_IPOF_Oficial"].str.isdigit()
+        & (~df["Num_IPOF_Oficial"].str.lower().str.contains("soma|total"))
+    ].copy()
+
     # Tratamento de Processo SEI
     if "Processo_SEI_Oficial" in df.columns:
         df["Processo_SEI_Oficial"] = df["Processo_SEI_Oficial"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
