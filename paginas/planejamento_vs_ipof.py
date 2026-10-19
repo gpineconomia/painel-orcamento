@@ -175,6 +175,13 @@ def is_acao_invalida(val: object) -> bool:
 
 df_sap_ano = df_sap_ano[~df_sap_ano["Acao_Oficial"].apply(is_acao_invalida)].copy()
 
+def extrair_procs(val: object) -> list[str]:
+    """Extrai sequências numéricas de 10 a 16 dígitos correspondentes a Processos SEI."""
+    if val is None or pd.isna(val):
+        return []
+    return re.findall(r"\d{10,16}", str(val))
+
+
 # Agrupa valores do SAP BO por número de IPOF (um IPOF pode ter mais de uma parcela ou dotação)
 sap_resumo = df_sap_ano.groupby("Num_IPOF_Oficial", as_index=False).agg({
     "Valor_Parcela_Oficial": "sum",
@@ -186,37 +193,118 @@ sap_resumo = df_sap_ano.groupby("Num_IPOF_Oficial", as_index=False).agg({
     "Descricao_Despesa_Oficial": "first",
 })
 
-# ------------------------------------------------------------------ CRUZAMENTO (JOIN)
-# Cruzamento 1: O que está na Planilha com os dados do SAP BO
-df_cruzado = pd.merge(
-    df_plan_exploded,
-    sap_resumo,
-    left_on="Num_IPOF",
-    right_on="Num_IPOF_Oficial",
-    how="left"
-)
+# Dicionários de indexação rápida do SIAFIC
+sap_by_ipof = sap_resumo.set_index("Num_IPOF_Oficial").to_dict(orient="index")
 
-# Classificação de Conformidade
-def classificar_status(r):
-    num_ipof = r["Num_IPOF"]
-    val_plan = r["Valor_Estimado_Item"]
-    val_sap = r["Valor_Parcela_Oficial"]
+sap_by_proc: dict[str, dict] = {}
+for _, row_sap in df_sap_ano.iterrows():
+    procs_sap = extrair_procs(row_sap["Processo_SEI_Oficial"])
+    for p in procs_sap:
+        if p not in sap_by_proc:
+            sap_by_proc[p] = {
+                "ipofs": set(),
+                "valor_total": 0.0,
+                "situacoes": set(),
+                "acoes": set(),
+                "naturezas": set(),
+                "descricoes": set(),
+            }
+        sap_by_proc[p]["ipofs"].add(str(row_sap["Num_IPOF_Oficial"]))
+        sap_by_proc[p]["valor_total"] += float(row_sap.get("Valor_Parcela_Oficial", 0) or 0)
+        if pd.notna(row_sap.get("Situacao_IPOF_Oficial")) and str(row_sap["Situacao_IPOF_Oficial"]).strip():
+            sap_by_proc[p]["situacoes"].add(str(row_sap["Situacao_IPOF_Oficial"]).strip())
+        if pd.notna(row_sap.get("Acao_Oficial")) and str(row_sap["Acao_Oficial"]).strip():
+            sap_by_proc[p]["acoes"].add(str(row_sap["Acao_Oficial"]).strip())
+        if pd.notna(row_sap.get("Natureza_Despesa_Oficial")) and str(row_sap["Natureza_Despesa_Oficial"]).strip():
+            sap_by_proc[p]["naturezas"].add(str(row_sap["Natureza_Despesa_Oficial"]).strip())
+        if pd.notna(row_sap.get("Descricao_Despesa_Oficial")) and str(row_sap["Descricao_Despesa_Oficial"]).strip():
+            sap_by_proc[p]["descricoes"].add(str(row_sap["Descricao_Despesa_Oficial"]).strip())
+
+# ------------------------------------------------------------------ CRUZAMENTO COMPLETO (IPOF + PROCESSO SEI)
+linhas_cruzadas = []
+for _, r_plan in df_plan_exploded.iterrows():
+    ipof_val = str(r_plan["Num_IPOF"]).strip()
+    val_plan = float(r_plan["Valor_Estimado_Item"] or 0)
+    procs_item = extrair_procs(r_plan.get("Processo_SEI_Planilha", ""))
     
-    if num_ipof == "(Sem IPOF na Planilha)":
-        return "🔴 Sem IPOF na Planilha"
-    if pd.isna(val_sap) or val_sap == 0:
-        return "🟡 IPOF não localizado no SIAFIC"
-    
-    # Se o item tem múltiplos IPOFs, avaliamos por proximidade
-    dif = abs(val_plan - val_sap)
-    if dif < 1.0 or (r["Qtd_IPOFs_No_Item"] > 1 and val_sap > 0):
-        return "🟢 Conforme Oficial"
-    elif val_sap > val_plan:
-        return "🔵 Oficial Maior que Estimado"
+    # 1. Casamento direto por Número de IPOF
+    if ipof_val != "(Sem IPOF na Planilha)" and ipof_val in sap_by_ipof:
+        d_sap = sap_by_ipof[ipof_val]
+        val_sap = float(d_sap.get("Valor_Parcela_Oficial") or 0)
+        dif = abs(val_plan - val_sap)
+        if dif < 1.0 or (r_plan["Qtd_IPOFs_No_Item"] > 1 and val_sap > 0):
+            st_conf = "🟢 Conforme Oficial"
+        elif val_sap > val_plan:
+            st_conf = "🔵 Oficial Maior que Estimado"
+        else:
+            st_conf = "🟠 Oficial Menor que Estimado"
+            
+        linhas_cruzadas.append({
+            **r_plan,
+            "Valor_Parcela_Oficial": val_sap,
+            "Situacao_IPOF_Oficial": d_sap.get("Situacao_IPOF_Oficial") or "-",
+            "Acao_Oficial": d_sap.get("Acao_Oficial") or "-",
+            "Natureza_Despesa_Oficial": d_sap.get("Natureza_Despesa_Oficial") or "-",
+            "Descricao_Despesa_Oficial": d_sap.get("Descricao_Despesa_Oficial") or "-",
+            "Status_Conformidade": st_conf,
+            "IPOF_Encontrado_SIAFIC": ipof_val,
+        })
     else:
-        return "🟠 Oficial Menor que Estimado"
+        # 2. Casamento alternativo por Processo SEI
+        procs_match = [p for p in procs_item if p in sap_by_proc]
+        if procs_match:
+            ipofs_enc = set()
+            val_tot_proc = 0.0
+            situacoes_proc = set()
+            acoes_proc = set()
+            naturezas_proc = set()
+            descricoes_proc = set()
+            
+            for p in procs_match:
+                info_p = sap_by_proc[p]
+                ipofs_enc.update(info_p["ipofs"])
+                val_tot_proc += info_p["valor_total"]
+                situacoes_proc.update(info_p["situacoes"])
+                acoes_proc.update(info_p["acoes"])
+                naturezas_proc.update(info_p["naturezas"])
+                descricoes_proc.update(info_p["descricoes"])
+                
+            ipofs_str = ", ".join(sorted(ipofs_enc))
+            if ipof_val == "(Sem IPOF na Planilha)":
+                num_ipof_exib = f"(Localizado: {ipofs_str})"
+            else:
+                num_ipof_exib = f"{ipof_val} (SIAFIC: {ipofs_str})"
+                
+            linhas_cruzadas.append({
+                **r_plan,
+                "Num_IPOF": num_ipof_exib,
+                "Valor_Parcela_Oficial": val_tot_proc,
+                "Situacao_IPOF_Oficial": ", ".join(sorted(situacoes_proc)) if situacoes_proc else "-",
+                "Acao_Oficial": ", ".join(sorted(acoes_proc)) if acoes_proc else "-",
+                "Natureza_Despesa_Oficial": ", ".join(sorted(naturezas_proc)) if naturezas_proc else "-",
+                "Descricao_Despesa_Oficial": "; ".join(sorted(descricoes_proc)) if descricoes_proc else "-",
+                "Status_Conformidade": "🟣 Localizado por Processo SEI",
+                "IPOF_Encontrado_SIAFIC": ipofs_str,
+            })
+        else:
+            # 3. Não localizado nem por IPOF nem por Processo SEI
+            if ipof_val == "(Sem IPOF na Planilha)":
+                st_conf = "🔴 Sem IPOF na Planilha"
+            else:
+                st_conf = "🟡 IPOF não localizado no SIAFIC"
+                
+            linhas_cruzadas.append({
+                **r_plan,
+                "Valor_Parcela_Oficial": None,
+                "Situacao_IPOF_Oficial": "-",
+                "Acao_Oficial": "-",
+                "Natureza_Despesa_Oficial": "-",
+                "Descricao_Despesa_Oficial": "-",
+                "Status_Conformidade": st_conf,
+                "IPOF_Encontrado_SIAFIC": "-",
+            })
 
-df_cruzado["Status_Conformidade"] = df_cruzado.apply(classificar_status, axis=1)
+df_cruzado = pd.DataFrame(linhas_cruzadas)
 
 # ------------------------------------------------------------------ FILTROS NA BARRA LATERAL
 with st.sidebar:
@@ -249,11 +337,20 @@ if busca_conc:
 k1, k2, k3, k4 = st.columns(4)
 
 total_planejado_itens = df_planilha_raw[col_total].sum()
-itens_com_ipof = df_plan_exploded[df_plan_exploded["Num_IPOF"] != "(Sem IPOF na Planilha)"]["Item"].nunique()
 itens_totais = df_planilha_raw[col_item].nunique()
-pct_cobertura = (itens_com_ipof / itens_totais * 100) if itens_totais else 0
 
-ipofs_encontrados_sap = df_cruzado[df_cruzado["Valor_Parcela_Oficial"].notna()]["Num_IPOF"].nunique()
+# Itens da planilha conciliados com sucesso (IPOF ou Processo SEI)
+itens_conciliados = df_cruzado[df_cruzado["Valor_Parcela_Oficial"].notna()]["Item"].nunique()
+pct_cobertura = (itens_conciliados / itens_totais * 100) if itens_totais else 0
+
+# Contagem de IPOFs oficiais únicos convalidados
+ipofs_oficiais_casados = set()
+for _, r_c in df_cruzado.iterrows():
+    enc = str(r_c.get("IPOF_Encontrado_SIAFIC", ""))
+    for ip in re.findall(r"\d{10,15}", enc):
+        ipofs_oficiais_casados.add(ip)
+ipofs_encontrados_sap = len(ipofs_oficiais_casados)
+
 total_valor_oficial_casado = df_cruzado["Valor_Parcela_Oficial"].fillna(0).sum()
 
 pct_cob_str = f"{pct_cobertura:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
@@ -267,16 +364,16 @@ with k1:
     )
 with k2:
     st.markdown(
-        f'<div class="kpi"><div class="label">Cobertura de IPOFs</div>'
+        f'<div class="kpi"><div class="label">Cobertura Conciliada</div>'
         f'<div class="value">{pct_cobertura:.1f}%</div>'
-        f'<div class="sub">{num(itens_com_ipof)} de {num(itens_totais)} itens c/ IPOF informado</div></div>',
+        f'<div class="sub">{num(itens_conciliados)} de {num(itens_totais)} itens conciliados</div></div>',
         unsafe_allow_html=True
     )
 with k3:
     st.markdown(
         f'<div class="kpi"><div class="label">IPOFs Localizados no SIAFIC</div>'
         f'<div class="value">{num(ipofs_encontrados_sap)}</div>'
-        f'<div class="sub">Convalidados na base oficial do Estado</div></div>',
+        f'<div class="sub">Convalidados via IPOF ou Processo SEI</div></div>',
         unsafe_allow_html=True
     )
 with k4:
@@ -308,7 +405,7 @@ with tab_tabela:
     df_view_sorted = df_view_work.sort_values(by=["_sort_item", "Item"], ascending=True).copy()
     
     cols_display = [
-        "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF", 
+        "Item", "Unidade", "Objeto", "Contrato", "Processo_SEI_Planilha", "Num_IPOF", 
         "Valor_Estimado_Item", "Valor_Parcela_Oficial", "Status_Conformidade",
         "Situacao_Planilha", "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
@@ -320,12 +417,13 @@ with tab_tabela:
     tabela_fmt[col_ofic_header] = tabela_fmt["Valor_Parcela_Oficial"].apply(fmt_brl)
     
     ordem_final = [
-        "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF",
+        "Item", "Unidade", "Objeto", "Contrato", "Processo_SEI_Planilha", "Num_IPOF",
         col_est_header, col_ofic_header, "Status_Conformidade",
         "Situacao_Planilha", "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
     
     tabela_exibicao = tabela_fmt[ordem_final].rename(columns={
+        "Processo_SEI_Planilha": "Processo SEI",
         "Num_IPOF": "Nº IPOF",
         "Status_Conformidade": "Status",
         "Situacao_Planilha": "Situação Planilha",
@@ -355,6 +453,7 @@ with tab_graficos:
     
     cores_map = {
         "🟢 Conforme Oficial": "#10B981",
+        "🟣 Localizado por Processo SEI": "#8B5CF6",
         "🔴 Sem IPOF na Planilha": "#EF4444",
         "🟡 IPOF não localizado no SIAFIC": "#F59E0B",
         "🔵 Oficial Maior que Estimado": "#3B82F6",
@@ -384,32 +483,106 @@ with tab_graficos:
         )
 
 with tab_sap_sobras:
-    st.subheader("IPOFs Ativos no SIAFIC que não foram mapeados na Planilha")
-    st.caption("Esta listagem aponta despesas registradas oficialmente no sistema orçamentário estadual que não possuem correspondência direta nos itens da planilha.")
+    st.subheader("IPOFs Ativos no SIAFIC sem Vínculo Direto de Número na Planilha")
+    st.caption("Cruzamento reverso: despesas do SIAFIC que não tiveram seu número de IPOF preenchido na planilha, avaliadas por correspondência via Processo SEI.")
     
-    ipofs_na_planilha = set(df_plan_exploded["Num_IPOF"].unique())
+    # Mapeamento reverso: Processo da Planilha -> itens da planilha
+    plan_by_proc: dict[str, list[str]] = {}
+    for _, r_pl in df_plan_exploded.iterrows():
+        p_list = extrair_procs(r_pl.get("Processo_SEI_Planilha", ""))
+        for p in p_list:
+            if p not in plan_by_proc:
+                plan_by_proc[p] = []
+            desc_item = f"Item {r_pl['Item']} ({r_pl['Unidade']})"
+            if desc_item not in plan_by_proc[p]:
+                plan_by_proc[p].append(desc_item)
+
+    ipofs_na_planilha = set(re.findall(r"\d{10,15}", " ".join(df_plan_exploded["Num_IPOF"].astype(str))))
     df_sobras_sap = sap_resumo[
         (~sap_resumo["Num_IPOF_Oficial"].isin(ipofs_na_planilha))
         & (sap_resumo["Num_IPOF_Oficial"].astype(str).str.isdigit())
         & (~sap_resumo["Num_IPOF_Oficial"].astype(str).str.lower().str.contains("soma|total"))
         & (~sap_resumo["Acao_Oficial"].apply(is_acao_invalida))
     ].copy()
+
+    # Identificar vínculo via Processo SEI para cada sobra do SIAFIC
+    def identificar_vinculo_sobra(r):
+        p_list = extrair_procs(r.get("Processo_SEI_Oficial", ""))
+        itens_encontrados = []
+        for p in p_list:
+            if p in plan_by_proc:
+                itens_encontrados.extend(plan_by_proc[p])
+        itens_unicos = sorted(list(set(itens_encontrados)))
+        if itens_unicos:
+            return "🔗 " + ", ".join(itens_unicos)
+        return "❌ Sem Vínculo"
+
+    df_sobras_sap["Vinculo_Planilha"] = df_sobras_sap.apply(identificar_vinculo_sobra, axis=1)
+    df_sobras_sap["Possui_Vinculo"] = df_sobras_sap["Vinculo_Planilha"].str.startswith("🔗")
     df_sobras_sap = df_sobras_sap.sort_values(by="Valor_Parcela_Oficial", ascending=False)
-    
+
+    total_sobras_qtd = len(df_sobras_sap)
     total_sobras_val = df_sobras_sap["Valor_Parcela_Oficial"].sum()
-    st.markdown(
-        f"**Total de IPOFs oficiais sem vínculo:** {num(len(df_sobras_sap))} | "
-        f"**Valor Total:** {fmt_brl(total_sobras_val)}"
+    vinc_qtd = int(df_sobras_sap["Possui_Vinculo"].sum())
+    vinc_val = df_sobras_sap[df_sobras_sap["Possui_Vinculo"]]["Valor_Parcela_Oficial"].sum()
+    sem_qtd = total_sobras_qtd - vinc_qtd
+    sem_val = total_sobras_val - vinc_val
+
+    # Cards informativos do cruzamento reverso
+    c_s1, c_s2, c_s3 = st.columns(3)
+    with c_s1:
+        st.markdown(
+            f'<div class="kpi"><div class="label">Total sem Nº na Planilha</div>'
+            f'<div class="value">{num(total_sobras_qtd)}</div>'
+            f'<div class="sub">Total: {fmt_brl(total_sobras_val)}</div></div>',
+            unsafe_allow_html=True
+        )
+    with c_s2:
+        st.markdown(
+            f'<div class="kpi"><div class="label">🔗 Vinculados via Processo SEI</div>'
+            f'<div class="value">{num(vinc_qtd)}</div>'
+            f'<div class="sub">Total: {fmt_brl(vinc_val)}</div></div>',
+            unsafe_allow_html=True
+        )
+    with c_s3:
+        st.markdown(
+            f'<div class="kpi"><div class="label">❌ Totalmente sem Vínculo</div>'
+            f'<div class="value">{num(sem_qtd)}</div>'
+            f'<div class="sub">Total: {fmt_brl(sem_val)}</div></div>',
+            unsafe_allow_html=True
+        )
+
+    st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+
+    filtro_sobras = st.radio(
+        "Filtrar lista do SIAFIC:",
+        [
+            f"Todos os IPOFs sem número na Planilha ({num(total_sobras_qtd)})",
+            f"🔗 Vinculados à Planilha via Processo SEI ({num(vinc_qtd)})",
+            f"❌ Totalmente sem Vínculo ({num(sem_qtd)})"
+        ],
+        horizontal=True,
+        key="f_radio_sobras"
     )
-    
-    cols_sobra = ["Num_IPOF_Oficial", "Processo_SEI_Oficial", "Situacao_IPOF_Oficial", "Valor_Parcela_Oficial", "Acao_Oficial", "Descricao_Despesa_Oficial"]
-    df_sobras_fmt = df_sobras_sap[cols_sobra].copy()
+
+    if "Vinculados" in filtro_sobras:
+        df_sobras_view = df_sobras_sap[df_sobras_sap["Possui_Vinculo"]].copy()
+    elif "sem Vínculo" in filtro_sobras:
+        df_sobras_view = df_sobras_sap[~df_sobras_sap["Possui_Vinculo"]].copy()
+    else:
+        df_sobras_view = df_sobras_sap.copy()
+
+    cols_sobra = [
+        "Num_IPOF_Oficial", "Processo_SEI_Oficial", "Vinculo_Planilha",
+        "Situacao_IPOF_Oficial", "Valor_Parcela_Oficial", "Acao_Oficial", "Descricao_Despesa_Oficial"
+    ]
+    df_sobras_fmt = df_sobras_view[cols_sobra].copy()
     
     # Formatação ABNT 2 (R$ X.XXX,XX)
     df_sobras_fmt["Valor Oficial (R$)"] = df_sobras_fmt["Valor_Parcela_Oficial"].apply(fmt_brl)
     
     cols_sobra_ordem = [
-        "Num_IPOF_Oficial", "Processo_SEI_Oficial", "Situacao_IPOF_Oficial",
+        "Num_IPOF_Oficial", "Processo_SEI_Oficial", "Vinculo_Planilha", "Situacao_IPOF_Oficial",
         "Valor Oficial (R$)", "Acao_Oficial", "Descricao_Despesa_Oficial"
     ]
     
@@ -417,6 +590,7 @@ with tab_sap_sobras:
         df_sobras_fmt[cols_sobra_ordem].rename(columns={
             "Num_IPOF_Oficial": "Nº IPOF (SIAFIC)",
             "Processo_SEI_Oficial": "Processo SEI",
+            "Vinculo_Planilha": "Vínculo com a Planilha (via Processo SEI)",
             "Situacao_IPOF_Oficial": "Situação",
             "Acao_Oficial": "Ação Orçamentária",
             "Descricao_Despesa_Oficial": "Descrição"
