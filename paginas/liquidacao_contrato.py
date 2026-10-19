@@ -463,8 +463,43 @@ with tab_contrato:
             unsafe_allow_html=True
         )
         
+        # Cálculo do % Executado Proporcional
+        hoje = datetime.now()
+        dia_atual = hoje.day
+        mes_atual = hoje.month
+
+        if dia_atual >= 15:
+            idx_ref = max(1, mes_atual - 1)
+            nome_ref = meses_nomes[idx_ref - 1]
+            est_prop = float(c_row.get(f"Estimado_{nome_ref}", 0.0) or 0.0)
+            liq_prop = float(c_row.get(f"Liquidado_{nome_ref}", 0.0) or 0.0)
+            pct_prop = (liq_prop / est_prop * 100) if est_prop > 0 else (100.0 if liq_prop > 0 else 0.0)
+            label_card_prop = f"% Exec. Proporcional"
+            sub_card_prop = f"Ref: {nome_ref}/2026 (dia {dia_atual} ≥ 15)"
+        else:
+            idx_ref1 = max(1, mes_atual - 2)
+            idx_ref2 = max(1, mes_atual - 1)
+            nome_ref1 = meses_nomes[idx_ref1 - 1]
+            nome_ref2 = meses_nomes[idx_ref2 - 1]
+            est1 = float(c_row.get(f"Estimado_{nome_ref1}", 0.0) or 0.0)
+            liq1 = float(c_row.get(f"Liquidado_{nome_ref1}", 0.0) or 0.0)
+            est2 = float(c_row.get(f"Estimado_{nome_ref2}", 0.0) or 0.0)
+            liq2 = float(c_row.get(f"Liquidado_{nome_ref2}", 0.0) or 0.0)
+            
+            tot_est_2m = est1 + est2
+            tot_liq_2m = liq1 + liq2
+            if tot_est_2m > 0:
+                pct_prop = (tot_liq_2m / tot_est_2m) * 100
+            else:
+                pct1 = (liq1 / est1 * 100) if est1 > 0 else (100.0 if liq1 > 0 else 0.0)
+                pct2 = (liq2 / est2 * 100) if est2 > 0 else (100.0 if liq2 > 0 else 0.0)
+                pct_prop = (pct1 + pct2) / 2
+                
+            label_card_prop = f"% Exec. Proporcional"
+            sub_card_prop = f"Média: {nome_ref1[:3]}+{nome_ref2[:3]} (dia {dia_atual} < 15)"
+
         # KPIs individuais do contrato
-        kc1, kc2, kc3, kc4 = st.columns(4)
+        kc1, kc2, kc3, kc4, kc5 = st.columns(5)
         c_est_tot = float(c_row["Estimado_Total_2026"])
         c_liq_tot = float(c_row["Total_Liquidado_SIAFIC"])
         c_saldo = float(c_row["Saldo_A_Liquidar"])
@@ -493,9 +528,16 @@ with tab_contrato:
             )
         with kc4:
             st.markdown(
-                f'<div class="kpi"><div class="label">% Executado</div>'
+                f'<div class="kpi"><div class="label">% Executado Total</div>'
                 f'<div class="value">{c_pct:.1f}%</div>'
                 f'<div class="sub">Da estimativa anual realizada</div></div>',
+                unsafe_allow_html=True
+            )
+        with kc5:
+            st.markdown(
+                f'<div class="kpi"><div class="label">{label_card_prop}</div>'
+                f'<div class="value">{pct_prop:.1f}%</div>'
+                f'<div class="sub">{sub_card_prop}</div></div>',
                 unsafe_allow_html=True
             )
             
