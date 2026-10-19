@@ -257,33 +257,49 @@ for _, row_sap in df_sap_2026.iterrows():
         continue
 
     if len(c_candidatos) == 1:
-        c_target = list(c_candidatos)[0]
+        targets_with_weights = [(list(c_candidatos)[0], 1.0)]
     else:
-        # Mais de 1 contrato compartilha este Processo SEI: escolhe o melhor match de fornecedor
-        best_c = None
-        best_sc = 0.0
+        # Calcula a melhor pontuação de similaridade para cada contrato candidato
+        scores: dict[str, float] = {}
         for c_cand in c_candidatos:
+            sc_max = 0.0
             for forn in contratos_agrupados[c_cand]["Fornecedores"]:
                 sc = match_fornecedor_beneficiario(forn, b)
-                if sc > best_sc:
-                    best_sc = sc
-                    best_c = c_cand
-        if best_c and best_sc > 0.0:
-            c_target = best_c
-        else:
+                if sc > sc_max:
+                    sc_max = sc
+            scores[c_cand] = sc_max
+
+        best_score = max(scores.values()) if scores else 0.0
+        if best_score <= 0.0:
             # Beneficiário não corresponde aos fornecedores dos contratos candidatos -> sobra
             sobras_sap_rows.append(row_sap.to_dict())
             continue
 
-    c_target_dict = contratos_agrupados[c_target]
-    c_target_dict["Total_Liquidado_SIAFIC"] += v
-    if m_nome in c_target_dict["Liquidado_Meses"]:
-        c_target_dict["Liquidado_Meses"][m_nome] += v
-    if b:
-        c_target_dict["Beneficiarios_SIAFIC"].add(b)
-    if nat:
-        c_target_dict["Naturezas_SIAFIC"].add(nat)
-    c_target_dict["Lancamentos_SIAFIC"].append(row_sap.to_dict())
+        best_candidates = [c for c, sc in scores.items() if sc == best_score]
+        if len(best_candidates) == 1:
+            targets_with_weights = [(best_candidates[0], 1.0)]
+        else:
+            # Empate: mais de um contrato do mesmo processo possui o mesmo fornecedor (ex: lotes 025/2024 e 032/2024 com BRFIBRA)
+            # Rateia o lançamento proporcionalmente à estimativa total de cada contrato empatado
+            soma_est = sum(contratos_agrupados[c]["Estimado_Total"] for c in best_candidates)
+            if soma_est > 0:
+                targets_with_weights = [(c, contratos_agrupados[c]["Estimado_Total"] / soma_est) for c in best_candidates]
+            else:
+                targets_with_weights = [(c, 1.0 / len(best_candidates)) for c in best_candidates]
+
+    for c_target, peso in targets_with_weights:
+        v_part = v * peso
+        c_dict = contratos_agrupados[c_target]
+        c_dict["Total_Liquidado_SIAFIC"] += v_part
+        if m_nome in c_dict["Liquidado_Meses"]:
+            c_dict["Liquidado_Meses"][m_nome] += v_part
+        if b:
+            c_dict["Beneficiarios_SIAFIC"].add(b)
+        if nat:
+            c_dict["Naturezas_SIAFIC"].add(nat)
+        row_dict = row_sap.to_dict()
+        row_dict["Valor_Liquidado_Saldo"] = v_part
+        c_dict["Lancamentos_SIAFIC"].append(row_dict)
 
 # 3. Montagem das linhas consolidadas por contrato
 linhas_consolidadas = []
