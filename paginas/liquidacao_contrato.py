@@ -330,74 +330,183 @@ tab_detalhada, tab_mensal, tab_sobras_sap = st.tabs([
 
 # ------------------------------------------------------------------ ABA 1: PAINEL POR CONTRATO
 with tab_detalhada:
-    st.subheader("Acompanhamento Individual por Contrato")
+    st.subheader("Acompanhamento Mês a Mês por Contrato (Estimado vs Liquidado)")
     
-    # Seletor de detalhamento mensal
-    ver_meses = st.checkbox("Exibir colunas com liquidação mês a mês (Jan, Fev, Mar, Abr)", value=False)
+    # Seletor de modo de detalhamento mensal
+    modo_meses = st.radio(
+        "Detalhamento Mensal na Tabela:",
+        ["Meses Executados (Jan a Abr)", "Todos os Meses (Jan a Dez)", "Foco em Mês Único", "Apenas Totais"],
+        horizontal=True,
+        key="f_modo_meses"
+    )
     
-    cols_base = [
-        "Contrato", "Processo_SEI", "Objeto", "Fornecedor", "Unidade",
-        "Estimado_Total_2026", "Total_Liquidado_SIAFIC", "Saldo_A_Liquidar",
-        "Pct_Executado", "Status_Execucao"
+    meses_info = [
+        ("Janeiro", "Jan"), ("Fevereiro", "Fev"), ("Março", "Mar"), ("Abril", "Abr"),
+        ("Maio", "Mai"), ("Junho", "Jun"), ("Julho", "Jul"), ("Agosto", "Ago"),
+        ("Setembro", "Set"), ("Outubro", "Out"), ("Novembro", "Nov"), ("Dezembro", "Dez")
     ]
     
-    if ver_meses:
-        # Meses que já possuem liquidação oficial
-        cols_meses_show = ["Liquidado_Janeiro", "Liquidado_Fevereiro", "Liquidado_Março", "Liquidado_Abril"]
-        cols_base = (
-            cols_base[:6]
-            + cols_meses_show
-            + cols_base[6:]
-        )
-        
     df_table = df_view.sort_values(by="Total_Liquidado_SIAFIC", ascending=False).copy()
     
+    cols_identificacao = ["Contrato", "Processo_SEI", "Objeto", "Fornecedor", "Unidade"]
+    cols_totais = ["Estimado_Total_2026", "Total_Liquidado_SIAFIC", "Saldo_A_Liquidar", "Pct_Executado", "Status_Execucao"]
+    
     # Formatação ABNT 2
-    df_table_fmt = df_table[cols_base].copy()
+    df_table_fmt = df_table.copy()
     df_table_fmt["Estimado Total 2026 (R$)"] = df_table_fmt["Estimado_Total_2026"].apply(fmt_brl)
     df_table_fmt["Liquidado SIAFIC 2026 (R$)"] = df_table_fmt["Total_Liquidado_SIAFIC"].apply(fmt_brl)
     df_table_fmt["Saldo a Liquidar (R$)"] = df_table_fmt["Saldo_A_Liquidar"].apply(fmt_brl)
     df_table_fmt["% Exec."] = df_table_fmt["Pct_Executado"].apply(lambda x: f"{x:.1f}%")
     
-    if ver_meses:
-        df_table_fmt["Jan/26 (R$)"] = df_table_fmt["Liquidado_Janeiro"].apply(fmt_brl)
-        df_table_fmt["Fev/26 (R$)"] = df_table_fmt["Liquidado_Fevereiro"].apply(fmt_brl)
-        df_table_fmt["Mar/26 (R$)"] = df_table_fmt["Liquidado_Março"].apply(fmt_brl)
-        df_table_fmt["Abr/26 (R$)"] = df_table_fmt["Liquidado_Abril"].apply(fmt_brl)
+    # Formata colunas de cada mês
+    for nome_m, abbr_m in meses_info:
+        df_table_fmt[f"{abbr_m} Est. (R$)"] = df_table_fmt[f"Estimado_{nome_m}"].apply(fmt_brl)
+        df_table_fmt[f"{abbr_m} Liq. (R$)"] = df_table_fmt[f"Liquidado_{nome_m}"].apply(fmt_brl)
         
-        ordem_colunas = [
-            "Contrato", "Processo_SEI", "Objeto", "Fornecedor", "Unidade",
-            "Estimado Total 2026 (R$)",
-            "Jan/26 (R$)", "Fev/26 (R$)", "Mar/26 (R$)", "Abr/26 (R$)",
-            "Liquidado SIAFIC 2026 (R$)", "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"
-        ]
+    if modo_meses == "Meses Executados (Jan a Abr)":
+        meses_selecionados = meses_info[:4]
+        cols_mensais = []
+        for _, abbr in meses_selecionados:
+            cols_mensais.extend([f"{abbr} Est. (R$)", f"{abbr} Liq. (R$)"])
+        ordem_colunas = (
+            cols_identificacao
+            + cols_mensais
+            + ["Estimado Total 2026 (R$)", "Liquidado SIAFIC 2026 (R$)", "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"]
+        )
+    elif modo_meses == "Todos os Meses (Jan a Dez)":
+        cols_mensais = []
+        for _, abbr in meses_info:
+            cols_mensais.extend([f"{abbr} Est. (R$)", f"{abbr} Liq. (R$)"])
+        ordem_colunas = (
+            cols_identificacao
+            + cols_mensais
+            + ["Estimado Total 2026 (R$)", "Liquidado SIAFIC 2026 (R$)", "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"]
+        )
+    elif modo_meses == "Foco em Mês Único":
+        mes_unico = st.selectbox("Selecione o mês para análise detalhada:", [m[0] for m in meses_info], index=0)
+        abbr_unico = [m[1] for m in meses_info if m[0] == mes_unico][0]
+        
+        # Calcula diferença do mês
+        df_table_fmt[f"{abbr_unico} Saldo (R$)"] = (df_table[f"Estimado_{mes_unico}"] - df_table[f"Liquidado_{mes_unico}"]).apply(fmt_brl)
+        
+        ordem_colunas = (
+            cols_identificacao
+            + [f"{abbr_unico} Est. (R$)", f"{abbr_unico} Liq. (R$)", f"{abbr_unico} Saldo (R$)"]
+            + ["Estimado Total 2026 (R$)", "Liquidado SIAFIC 2026 (R$)", "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"]
+        )
     else:
-        ordem_colunas = [
-            "Contrato", "Processo_SEI", "Objeto", "Fornecedor", "Unidade",
-            "Estimado Total 2026 (R$)", "Liquidado SIAFIC 2026 (R$)",
-            "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"
-        ]
+        # Apenas Totais
+        ordem_colunas = (
+            cols_identificacao
+            + ["Estimado Total 2026 (R$)", "Liquidado SIAFIC 2026 (R$)", "Saldo a Liquidar (R$)", "% Exec.", "Status_Execucao"]
+        )
         
     tabela_final = df_table_fmt[ordem_colunas].rename(columns={
         "Processo_SEI": "Processo SEI",
         "Status_Execucao": "Status"
     })
     
+    col_configs = {
+        col: st.column_config.TextColumn(alignment="right")
+        for col in tabela_final.columns
+        if "(R$)" in col or "%" in col
+    }
+    
     st.dataframe(
         tabela_final,
         use_container_width=True,
         hide_index=True,
-        column_config={
-            "Estimado Total 2026 (R$)": st.column_config.TextColumn(alignment="right"),
-            "Liquidado SIAFIC 2026 (R$)": st.column_config.TextColumn(alignment="right"),
-            "Saldo a Liquidar (R$)": st.column_config.TextColumn(alignment="right"),
-            "% Exec.": st.column_config.TextColumn(alignment="right"),
-            "Jan/26 (R$)": st.column_config.TextColumn(alignment="right"),
-            "Fev/26 (R$)": st.column_config.TextColumn(alignment="right"),
-            "Mar/26 (R$)": st.column_config.TextColumn(alignment="right"),
-            "Abr/26 (R$)": st.column_config.TextColumn(alignment="right"),
-        }
+        column_config=col_configs
     )
+    
+    # ------------------------------------------------------------- DRILL-DOWN POR CONTRATO
+    st.markdown("<div style='height: 18px;'></div>", unsafe_allow_html=True)
+    st.markdown("#### 🔎 Inspecionar Evolução Mensal de um Contrato Específico")
+    
+    lista_contratos = sorted(df_view["Contrato"].unique().tolist())
+    contrato_selecionado = st.selectbox(
+        "Selecione um contrato para visualizar o gráfico e a tabela comparativa mês a mês:",
+        ["(Selecione um contrato...)"] + lista_contratos,
+        key="f_contrato_drilldown"
+    )
+    
+    if contrato_selecionado and contrato_selecionado != "(Selecione um contrato...)":
+        c_row = df_view[df_view["Contrato"] == contrato_selecionado].iloc[0]
+        
+        # Card resumo do contrato
+        st.markdown(
+            f"""<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:12px 18px; margin-bottom:1rem;">
+                <strong style="color:#166534; font-size:1.1rem;">📄 {c_row['Contrato']}</strong> &nbsp;|&nbsp; 
+                <strong>Processo SEI:</strong> {c_row['Processo_SEI']} &nbsp;|&nbsp; 
+                <strong>Unidade:</strong> {c_row['Unidade']}<br>
+                <strong>Fornecedor:</strong> {c_row['Fornecedor']}<br>
+                <strong>Objeto:</strong> {c_row['Objeto']}
+            </div>""",
+            unsafe_allow_html=True
+        )
+        
+        # Monta dados dos 12 meses para o contrato
+        linhas_c_meses = []
+        for nome_m, abbr_m in meses_info:
+            v_est = float(c_row.get(f"Estimado_{nome_m}", 0.0) or 0.0)
+            v_liq = float(c_row.get(f"Liquidado_{nome_m}", 0.0) or 0.0)
+            dif = v_est - v_liq
+            pct_m = (v_liq / v_est * 100) if v_est > 0 else (100.0 if v_liq > 0 else 0.0)
+            linhas_c_meses.append({
+                "Mês": nome_m,
+                "Abreviacao": abbr_m,
+                "Estimado": v_est,
+                "Liquidado": v_liq,
+                "Saldo do Mês": dif,
+                "% Executado": pct_m,
+            })
+            
+        df_c_meses = pd.DataFrame(linhas_c_meses)
+        
+        col_c_tab, col_c_chart = st.columns([1.1, 1])
+        
+        with col_c_tab:
+            st.markdown("##### 📑 Tabela Mensal do Contrato")
+            df_c_tab_fmt = df_c_meses.copy()
+            df_c_tab_fmt["Estimado (R$)"] = df_c_tab_fmt["Estimado"].apply(fmt_brl)
+            df_c_tab_fmt["Liquidado SIAFIC (R$)"] = df_c_tab_fmt["Liquidado"].apply(fmt_brl)
+            df_c_tab_fmt["Saldo do Mês (R$)"] = df_c_tab_fmt["Saldo do Mês"].apply(fmt_brl)
+            df_c_tab_fmt["% Exec."] = df_c_tab_fmt["% Executado"].apply(lambda x: f"{x:.1f}%")
+            
+            st.dataframe(
+                df_c_tab_fmt[["Mês", "Estimado (R$)", "Liquidado SIAFIC (R$)", "Saldo do Mês (R$)", "% Exec."]],
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "Estimado (R$)": st.column_config.TextColumn(alignment="right"),
+                    "Liquidado SIAFIC (R$)": st.column_config.TextColumn(alignment="right"),
+                    "Saldo do Mês (R$)": st.column_config.TextColumn(alignment="right"),
+                    "% Exec.": st.column_config.TextColumn(alignment="right"),
+                }
+            )
+            
+        with col_c_chart:
+            st.markdown("##### 📊 Gráfico Estimado vs Liquidado")
+            fig_c = go.Figure()
+            fig_c.add_trace(go.Bar(
+                x=df_c_meses["Abreviacao"],
+                y=df_c_meses["Estimado"],
+                name="Estimado",
+                marker_color="#3B82F6"
+            ))
+            fig_c.add_trace(go.Bar(
+                x=df_c_meses["Abreviacao"],
+                y=df_c_meses["Liquidado"],
+                name="Liquidado (SIAFIC)",
+                marker_color="#10B981"
+            ))
+            fig_c.update_layout(
+                barmode="group",
+                margin=dict(l=10, r=10, t=25, b=10),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+            )
+            fig_c = style(fig_c, height=340)
+            st.plotly_chart(fig_c, use_container_width=True)
 
 # ------------------------------------------------------------------ ABA 2: EVOLUÇÃO MÊS A MÊS
 with tab_mensal:
