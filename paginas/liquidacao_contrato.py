@@ -349,7 +349,7 @@ tab_detalhada, tab_mensal, tab_sobras_sap = st.tabs([
 with tab_detalhada:
     subtab_geral, subtab_contrato = st.tabs([
         "📋 Tabela Geral por Contrato",
-        "🔎 Inspecionar Evolução Mensal de um Contrato Específico"
+        "🔎 Evolução Mensal de um Contrato Específico"
     ])
     
     meses_info = [
@@ -443,9 +443,9 @@ with tab_detalhada:
             column_config=col_configs
         )
     
-    # --------------------------------------------------------- SUB-ABA 2: INSPETOR ESPECÍFICO
+    # --------------------------------------------------------- SUB-ABA 2: EVOLUÇÃO POR CONTRATO
     with subtab_contrato:
-        st.subheader("Inspecionar Evolução Mensal de um Contrato Específico")
+        st.subheader("Evolução Mensal de um Contrato Específico")
         st.caption("Auditoria mês a mês de contratos formalizados e contratados, confrontando com os lançamentos oficiais do SIAFIC.")
         
         # Filtra exclusivamente itens que possuem contrato formal e empresa contratada
