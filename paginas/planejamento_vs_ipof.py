@@ -11,6 +11,21 @@ from common import brl, num, style, PALETTE
 import common
 import ploa_ipof_data
 
+
+def fmt_brl(v: float | int | None) -> str:
+    """Formata valor monetário no padrão brasileiro ABNT 2 (ex: R$ 1.000,00)."""
+    if v is None or pd.isna(v) or v == "":
+        return "-"
+    try:
+        val = float(v)
+        sign = "-" if val < 0 else ""
+        a = abs(val)
+        s = f"{a:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {sign}{s}"
+    except Exception:
+        return str(v)
+
+
 # ------------------------------------------------------------------ CARREGAMENTO DOS DADOS
 ano_selecionado = st.sidebar.radio("Exercício em Análise", [2026, 2027], index=0, horizontal=True)
 
@@ -179,31 +194,33 @@ pct_cobertura = (itens_com_ipof / itens_totais * 100) if itens_totais else 0
 ipofs_encontrados_sap = df_cruzado[df_cruzado["Valor_Parcela_Oficial"].notna()]["Num_IPOF"].nunique()
 total_valor_oficial_casado = df_cruzado["Valor_Parcela_Oficial"].fillna(0).sum()
 
+pct_cob_str = f"{pct_cobertura:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
 with k1:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Estimado ({ano_selecionado})</div>'
-        f'<div class="value">{brl(total_planejado_itens)}</div>'
+        f'<div class="value">{fmt_brl(total_planejado_itens)}</div>'
         f'<div class="sub">{num(itens_totais)} despesas na planilha</div></div>',
         unsafe_allow_html=True
     )
 with k2:
     st.markdown(
         f'<div class="kpi"><div class="label">Cobertura de IPOFs</div>'
-        f'<div class="value">{pct_cobertura:.1f}%</div>'
-        f'<div class="sub">{itens_com_ipof} de {itens_totais} itens c/ IPOF informado</div></div>',
+        f'<div class="value">{pct_cob_str}%</div>'
+        f'<div class="sub">{num(itens_com_ipof)} de {num(itens_totais)} itens c/ IPOF informado</div></div>',
         unsafe_allow_html=True
     )
 with k3:
     st.markdown(
         f'<div class="kpi"><div class="label">IPOFs Localizados no SIAFIC</div>'
-        f'<div class="value">{ipofs_encontrados_sap}</div>'
+        f'<div class="value">{num(ipofs_encontrados_sap)}</div>'
         f'<div class="sub">Convalidados na base oficial do Estado</div></div>',
         unsafe_allow_html=True
     )
 with k4:
     st.markdown(
         f'<div class="kpi"><div class="label">Valor Oficial Validado</div>'
-        f'<div class="value">{brl(total_valor_oficial_casado)}</div>'
+        f'<div class="value">{fmt_brl(total_valor_oficial_casado)}</div>'
         f'<div class="sub">Total de parcelas registradas no SIAFIC</div></div>',
         unsafe_allow_html=True
     )
@@ -217,8 +234,14 @@ tab_tabela, tab_graficos, tab_sap_sobras = st.tabs([
     "🔍 IPOFs no SIAFIC sem Vínculo na Planilha"
 ])
 
+col_est_header = f"Estimado {ano_selecionado} (R$)"
+col_ofic_header = "Oficial SIAFIC (R$)"
+
 with tab_tabela:
     st.subheader("Confronto: Estimativa da Unidade vs Registro Oficial no SIAFIC")
+    
+    # Ordena pelo valor estimado decrescente
+    df_view_sorted = df_view.sort_values(by="Valor_Estimado_Item", ascending=False).copy()
     
     cols_display = [
         "Item", "Unidade", "Objeto", "Num_IPOF", 
@@ -226,10 +249,19 @@ with tab_tabela:
         "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
     
-    tabela_fmt = df_view[cols_display].copy()
-    tabela_fmt = tabela_fmt.rename(columns={
-        "Valor_Estimado_Item": f"Estimado {ano_selecionado} (R$)",
-        "Valor_Parcela_Oficial": "Oficial SIAFIC (R$)",
+    tabela_fmt = df_view_sorted[cols_display].copy()
+    
+    # Formatação ABNT 2 (R$ X.XXX,XX)
+    tabela_fmt[col_est_header] = tabela_fmt["Valor_Estimado_Item"].apply(fmt_brl)
+    tabela_fmt[col_ofic_header] = tabela_fmt["Valor_Parcela_Oficial"].apply(fmt_brl)
+    
+    ordem_final = [
+        "Item", "Unidade", "Objeto", "Num_IPOF",
+        col_est_header, col_ofic_header, "Status_Conformidade",
+        "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
+    ]
+    
+    tabela_exibicao = tabela_fmt[ordem_final].rename(columns={
         "Num_IPOF": "Nº IPOF",
         "Status_Conformidade": "Status",
         "Situacao_IPOF_Oficial": "Situação SIAFIC",
@@ -238,12 +270,12 @@ with tab_tabela:
     })
     
     st.dataframe(
-        tabela_fmt,
+        tabela_exibicao,
         use_container_width=True,
         hide_index=True,
         column_config={
-            f"Estimado {ano_selecionado} (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
-            "Oficial SAP BO (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+            col_est_header: st.column_config.TextColumn(alignment="right"),
+            col_ofic_header: st.column_config.TextColumn(alignment="right"),
         }
     )
 
@@ -258,7 +290,7 @@ with tab_graficos:
         cores_map = {
             "🟢 Conforme Oficial": "#10B981",
             "🔴 Sem IPOF na Planilha": "#EF4444",
-            "🟡 IPOF não localizado no SAP BO": "#F59E0B",
+            "🟡 IPOF não localizado no SIAFIC": "#F59E0B",
             "🔵 Oficial Maior que Estimado": "#3B82F6",
             "🟠 Oficial Menor que Estimado": "#F97316",
         }
@@ -293,22 +325,36 @@ with tab_sap_sobras:
     
     ipofs_na_planilha = set(df_plan_exploded["Num_IPOF"].unique())
     df_sobras_sap = sap_resumo[~sap_resumo["Num_IPOF_Oficial"].isin(ipofs_na_planilha)].copy()
+    df_sobras_sap = df_sobras_sap.sort_values(by="Valor_Parcela_Oficial", ascending=False)
     
-    st.markdown(f"**Total de IPOFs oficiais sem vínculo:** {num(len(df_sobras_sap))} | **Valor Total:** {brl(df_sobras_sap['Valor_Parcela_Oficial'].sum())}")
+    total_sobras_val = df_sobras_sap["Valor_Parcela_Oficial"].sum()
+    st.markdown(
+        f"**Total de IPOFs oficiais sem vínculo:** {num(len(df_sobras_sap))} | "
+        f"**Valor Total:** {fmt_brl(total_sobras_val)}"
+    )
     
     cols_sobra = ["Num_IPOF_Oficial", "Processo_SEI_Oficial", "Situacao_IPOF_Oficial", "Valor_Parcela_Oficial", "Acao_Oficial", "Descricao_Despesa_Oficial"]
+    df_sobras_fmt = df_sobras_sap[cols_sobra].copy()
+    
+    # Formatação ABNT 2 (R$ X.XXX,XX)
+    df_sobras_fmt["Valor Oficial (R$)"] = df_sobras_fmt["Valor_Parcela_Oficial"].apply(fmt_brl)
+    
+    cols_sobra_ordem = [
+        "Num_IPOF_Oficial", "Processo_SEI_Oficial", "Situacao_IPOF_Oficial",
+        "Valor Oficial (R$)", "Acao_Oficial", "Descricao_Despesa_Oficial"
+    ]
+    
     st.dataframe(
-        df_sobras_sap[cols_sobra].rename(columns={
+        df_sobras_fmt[cols_sobra_ordem].rename(columns={
             "Num_IPOF_Oficial": "Nº IPOF (SIAFIC)",
             "Processo_SEI_Oficial": "Processo SEI",
             "Situacao_IPOF_Oficial": "Situação",
-            "Valor_Parcela_Oficial": "Valor Oficial (R$)",
             "Acao_Oficial": "Ação Orçamentária",
             "Descricao_Despesa_Oficial": "Descrição"
         }),
         use_container_width=True,
         hide_index=True,
         column_config={
-            "Valor Oficial (R$)": st.column_config.NumberColumn(format="R$ %,.2f"),
+            "Valor Oficial (R$)": st.column_config.TextColumn(alignment="right"),
         }
     )
