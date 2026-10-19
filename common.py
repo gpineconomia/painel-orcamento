@@ -13,9 +13,9 @@ import streamlit as st
 
 from data_source import CACHE_FILE_2026, CACHE_FILE_2027, get_settings, load_data, load_supressoes_2027
 
-# Hash SHA-256 com salt da senha de acesso externo (padrão: economia2026)
+# Hash SHA-256 com salt da senha de acesso externo
 _AUTH_SALT = "goias_ploa_salt_2026:"
-_DEFAULT_PASS_HASH = "baaccf093e69338c054a23baadf7a92635978424af605feeb095f88d49bbd3a8"
+_DEFAULT_PASS_HASH = "b28032027e5c0341beef3ea3b80ebbd29f2f34da9c548aacaf5e9fcd6e524fd8"
 
 cfg_2026 = get_settings(2026)
 cfg_2027 = get_settings(2027)
