@@ -26,6 +26,27 @@ def fmt_brl(v: float | int | None) -> str:
         return str(v)
 
 
+def fmt_card_mi(v: float | int | None) -> str:
+    """Formata valor abreviado em Mi / Bi com 2 casas decimais para cards (ex: R$ 493,72 Mi)."""
+    if v is None or pd.isna(v) or v == 0:
+        return "R$ 0,00"
+    try:
+        val = float(v)
+        sign = "-" if val < 0 else ""
+        a = abs(val)
+        if a >= 1e9:
+            s = f"{a / 1e9:,.2f} Bi"
+        elif a >= 1e6:
+            s = f"{a / 1e6:,.2f} Mi"
+        elif a >= 1e3:
+            s = f"{a / 1e3:,.2f} mil"
+        else:
+            s = f"{a:,.2f}"
+        return "R$ " + sign + s.replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(v)
+
+
 # ------------------------------------------------------------------ CARREGAMENTO DOS DADOS
 ano_selecionado = st.sidebar.radio("Exercício em Análise", [2026, 2027], index=0, horizontal=True)
 
@@ -199,14 +220,14 @@ pct_cob_str = f"{pct_cobertura:,.2f}".replace(",", "X").replace(".", ",").replac
 with k1:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Estimado ({ano_selecionado})</div>'
-        f'<div class="value">{fmt_brl(total_planejado_itens)}</div>'
+        f'<div class="value">{fmt_card_mi(total_planejado_itens)}</div>'
         f'<div class="sub">{num(itens_totais)} despesas na planilha</div></div>',
         unsafe_allow_html=True
     )
 with k2:
     st.markdown(
         f'<div class="kpi"><div class="label">Cobertura de IPOFs</div>'
-        f'<div class="value">{pct_cob_str}%</div>'
+        f'<div class="value">{pct_cobertura:.1f}%</div>'
         f'<div class="sub">{num(itens_com_ipof)} de {num(itens_totais)} itens c/ IPOF informado</div></div>',
         unsafe_allow_html=True
     )
@@ -220,7 +241,7 @@ with k3:
 with k4:
     st.markdown(
         f'<div class="kpi"><div class="label">Valor Oficial Validado</div>'
-        f'<div class="value">{fmt_brl(total_valor_oficial_casado)}</div>'
+        f'<div class="value">{fmt_card_mi(total_valor_oficial_casado)}</div>'
         f'<div class="sub">Total de parcelas registradas no SIAFIC</div></div>',
         unsafe_allow_html=True
     )
@@ -240,8 +261,10 @@ col_ofic_header = "Oficial SIAFIC (R$)"
 with tab_tabela:
     st.subheader("Confronto: Estimativa da Unidade vs Registro Oficial no SIAFIC")
     
-    # Ordena pelo valor estimado decrescente
-    df_view_sorted = df_view.sort_values(by="Valor_Estimado_Item", ascending=False).copy()
+    # Ordenação por Item crescente (ordem natural: 1, 2, 3...)
+    df_view_work = df_view.copy()
+    df_view_work["_sort_item"] = pd.to_numeric(df_view_work["Item"], errors="coerce").fillna(999999)
+    df_view_sorted = df_view_work.sort_values(by=["_sort_item", "Item"], ascending=True).copy()
     
     cols_display = [
         "Item", "Unidade", "Objeto", "Num_IPOF", 
