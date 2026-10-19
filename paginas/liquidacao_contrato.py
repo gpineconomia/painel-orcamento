@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from datetime import datetime
+import difflib
 import re
+import unicodedata
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -53,6 +55,45 @@ def extrair_procs(val: object) -> list[str]:
     if val is None or pd.isna(val):
         return []
     return re.findall(r"\d{10,16}", str(val))
+
+
+def normalizar_texto(s: str) -> str:
+    """Normaliza texto removendo acentos, pontuações e convertendo para maiúsculas."""
+    if not s or str(s).strip() in ["", "-", "nan", "None"]:
+        return ""
+    s_norm = unicodedata.normalize('NFKD', str(s).upper()).encode('ASCII', 'ignore').decode('ASCII')
+    return re.sub(r'[^A-Z0-9 ]', ' ', s_norm)
+
+
+STOP_WORDS = {
+    'LTDA', 'EIRELI', 'ME', 'EPP', 'SA', 'EMPRESA', 'SERVICOS', 'COMERCIO',
+    'ADMINISTRACAO', 'SOLUCOES', 'TECNOLOGIA', 'DO', 'DA', 'DE', 'DOS', 'DAS', 'E'
+}
+
+
+def clean_tokens(s: str) -> set[str]:
+    """Retorna conjunto de tokens relevantes excluindo stop words e palavras curtas."""
+    norm = normalizar_texto(s)
+    words = [w for w in norm.split() if len(w) >= 3 and w not in STOP_WORDS]
+    return set(words)
+
+
+def match_fornecedor_beneficiario(forn_str: str, benef_str: str) -> float:
+    """Calcula pontuação de similaridade entre o nome do Fornecedor e o Beneficiário SIAFIC."""
+    t_f = clean_tokens(forn_str)
+    t_b = clean_tokens(benef_str)
+    if not t_f or not t_b:
+        return 0.0
+    inter = t_f.intersection(t_b)
+    if inter:
+        return 1.0 + len(inter) * 0.5
+    for w1 in t_f:
+        if len(w1) >= 4:
+            for w2 in t_b:
+                if len(w2) >= 4:
+                    if w1 in w2 or w2 in w1 or difflib.SequenceMatcher(None, w1, w2).ratio() >= 0.8:
+                        return 0.8
+    return 0.0
 
 
 # ------------------------------------------------------------------ CARREGAMENTO DOS DADOS (2026)
@@ -123,43 +164,17 @@ cod_meses = [f"2026{i:02d}" for i in range(1, 13)]
 map_cod_to_nome = {f"2026{i:02d}": meses_nomes[i-1] for i in range(1, 13)}
 map_nome_to_cod = {meses_nomes[i-1]: f"2026{i:02d}" for i in range(1, 13)}
 
-# ------------------------------------------------------------------ TRATAMENTO DO SAP BO
+# ------------------------------------------------------------------ TRATAMENTO DO SAP BO E CRUZAMENTO POR CONTRATO
 # A liquidação é identificada pela coluna Período Referência no formato AAAAMM (AAAA=Ano, MM=Mês)
 if "Ano_Referencia" in df_sap.columns:
     df_sap_2026 = df_sap[df_sap["Ano_Referencia"] == 2026].copy()
 else:
     df_sap_2026 = df_sap[df_sap["Periodo_AnoMes"].astype(str).str.startswith("2026")].copy()
 
-# Mapeia liquidação do SIAFIC por processo SEI
-sap_by_proc: dict[str, dict] = {}
-for _, row_sap in df_sap_2026.iterrows():
-    p = str(row_sap["Processo_SEI"]).strip()
-    if not p:
-        continue
-    if p not in sap_by_proc:
-        sap_by_proc[p] = {
-            "total_liquidado": 0.0,
-            "meses": {c: 0.0 for c in cod_meses},
-            "outros_meses": 0.0,
-            "beneficiarios": set(),
-            "naturezas": set(),
-        }
-    val = float(row_sap.get("Valor_Liquidado_Saldo", 0) or 0)
-    sap_by_proc[p]["total_liquidado"] += val
-    m = str(row_sap.get("Periodo_AnoMes", "")).strip()
-    if m in sap_by_proc[p]["meses"]:
-        sap_by_proc[p]["meses"][m] += val
-    else:
-        sap_by_proc[p]["outros_meses"] += val
-
-    if pd.notna(row_sap.get("Beneficiario_Nome")) and str(row_sap["Beneficiario_Nome"]).strip():
-        sap_by_proc[p]["beneficiarios"].add(str(row_sap["Beneficiario_Nome"]).strip())
-    if pd.notna(row_sap.get("Natureza_Despesa_Nome")) and str(row_sap["Natureza_Despesa_Nome"]).strip():
-        sap_by_proc[p]["naturezas"].add(str(row_sap["Natureza_Despesa_Nome"]).strip())
-
-# ------------------------------------------------------------------ CRUZAMENTO POR CONTRATO / ITEM
-# Agrupamento da planilha por Contrato (itens que compõem o mesmo contrato são consolidados)
+# 1. Agrupamento da planilha por Contrato (itens que compõem o mesmo contrato são consolidados)
 contratos_agrupados: dict[str, dict] = {}
+proc_to_c_keys: dict[str, set[str]] = {}
+
 for _, r_pl in df_plan.iterrows():
     c_raw = str(r_pl.get(col_contrato, "")).replace("_x000D_", " ").replace("\xa0", " ").strip()
     tem_contrato_formal = bool(c_raw and c_raw.lower() not in ["nan", "none", "<na>", "", "em planejamento", "não se aplica", "nao se aplica"])
@@ -183,13 +198,18 @@ for _, r_pl in df_plan.iterrows():
             "Classificacoes": set(),
             "Estimado_Total": 0.0,
             "Estimado_Meses": {m: 0.0 for m in meses_nomes},
+            "Total_Liquidado_SIAFIC": 0.0,
+            "Liquidado_Meses": {m: 0.0 for m in meses_nomes},
+            "Beneficiarios_SIAFIC": set(),
+            "Naturezas_SIAFIC": set(),
+            "Lancamentos_SIAFIC": [],
         }
         
     contratos_agrupados[chave_contrato]["Itens"].add(item_str)
     contratos_agrupados[chave_contrato]["Processos_SEI"].update(procs_item)
     if pd.notna(r_pl.get(col_obj)):
         contratos_agrupados[chave_contrato]["Objetos"].add(str(r_pl.get(col_obj)).strip())
-    if col_forn and pd.notna(r_pl.get(col_forn)):
+    if col_forn and pd.notna(r_pl.get(col_forn)) and str(r_pl.get(col_forn)).strip() not in ["", "-"]:
         contratos_agrupados[chave_contrato]["Fornecedores"].add(str(r_pl.get(col_forn)).strip())
     if pd.notna(r_pl.get(col_uni)):
         contratos_agrupados[chave_contrato]["Unidades"].add(str(r_pl.get(col_uni)).strip())
@@ -203,30 +223,64 @@ for _, r_pl in df_plan.iterrows():
         c_m = f"Estimado {m}"
         contratos_agrupados[chave_contrato]["Estimado_Meses"][m] += float(pd.to_numeric(r_pl.get(c_m), errors="coerce") or 0)
 
-# Montagem das linhas consolidadas com cruzamento SIAFIC
+    for p in procs_item:
+        proc_to_c_keys.setdefault(p, set()).add(chave_contrato)
+
+# 2. Atribuição inteligente das linhas do SIAFIC (SAP BO) aos contratos
+# Quando 2 ou mais contratos compartilham o mesmo Processo SEI, diferencia pelo Beneficiário vs Fornecedor
+sobras_sap_rows: list[dict] = []
+
+for _, row_sap in df_sap_2026.iterrows():
+    p = str(row_sap.get("Processo_SEI", "")).strip()
+    b = str(row_sap.get("Beneficiario_Nome", "")).strip()
+    nat = str(row_sap.get("Natureza_Despesa_Nome", "")).strip()
+    v = float(row_sap.get("Valor_Liquidado_Saldo", 0) or 0)
+    m_cod = str(row_sap.get("Periodo_AnoMes", "")).strip()
+    m_nome = map_cod_to_nome.get(m_cod)
+
+    c_candidatos = proc_to_c_keys.get(p, set()) if p else set()
+    if not c_candidatos:
+        sobras_sap_rows.append(row_sap.to_dict())
+        continue
+
+    if len(c_candidatos) == 1:
+        c_target = list(c_candidatos)[0]
+    else:
+        # Mais de 1 contrato compartilha este Processo SEI: escolhe o melhor match de fornecedor
+        best_c = None
+        best_sc = 0.0
+        for c_cand in c_candidatos:
+            for forn in contratos_agrupados[c_cand]["Fornecedores"]:
+                sc = match_fornecedor_beneficiario(forn, b)
+                if sc > best_sc:
+                    best_sc = sc
+                    best_c = c_cand
+        if best_c and best_sc > 0.0:
+            c_target = best_c
+        else:
+            # Beneficiário não corresponde aos fornecedores dos contratos candidatos -> sobra
+            sobras_sap_rows.append(row_sap.to_dict())
+            continue
+
+    c_target_dict = contratos_agrupados[c_target]
+    c_target_dict["Total_Liquidado_SIAFIC"] += v
+    if m_nome in c_target_dict["Liquidado_Meses"]:
+        c_target_dict["Liquidado_Meses"][m_nome] += v
+    if b:
+        c_target_dict["Beneficiarios_SIAFIC"].add(b)
+    if nat:
+        c_target_dict["Naturezas_SIAFIC"].add(nat)
+    c_target_dict["Lancamentos_SIAFIC"].append(row_sap.to_dict())
+
+# 3. Montagem das linhas consolidadas por contrato
 linhas_consolidadas = []
-processos_mapeados_planilha = set()
 
 for c_key, c_data in contratos_agrupados.items():
     procs = list(c_data["Processos_SEI"])
-    processos_mapeados_planilha.update(procs)
+    tot_liquidado_siafic = c_data["Total_Liquidado_SIAFIC"]
+    meses_liquidado = {f"Liquidado_{m}": c_data["Liquidado_Meses"][m] for m in meses_nomes}
+    beneficiarios_siafic = c_data["Beneficiarios_SIAFIC"]
     
-    # Consolidação dos valores liquidados do SIAFIC para este contrato
-    tot_liquidado_siafic = 0.0
-    meses_liquidado = {f"Liquidado_{m}": 0.0 for m in meses_nomes}
-    beneficiarios_siafic = set()
-    naturezas_siafic = set()
-    
-    for p in procs:
-        if p in sap_by_proc:
-            tot_liquidado_siafic += sap_by_proc[p]["total_liquidado"]
-            for cod, val_m in sap_by_proc[p]["meses"].items():
-                nome_m = map_cod_to_nome.get(cod)
-                if nome_m:
-                    meses_liquidado[f"Liquidado_{nome_m}"] += val_m
-            beneficiarios_siafic.update(sap_by_proc[p]["beneficiarios"])
-            naturezas_siafic.update(sap_by_proc[p]["naturezas"])
-            
     val_est = c_data["Estimado_Total"]
     saldo_a_liquidar = val_est - tot_liquidado_siafic
     pct_exec = (tot_liquidado_siafic / val_est * 100) if val_est > 0 else (100.0 if tot_liquidado_siafic > 0 else 0.0)
@@ -267,6 +321,7 @@ for c_key, c_data in contratos_agrupados.items():
         "Saldo_A_Liquidar": saldo_a_liquidar,
         "Pct_Executado": pct_exec,
         "Status_Execucao": status_exec,
+        "Lancamentos_SIAFIC": c_data["Lancamentos_SIAFIC"],
         **meses_liquidado,
         **{f"Estimado_{m}": c_data["Estimado_Meses"][m] for m in meses_nomes}
     }
@@ -618,15 +673,18 @@ with tab_contrato:
             fig_c = style(fig_c, height=360)
             st.plotly_chart(fig_c, use_container_width=True)
             
-        # Lançamentos detalhados no SIAFIC (SAP BO) para os processos do contrato
-        procs_contrato = extrair_procs(c_row.get("Processo_SEI", ""))
-        df_sap_contrato = df_sap_2026[df_sap_2026["Processo_SEI"].isin(procs_contrato)].copy()
+        # Lançamentos detalhados no SIAFIC (SAP BO) atribuídos a este contrato específico
+        lancamentos_c = c_row.get("Lancamentos_SIAFIC")
+        if isinstance(lancamentos_c, list) and lancamentos_c:
+            df_sap_contrato = pd.DataFrame(lancamentos_c)
+        else:
+            df_sap_contrato = pd.DataFrame()
         
         st.markdown("<div style='height: 14px;'></div>", unsafe_allow_html=True)
         st.markdown("##### 🧾 Lançamentos Oficiais de Liquidação no SIAFIC (SAP BO)")
         
         if df_sap_contrato.empty:
-            st.info("ℹ️ Não constam lançamentos de liquidação registrados no SIAFIC para este Processo SEI em 2026.")
+            st.info("ℹ️ Não constam lançamentos de liquidação registrados no SIAFIC para este contrato em 2026.")
         else:
             map_meses_abbrev = {
                 f"2026{i:02d}": f"{['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][i-1]}/2026"
@@ -745,16 +803,40 @@ with tab_sobras_sap:
     st.subheader("Processos com Liquidação em 2026 sem Contrato na Planilha")
     st.caption("Despesas liquidadas oficialmente no SIAFIC em 2026 cujo Processo SEI não foi encontrado na planilha de planejamento/execução de 2026.")
     
-    # Processos do SIAFIC que não estão em processos_mapeados_planilha
+    # Processos e despesas do SIAFIC que não foram vinculados a contratos da planilha
     meses_sobras = [
         ("Jan", "202601"), ("Fev", "202602"), ("Mar", "202603"), ("Abr", "202604"),
         ("Mai", "202605"), ("Jun", "202606"), ("Jul", "202607"), ("Ago", "202608"),
-        ("Set", "202609"), ("Out", "202610")
+        ("Set", "202609"), ("Out", "202610"), ("Nov", "202611"), ("Dez", "202612")
     ]
     
+    sobras_by_proc: dict[str, dict] = {}
+    for r_sob in sobras_sap_rows:
+        p_sob = str(r_sob.get("Processo_SEI", "")).strip() or "(Sem Processo SEI)"
+        b_sob = str(r_sob.get("Beneficiario_Nome", "")).strip()
+        nat_sob = str(r_sob.get("Natureza_Despesa_Nome", "")).strip()
+        v_sob = float(r_sob.get("Valor_Liquidado_Saldo", 0) or 0)
+        m_sob = str(r_sob.get("Periodo_AnoMes", "")).strip()
+        
+        if p_sob not in sobras_by_proc:
+            sobras_by_proc[p_sob] = {
+                "Processo_SEI": p_sob,
+                "beneficiarios": set(),
+                "naturezas": set(),
+                "total_liquidado": 0.0,
+                "meses": {cod: 0.0 for _, cod in meses_sobras}
+            }
+        sobras_by_proc[p_sob]["total_liquidado"] += v_sob
+        if b_sob:
+            sobras_by_proc[p_sob]["beneficiarios"].add(b_sob)
+        if nat_sob:
+            sobras_by_proc[p_sob]["naturezas"].add(nat_sob)
+        if m_sob in sobras_by_proc[p_sob]["meses"]:
+            sobras_by_proc[p_sob]["meses"][m_sob] += v_sob
+            
     sobras_sap_list = []
-    for p_sap, data_sap in sap_by_proc.items():
-        if p_sap not in processos_mapeados_planilha and data_sap["total_liquidado"] > 0:
+    for p_sap, data_sap in sobras_by_proc.items():
+        if data_sap["total_liquidado"] > 0:
             item_sobra = {
                 "Processo_SEI": p_sap,
                 "Beneficiario": ", ".join(sorted(data_sap["beneficiarios"])) or "-",
