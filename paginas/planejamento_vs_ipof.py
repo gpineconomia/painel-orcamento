@@ -95,6 +95,9 @@ col_ipof_planilha = [c for c in df_planilha_raw.columns if "ipof" in str(c).lowe
 col_proc_planilha = [c for c in df_planilha_raw.columns if "processo" in str(c).lower() and "sislog" not in str(c).lower()][0]
 col_sit_planilha = [c for c in df_planilha_raw.columns if "situa" in str(c).lower() and "ipof" in str(c).lower()][0]
 
+col_contrato_list = [c for c in df_planilha_raw.columns if "contrato" in str(c).lower() and "global" not in str(c).lower()]
+col_contrato = col_contrato_list[0] if col_contrato_list else None
+
 # Prepara base da Planilha desmembrando IPOFs (cada linha pode ter múltiplos IPOFs separados por quebra de linha)
 linhas_desmembradas = []
 for _, row in df_planilha_raw.iterrows():
@@ -111,11 +114,18 @@ for _, row in df_planilha_raw.iterrows():
     processo = str(row.get(col_proc_planilha, "")).strip().replace(".0", "")
     sit_planilha = str(row.get(col_sit_planilha, "")).strip()
 
+    contrato = ""
+    if col_contrato and pd.notna(row.get(col_contrato)):
+        c_raw = str(row.get(col_contrato)).replace("_x000D_", " ").replace("\xa0", " ").strip()
+        if c_raw.lower() not in ["nan", "none", "<na>"]:
+            contrato = c_raw.replace(".0", "")
+
     if not nums_ipof:
         linhas_desmembradas.append({
             "Item": item_id,
             "Unidade": unidade,
             "Objeto": objeto,
+            "Contrato": contrato,
             "Valor_Estimado_Item": val_total,
             "Num_IPOF": "(Sem IPOF na Planilha)",
             "Processo_SEI_Planilha": processo,
@@ -128,6 +138,7 @@ for _, row in df_planilha_raw.iterrows():
                 "Item": item_id,
                 "Unidade": unidade,
                 "Objeto": objeto,
+                "Contrato": contrato,
                 "Valor_Estimado_Item": val_total,
                 "Num_IPOF": ipof,
                 "Processo_SEI_Planilha": processo,
@@ -202,7 +213,7 @@ with st.sidebar:
     opts_status = sorted(df_cruzado["Status_Conformidade"].unique())
     sel_status = st.multiselect("Status de Conformidade", opts_status, key="f_conc_status")
     
-    busca_conc = st.text_input("🔎 Buscar (Objeto, IPOF, Processo SEI, Item)", key="f_conc_busca")
+    busca_conc = st.text_input("🔎 Buscar (Objeto, Contrato, IPOF, Processo SEI, Item)", key="f_conc_busca")
 
 df_view = df_cruzado.copy()
 if sel_unidade:
@@ -212,6 +223,7 @@ if sel_status:
 if busca_conc:
     m = (
         df_view["Objeto"].astype(str).str.contains(busca_conc, case=False, na=False) |
+        df_view["Contrato"].astype(str).str.contains(busca_conc, case=False, na=False) |
         df_view["Num_IPOF"].astype(str).str.contains(busca_conc, case=False, na=False) |
         df_view["Processo_SEI_Planilha"].astype(str).str.contains(busca_conc, case=False, na=False) |
         df_view["Item"].astype(str).str.contains(busca_conc, case=False, na=False)
@@ -281,7 +293,7 @@ with tab_tabela:
     df_view_sorted = df_view_work.sort_values(by=["_sort_item", "Item"], ascending=True).copy()
     
     cols_display = [
-        "Item", "Unidade", "Objeto", "Num_IPOF", 
+        "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF", 
         "Valor_Estimado_Item", "Valor_Parcela_Oficial", "Status_Conformidade",
         "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
@@ -293,7 +305,7 @@ with tab_tabela:
     tabela_fmt[col_ofic_header] = tabela_fmt["Valor_Parcela_Oficial"].apply(fmt_brl)
     
     ordem_final = [
-        "Item", "Unidade", "Objeto", "Num_IPOF",
+        "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF",
         col_est_header, col_ofic_header, "Status_Conformidade",
         "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
