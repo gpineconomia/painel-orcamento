@@ -47,11 +47,11 @@ def fmt_card_mi(v: float | int | None) -> str:
         return str(v)
 
 
-# ------------------------------------------------------------------ CARREGAMENTO DOS DADOS
-ano_selecionado = st.sidebar.radio("Exercício em Análise", [2026, 2027], index=0, horizontal=True)
+# ------------------------------------------------------------------ CARREGAMENTO DOS DADOS (PLOA 2027)
+ano_selecionado = 2027
 
 try:
-    df_planilha_raw, updated_planilha, _ = common.get_data(ano=ano_selecionado)
+    df_planilha_raw, updated_planilha, _ = common.get_data(ano=2027)
     df_sap, updated_sap = ploa_ipof_data.load_sap_ipof_data()
 except Exception as exc:
     st.error(f"Erro ao carregar dados para conciliação: {exc}")
@@ -68,7 +68,7 @@ st.html(
                 display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
                 box-shadow: 0 4px 14px rgba(15,42,32,0.18);">
       <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
-        ⚖️ Planejamento vs IPOF · Conciliação Orçamentária {ano_selecionado}
+        ⚖️ Planejamento vs IPOF · Conciliação Orçamentária 2027
       </h2>
       <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
         <strong>Fonte Oficial SIAFIC:</strong> PDF PLOA (ID: 32837188)<br>
@@ -148,11 +148,8 @@ for _, row in df_planilha_raw.iterrows():
 
 df_plan_exploded = pd.DataFrame(linhas_desmembradas)
 
-# Filtra dados do SAP BO para o exercício de referência ou consolidado
-# Considera o ano selecionado ou todas as parcelas ativas
-df_sap_ano = df_sap[df_sap["Ano_Referencia"].isin([ano_selecionado, 0])].copy() if "Ano_Referencia" in df_sap.columns else df_sap.copy()
-if df_sap_ano.empty:
-    df_sap_ano = df_sap.copy()
+# Base oficial de IPOFs do SIAFIC (PDF PLOA)
+df_sap_ano = df_sap.copy()
 
 # Desconsidera linhas de resumo/soma e IPOFs não numéricos do relatório oficial
 df_sap_ano = df_sap_ano[
