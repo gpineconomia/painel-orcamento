@@ -72,9 +72,14 @@ st.html(
     f"""<div style="background:#0F2A20; border-radius:12px; padding:12px 24px; margin-bottom:1.2rem;
                 display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
                 box-shadow: 0 4px 14px rgba(15,42,32,0.18);">
-      <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
-        📜 Liquidação Mensal por Contrato · Execução 2026
-      </h2>
+      <div>
+        <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
+          📜 Liquidação Mensal por Contrato · Execução 2026
+        </h2>
+        <div style="font-size:0.8rem; color:#A7F3D0; margin-top:4px;">
+          Filtros de base aplicados: Situação ≠ Excluído &nbsp;|&nbsp; PROFISCO ≠ Sim
+        </div>
+      </div>
       <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
         <strong>Fonte Oficial SIAFIC:</strong> ConsultaLiquidadoMensal (ID: 32115483)<br>
         <span style="font-size:0.75rem; color:#D1FAE5;">Sincronizado em: {dt_sap_str}</span>
@@ -84,9 +89,17 @@ st.html(
 
 # ------------------------------------------------------------------ TRATAMENTO DA PLANILHA 2026
 col_sit = [c for c in df_planilha_raw.columns if "situa" in str(c).lower() and "ipof" not in str(c).lower()]
+col_profisco = [c for c in df_planilha_raw.columns if "profisco" in str(c).lower()]
+
 df_plan = df_planilha_raw.copy()
+
+# Desconsidera despesas com Situação = Excluído
 if col_sit:
     df_plan = df_plan[~df_plan[col_sit[0]].astype(str).str.lower().str.contains("exclu")].copy()
+
+# Desconsidera despesas com PROFISCO = Sim
+if col_profisco:
+    df_plan = df_plan[~df_plan[col_profisco[0]].astype(str).str.strip().str.lower().isin(["sim", "s"])].copy()
 
 col_item = [c for c in df_plan.columns if str(c).strip().lower() == "item"][0]
 col_contrato = [c for c in df_plan.columns if "contrato" in str(c).lower() and "global" not in str(c).lower()][0]
