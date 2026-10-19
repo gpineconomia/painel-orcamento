@@ -84,13 +84,17 @@ def load_liquidado_mensal_data(auto_download_if_missing: bool = True) -> tuple[p
     if "Exercicio_Ano" in df.columns:
         df["Exercicio_Ano"] = pd.to_numeric(df["Exercicio_Ano"], errors="coerce").fillna(0).astype(int)
 
+    # Tratamento de Ano e Mês via Período Referência no formato AAAAMM (AAAA=Ano, MM=Mês)
     if "Periodo_AnoMes" in df.columns:
-        df["Periodo_AnoMes"] = (
+        p_clean = (
             df["Periodo_AnoMes"]
             .astype(str)
             .str.replace(r"\.0$", "", regex=True)
             .str.strip()
         )
+        df["Periodo_AnoMes"] = p_clean
+        df["Ano_Referencia"] = pd.to_numeric(p_clean.str[:4], errors="coerce").fillna(0).astype(int)
+        df["Mes_Referencia"] = p_clean.str[4:6].str.zfill(2)
 
     # Tratamento de Processo SEI
     if "Processo_SEI_Raw" in df.columns:

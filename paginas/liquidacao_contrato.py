@@ -106,7 +106,11 @@ map_cod_to_nome = {f"2026{i:02d}": meses_nomes[i-1] for i in range(1, 13)}
 map_nome_to_cod = {meses_nomes[i-1]: f"2026{i:02d}" for i in range(1, 13)}
 
 # ------------------------------------------------------------------ TRATAMENTO DO SAP BO
-df_sap_2026 = df_sap[df_sap["Exercicio_Ano"] == 2026].copy()
+# A liquidação é identificada pela coluna Período Referência no formato AAAAMM (AAAA=Ano, MM=Mês)
+if "Ano_Referencia" in df_sap.columns:
+    df_sap_2026 = df_sap[df_sap["Ano_Referencia"] == 2026].copy()
+else:
+    df_sap_2026 = df_sap[df_sap["Periodo_AnoMes"].astype(str).str.startswith("2026")].copy()
 
 # Mapeia liquidação do SIAFIC por processo SEI
 sap_by_proc: dict[str, dict] = {}
