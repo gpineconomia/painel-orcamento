@@ -78,6 +78,14 @@ st.html(
 )
 
 # ------------------------------------------------------------------ TRATAMENTO E PARSING DE DADOS
+# Filtra permanentemente itens da planilha cuja Situação seja 'Excluído'
+col_sit_item = [c for c in df_planilha_raw.columns if "situa" in str(c).lower() and "ipof" not in str(c).lower()]
+if col_sit_item:
+    c_sit = col_sit_item[0]
+    df_planilha_raw = df_planilha_raw[
+        ~df_planilha_raw[c_sit].astype(str).str.lower().str.contains("exclu")
+    ].copy()
+
 # Identifica colunas relevantes na planilha de planejamento
 col_item = [c for c in df_planilha_raw.columns if c.strip().lower() == "item"][0]
 col_obj = [c for c in df_planilha_raw.columns if "objeto" in str(c).lower()][0]
