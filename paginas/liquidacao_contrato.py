@@ -446,19 +446,31 @@ with tab_detalhada:
     # --------------------------------------------------------- SUB-ABA 2: INSPETOR ESPECÍFICO
     with subtab_contrato:
         st.subheader("Inspecionar Evolução Mensal de um Contrato Específico")
-        st.caption("Selecione um contrato para auditar o cronograma físico-financeiro mês a mês e confrontar com os lançamentos oficiais do SIAFIC.")
+        st.caption("Auditoria mês a mês de contratos formalizados e contratados, confrontando com os lançamentos oficiais do SIAFIC.")
         
-        lista_contratos = sorted(df_view["Contrato"].unique().tolist())
+        # Filtra exclusivamente itens que possuem contrato formal e empresa contratada
+        df_contratos_insp = df_view[
+            df_view["Tem_Contrato_Formal"] & 
+            (df_view["Fornecedor"].astype(str).str.strip() != "-") & 
+            (df_view["Fornecedor"].astype(str).str.strip() != "")
+        ].sort_values(by="Contrato").copy()
+        
+        lista_contratos = df_contratos_insp["Contrato"].tolist()
         if not lista_contratos:
-            st.info("Nenhum contrato encontrado para os filtros selecionados.")
+            st.info("Nenhum contrato formal com fornecedor contratado encontrado para os filtros selecionados.")
         else:
+            rotulo_map = {
+                r["Contrato"]: f"{r['Contrato']} · {r['Fornecedor'][:55]} ({r['Unidade']})"
+                for _, r in df_contratos_insp.iterrows()
+            }
             contrato_selecionado = st.selectbox(
-                "Selecione um contrato:",
-                lista_contratos,
+                "Selecione um contrato formal:",
+                options=lista_contratos,
+                format_func=lambda c: rotulo_map.get(c, c),
                 key="f_contrato_drilldown"
             )
             
-            c_row = df_view[df_view["Contrato"] == contrato_selecionado].iloc[0]
+            c_row = df_contratos_insp[df_contratos_insp["Contrato"] == contrato_selecionado].iloc[0]
             
             # Card resumo do contrato
             st.markdown(
