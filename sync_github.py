@@ -42,7 +42,7 @@ FILES_TO_SYNC = [
     "data/planilha_cache.xlsx",
     "data/supressoes_2027_cache.xlsx",
     "data/ploa_ipof_oficial_sap.csv",
-    "atualizar_siafic_06h.vbs",
+    "atualizar_siafic_07h30.vbs",
     "iniciar_segundo_plano.vbs",
 ]
 
@@ -53,9 +53,10 @@ def git_blob_sha(content: bytes) -> str:
 
 
 def should_refresh_sap_bo() -> bool:
-    """Verifica se o relatório do SIAFIC (SAP BO) precisa ser baixado hoje (1x ao dia, a partir das 6h)."""
+    """Verifica se o relatório do SIAFIC (SAP BO) precisa ser baixado hoje (1x ao dia, a partir das 7h30)."""
     now = datetime.now()
-    if now.hour < 6:
+    hoje_7h30 = now.replace(hour=7, minute=30, second=0, microsecond=0)
+    if now < hoje_7h30:
         return False
 
     last_sync_file = BASE_DIR / "data" / ".last_sap_sync.txt"
@@ -65,9 +66,8 @@ def should_refresh_sap_bo() -> bool:
     try:
         last_sync_str = last_sync_file.read_text(encoding="utf-8").strip()
         last_sync_dt = datetime.fromisoformat(last_sync_str)
-        # Se a última sincronização foi antes de hoje às 06:00, precisa atualizar
-        hoje_6h = now.replace(hour=6, minute=0, second=0, microsecond=0)
-        return last_sync_dt < hoje_6h
+        # Se a última sincronização foi antes de hoje às 07:30, precisa atualizar
+        return last_sync_dt < hoje_7h30
     except Exception:
         return True
 
@@ -224,7 +224,7 @@ if __name__ == "__main__":
         interval_min = int(os.getenv("SYNC_MINUTES", "60"))
         print(f"[{datetime.now():%H:%M:%S}] Iniciando sincronização contínua a cada {interval_min} minutos...")
         print("  - Planilhas SharePoint: a cada ciclo (60 minutos)")
-        print("  - Relatório SIAFIC (SAP BO): 1x ao dia às 06:00")
+        print("  - Relatório SIAFIC (SAP BO): 1x ao dia às 07:30")
         while True:
             try:
                 sync_to_github(refresh_sp=not no_sp, force_sap=force_sap)
