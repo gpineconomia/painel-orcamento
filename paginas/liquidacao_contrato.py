@@ -108,6 +108,10 @@ col_obj = [c for c in df_plan.columns if "objeto" in str(c).lower()][0]
 col_forn_list = [c for c in df_plan.columns if "empresa" in str(c).lower() or "contratada" in str(c).lower()]
 col_forn = col_forn_list[0] if col_forn_list else None
 col_uni = [c for c in df_plan.columns if "unidade" in str(c).lower()][0]
+col_gnd_list = [c for c in df_plan.columns if "grupo de despesa" in str(c).lower()]
+col_gnd = col_gnd_list[0] if col_gnd_list else None
+col_class_list = [c for c in df_plan.columns if "classifica" in str(c).lower()]
+col_class = col_class_list[0] if col_class_list else None
 col_total_est = "Estimado Total 2026"
 
 meses_nomes = [
@@ -174,6 +178,8 @@ for _, r_pl in df_plan.iterrows():
             "Objetos": set(),
             "Fornecedores": set(),
             "Unidades": set(),
+            "Grupos_Despesa": set(),
+            "Classificacoes": set(),
             "Estimado_Total": 0.0,
             "Estimado_Meses": {m: 0.0 for m in meses_nomes},
         }
@@ -186,6 +192,10 @@ for _, r_pl in df_plan.iterrows():
         contratos_agrupados[chave_contrato]["Fornecedores"].add(str(r_pl.get(col_forn)).strip())
     if pd.notna(r_pl.get(col_uni)):
         contratos_agrupados[chave_contrato]["Unidades"].add(str(r_pl.get(col_uni)).strip())
+    if col_gnd and pd.notna(r_pl.get(col_gnd)):
+        contratos_agrupados[chave_contrato]["Grupos_Despesa"].add(str(r_pl.get(col_gnd)).strip())
+    if col_class and pd.notna(r_pl.get(col_class)):
+        contratos_agrupados[chave_contrato]["Classificacoes"].add(str(r_pl.get(col_class)).strip())
         
     contratos_agrupados[chave_contrato]["Estimado_Total"] += val_est_tot
     for m in meses_nomes:
@@ -236,6 +246,8 @@ for c_key, c_data in contratos_agrupados.items():
     forn_display = ", ".join(sorted(c_data["Fornecedores"])) or (", ".join(sorted(beneficiarios_siafic)) if beneficiarios_siafic else "-")
     obj_display = " / ".join(sorted(c_data["Objetos"]))
     uni_display = ", ".join(sorted(c_data["Unidades"]))
+    gnd_display = ", ".join(sorted(c_data["Grupos_Despesa"])) or "-"
+    class_display = " / ".join(sorted(c_data["Classificacoes"])) or "-"
     procs_display = ", ".join(sorted(procs)) if procs else "(não informado)"
     itens_display = ", ".join(sorted(c_data["Itens"], key=lambda x: pd.to_numeric(x, errors="coerce") or 0))
     
@@ -247,6 +259,8 @@ for c_key, c_data in contratos_agrupados.items():
         "Objeto": obj_display,
         "Fornecedor": forn_display,
         "Unidade": uni_display,
+        "Grupo_Despesa": gnd_display,
+        "Classificacao": class_display,
         "Estimado_Total_2026": val_est,
         "Total_Liquidado_SIAFIC": tot_liquidado_siafic,
         "Saldo_A_Liquidar": saldo_a_liquidar,
@@ -263,30 +277,78 @@ df_contratos = pd.DataFrame(linhas_consolidadas)
 with st.sidebar:
     st.header("Filtros de Liquidação")
     
-    opts_uni = sorted([str(u) for u in df_contratos["Unidade"].unique() if u and u != "-"])
-    sel_uni = st.multiselect("Unidade", opts_uni, key="f_liq_uni")
+    # 1. Unidade Gestora (desmembrada e individualizada)
+    unidades_set = set()
+    for u in df_contratos["Unidade"].dropna():
+        for item_u in str(u).split(","):
+            item_clean = item_u.strip()
+            if item_clean and item_clean != "-":
+                unidades_set.add(item_clean)
+    opts_uni = sorted(unidades_set)
+    sel_uni = st.multiselect("Unidade Gestora", opts_uni, key="f_liq_uni")
     
+    # 2. Grupo de Despesa (Custeio vs Investimento)
+    gnd_set = set()
+    for g in df_contratos["Grupo_Despesa"].dropna():
+        for item_g in str(g).split(","):
+            item_clean = item_g.strip()
+            if item_clean and item_clean != "-":
+                gnd_set.add(item_clean)
+    opts_gnd = sorted(gnd_set)
+    sel_gnd = st.multiselect("Grupo de Despesa", opts_gnd, key="f_liq_gnd")
+    
+    # 3. Status de Execução
     opts_status = sorted(df_contratos["Status_Execucao"].unique())
     sel_status = st.multiselect("Status de Execução", opts_status, key="f_liq_status")
     
+    # 4. Faixa de Execução Orçamentária
+    filtro_faixa = st.selectbox(
+        "Faixa de Execução:",
+        [
+            "Todos os Contratos",
+            "Com Saldo a Liquidar (> R$ 0)",
+            "Com Liquidação no SIAFIC (> R$ 0)",
+            "Sem Nenhuma Liquidação (0%)",
+            "Liquidado Acima do Estimado (> 100%)",
+            "Conforme / 100% Liquidado (99% - 101%)"
+        ],
+        key="f_liq_faixa"
+    )
+    
+    # 5. Tipo de Item
     tipo_contrato = st.radio(
         "Tipo de Item:",
-        ["Todos os Itens", "Apenas Contratos Formalizados", "Sem Contrato Formalizado"],
+        ["Apenas Contratos Formalizados", "Todos os Itens", "Sem Contrato Formalizado"],
         key="f_liq_tipo"
     )
     
-    busca_livre = st.text_input("🔎 Buscar (Contrato, Processo SEI, Objeto, Fornecedor, Item)", key="f_liq_busca")
+    # 6. Busca Livre
+    busca_livre = st.text_input("🔎 Buscar (Contrato, Processo, Fornecedor, Objeto)", key="f_liq_busca")
 
 # Aplicação dos filtros
 df_view = df_contratos.copy()
 if sel_uni:
     df_view = df_view[df_view["Unidade"].apply(lambda u: any(x in str(u) for x in sel_uni))]
+if sel_gnd:
+    df_view = df_view[df_view["Grupo_Despesa"].apply(lambda g: any(x in str(g) for x in sel_gnd))]
 if sel_status:
     df_view = df_view[df_view["Status_Execucao"].isin(sel_status)]
 if tipo_contrato == "Apenas Contratos Formalizados":
     df_view = df_view[df_view["Tem_Contrato_Formal"]]
 elif tipo_contrato == "Sem Contrato Formalizado":
     df_view = df_view[~df_view["Tem_Contrato_Formal"]]
+
+if filtro_faixa == "Com Saldo a Liquidar (> R$ 0)":
+    df_view = df_view[df_view["Saldo_A_Liquidar"] > 0]
+elif filtro_faixa == "Com Liquidação no SIAFIC (> R$ 0)":
+    df_view = df_view[df_view["Total_Liquidado_SIAFIC"] > 0]
+elif filtro_faixa == "Sem Nenhuma Liquidação (0%)":
+    df_view = df_view[df_view["Total_Liquidado_SIAFIC"] == 0]
+elif filtro_faixa == "Liquidado Acima do Estimado (> 100%)":
+    df_view = df_view[(df_view["Total_Liquidado_SIAFIC"] > df_view["Estimado_Total_2026"]) & (df_view["Estimado_Total_2026"] > 0)]
+elif filtro_faixa == "Conforme / 100% Liquidado (99% - 101%)":
+    df_view = df_view[df_view["Pct_Executado"].between(99.0, 101.0)]
+
 if busca_livre:
     m = (
         df_view["Contrato"].astype(str).str.contains(busca_livre, case=False, na=False) |
@@ -392,6 +454,7 @@ with tab_contrato:
                 <div style="margin-top:8px; font-size:0.92rem; color:#1F2937; line-height:1.5;">
                     <strong>Processo SEI:</strong> {c_row['Processo_SEI']} &nbsp;|&nbsp; 
                     <strong>Unidade:</strong> {c_row['Unidade']} &nbsp;|&nbsp; 
+                    <strong>Grupo:</strong> {c_row.get('Grupo_Despesa', '-')} &nbsp;|&nbsp; 
                     <strong>Item(ns):</strong> {c_row.get('Itens', '-')}<br>
                     <strong>Fornecedor:</strong> {c_row['Fornecedor']}<br>
                     <strong>Objeto:</strong> {c_row['Objeto']}
