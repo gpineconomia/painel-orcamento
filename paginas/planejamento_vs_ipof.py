@@ -86,6 +86,13 @@ if col_sit_item:
         ~df_planilha_raw[c_sit].astype(str).str.lower().str.contains("exclu")
     ].copy()
 
+# Filtra permanentemente despesas com Ação 4144 ou 4145 na planilha (Folha de Pagamento)
+col_acao_plan = [c for c in df_planilha_raw.columns if str(c).strip().lower() in ["ação", "acao", "ao"]]
+if col_acao_plan:
+    df_planilha_raw = df_planilha_raw[
+        ~df_planilha_raw[col_acao_plan[0]].astype(str).str.contains("4144|4145", regex=True)
+    ].copy()
+
 # Identifica colunas relevantes na planilha de planejamento
 col_item = [c for c in df_planilha_raw.columns if c.strip().lower() == "item"][0]
 col_obj = [c for c in df_planilha_raw.columns if "objeto" in str(c).lower()][0]
@@ -156,6 +163,17 @@ df_sap_ano = df_sap_ano[
     df_sap_ano["Num_IPOF_Oficial"].astype(str).str.isdigit()
     & (~df_sap_ano["Num_IPOF_Oficial"].astype(str).str.lower().str.contains("soma|total"))
 ].copy()
+
+# Desconsidera IPOFs com ação orçamentária 4144, 4145 ou em branco/não encontrada
+def is_acao_invalida(val: object) -> bool:
+    s = str(val).strip().lower()
+    if not s or s in ["nan", "none", "<na>", "", "0", "0.0", "0000", "0000 - nao encontrada"]:
+        return True
+    if "4144" in s or "4145" in s:
+        return True
+    return False
+
+df_sap_ano = df_sap_ano[~df_sap_ano["Acao_Oficial"].apply(is_acao_invalida)].copy()
 
 # Agrupa valores do SAP BO por número de IPOF (um IPOF pode ter mais de uma parcela ou dotação)
 sap_resumo = df_sap_ano.groupby("Num_IPOF_Oficial", as_index=False).agg({
@@ -374,6 +392,7 @@ with tab_sap_sobras:
         (~sap_resumo["Num_IPOF_Oficial"].isin(ipofs_na_planilha))
         & (sap_resumo["Num_IPOF_Oficial"].astype(str).str.isdigit())
         & (~sap_resumo["Num_IPOF_Oficial"].astype(str).str.lower().str.contains("soma|total"))
+        & (~sap_resumo["Acao_Oficial"].apply(is_acao_invalida))
     ].copy()
     df_sobras_sap = df_sobras_sap.sort_values(by="Valor_Parcela_Oficial", ascending=False)
     

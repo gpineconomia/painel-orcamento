@@ -99,6 +99,18 @@ def load_sap_ipof_data(auto_download_if_missing: bool = True) -> tuple[pd.DataFr
         & (~df["Num_IPOF_Oficial"].str.lower().str.contains("soma|total"))
     ].copy()
 
+    # Desconsidera IPOFs com ação orçamentária 4144, 4145 ou em branco/não encontrada
+    if "Acao_Oficial" in df.columns:
+        def is_acao_invalida(val: object) -> bool:
+            s = str(val).strip().lower()
+            if not s or s in ["nan", "none", "<na>", "", "0", "0.0", "0000", "0000 - nao encontrada"]:
+                return True
+            if "4144" in s or "4145" in s:
+                return True
+            return False
+
+        df = df[~df["Acao_Oficial"].apply(is_acao_invalida)].copy()
+
     # Tratamento de Processo SEI
     if "Processo_SEI_Oficial" in df.columns:
         df["Processo_SEI_Oficial"] = df["Processo_SEI_Oficial"].astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
