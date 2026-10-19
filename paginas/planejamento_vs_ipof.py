@@ -292,7 +292,7 @@ with tab_tabela:
     cols_display = [
         "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF", 
         "Valor_Estimado_Item", "Valor_Parcela_Oficial", "Status_Conformidade",
-        "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
+        "Situacao_Planilha", "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
     
     tabela_fmt = df_view_sorted[cols_display].copy()
@@ -304,12 +304,13 @@ with tab_tabela:
     ordem_final = [
         "Item", "Unidade", "Objeto", "Contrato", "Num_IPOF",
         col_est_header, col_ofic_header, "Status_Conformidade",
-        "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
+        "Situacao_Planilha", "Situacao_IPOF_Oficial", "Acao_Oficial", "Natureza_Despesa_Oficial"
     ]
     
     tabela_exibicao = tabela_fmt[ordem_final].rename(columns={
         "Num_IPOF": "Nº IPOF",
         "Status_Conformidade": "Status",
+        "Situacao_Planilha": "Situação Planilha",
         "Situacao_IPOF_Oficial": "Situação SIAFIC",
         "Acao_Oficial": "Ação Oficial",
         "Natureza_Despesa_Oficial": "Natureza Despesa"
