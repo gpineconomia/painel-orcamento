@@ -21,7 +21,11 @@ pages = {
         st.Page("paginas/visao_analitica.py", title="Visão Analítica", icon="📊"),
         st.Page("paginas/supressoes_2027.py", title="Supressões", icon="✂️"),
     ],
+    "Conciliação Oficial": [
+        st.Page("paginas/planejamento_vs_ipof.py", title="Planejamento vs IPOF", icon="⚖️"),
+    ],
 }
 
 pg = st.navigation(pages)
 pg.run()
+
