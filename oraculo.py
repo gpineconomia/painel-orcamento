@@ -161,6 +161,16 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
 
     df = df[df[c_total] > 0].copy()
 
+    # Aplica os filtros padrão oficiais dos painéis (Situação = Ativo, PROFISCO = Não, e em 2026 Situação IPOF = Liberado/Programada)
+    if "Situação" in df.columns:
+        df = df[df["Situação"].astype(str).str.strip().isin(["Ativo"])].copy()
+    if ano == 2026 and "Situação IPOF" in df.columns:
+        df = df[df["Situação IPOF"].astype(str).str.strip().isin(["Liberado", "Programada"])].copy()
+    prof_cols = [c for c in df.columns if "profisco" in str(c).lower()]
+    if prof_cols:
+        is_prof_sim = df[prof_cols[0]].astype(str).str.strip().str.lower().isin(["sim", "s", "true"])
+        df = df[~is_prof_sim].copy()
+
     if ano == 2026:
         df["_val_total"] = df[c_total]
         df["_val_indicado"] = pd.to_numeric(df.get("Valor Indicado", 0.0), errors="coerce").fillna(0.0)
@@ -206,6 +216,10 @@ def load_oraculo_kb() -> dict[str, Any]:
 
     if not df_pca.empty:
         df_pca = df_pca.copy()
+        # Regra de negócio do Oráculo: desconsiderar valores monetários das despesas presentes no PCA 2027
+        for col_v in ["Valor_Estimado_2027", "Valor_Total_Estimado", "Valor_Contratado"]:
+            if col_v in df_pca.columns:
+                df_pca.drop(columns=[col_v], inplace=True)
         pca_cols = [
             "Item", "Processo_SEI", "Objeto_Resumido", "Detalhamento_Objeto",
             "Unidade_Superior", "Unidade_Demandante", "Contrato_Vigente",
@@ -464,44 +478,32 @@ def _answer_ranking_or_extreme(q_norm: str, kb: dict[str, Any], unit_key: str | 
             )
         return "\n".join(linhas)
 
-    # 3. Se menciona PCA 2027 / GELC / Nova Contratação / Prorrogação
-    if any(w in q_norm for w in ["pca", "gelc", "nova contratacao", "novas contratacoes", "prorrogacao", "prorrogacoes", "licitar"]):
+    # 3. Se menciona PCA 2027 / GELC -> ranking apenas por quantidade de demandas (valores do PCA 2027 são desconsiderados)
+    if any(w in q_norm for w in ["pca", "gelc"]):
         df_pca = kb["df_pca"].copy()
         if "tesouro" in q_norm and "geof" not in q_norm:
             df_pca = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"].copy()
         elif "tod" not in q_norm:
             df_pca = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"].copy()
 
-        if unit_key and UNIT_ALIASES[unit_key]["pca"]:
-            df_pca = df_pca[df_pca["Unidade_Superior"].isin(UNIT_ALIASES[unit_key]["pca"])].copy()
-
-        if "nova" in q_norm:
-            df_pca = df_pca[df_pca["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)]
-        elif "prorrog" in q_norm:
-            df_pca = df_pca[df_pca["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)]
-
-        col_val = "Valor_Total_Estimado" if "global" in q_norm or "valor total" in q_norm else "Valor_Estimado_2027"
-        sub = df_pca[df_pca[col_val] > 0].sort_values(col_val, ascending=is_menor) if is_menor else df_pca.sort_values(col_val, ascending=False)
-        if sub.empty:
+        if df_pca.empty:
             return "Nenhuma demanda encontrada no PCA 2027 para este critério."
 
-        top1 = sub.iloc[0]
-        it1 = int(top1["Item"]) if pd.notna(top1["Item"]) else "-"
+        por_sup = (
+            df_pca.groupby("Unidade_Superior", as_index=False)
+            .agg(Qtd=("Objeto_Resumido", "count"))
+            .sort_values("Qtd", ascending=is_menor)
+        )
+        top1 = por_sup.iloc[0]
         linhas = [
-            f"### 📑 {lbl_ord} Contratação do PCA 2027 (GELC)",
-            f"🏆 **1º Lugar:** **Item {it1} — {top1['Objeto_Resumido']}**",
-            f"* **Superintendência:** {top1['Unidade_Superior']} (*Gerência: {top1['Unidade_Demandante']}*)",
-            f"* **Estimado para 2027:** **`{fmt_brl(top1['Valor_Estimado_2027'])}`** | **Valor Total da Contratação:** `{fmt_brl(top1['Valor_Total_Estimado'])}`",
-            f"* **Providência 2027:** `{top1['Providencia_2027']}` | **Modalidade:** `{top1['Modalidade']}` | **UO:** `{top1['Unidade_Orcamentaria']}`\n",
-            f"#### 🔝 Top 10 Demandas do PCA 2027 ({lbl_ord} Valor):",
-            "| # | Item | Objeto Resumido | Superintendência | Gerência | Providência | Estimado 2027 | Valor Total |",
-            "|---|---|---|---|---|---|---|---|",
+            f"### 📑 Ranking de Demandas no PCA 2027 ({lbl_ord} Quantidade de Processos)",
+            f"🏆 **1º Lugar:** **{top1['Unidade_Superior']}** com **`{int(top1['Qtd'])}` demandas** mapeadas no PCA 2027.\n",
+            "*(Nota: Os valores financeiros de despesas para 2027 são apurados exclusivamente na base oficial da **PLOA 2027**).*\n",
+            "| # | Superintendência / Unidade Superior | Qtd. Demandas no PCA 2027 |",
+            "|---|---|---|",
         ]
-        for idx, (_, r) in enumerate(sub.head(10).iterrows(), 1):
-            it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
-            linhas.append(
-                f"| {idx}º | {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Superior']} | {r['Unidade_Demandante']} | {r['Providencia_2027']} | **`{fmt_brl(r['Valor_Estimado_2027'])}`** | `{fmt_brl(r['Valor_Total_Estimado'])}` |"
-            )
+        for idx, (_, r) in enumerate(por_sup.iterrows(), 1):
+            linhas.append(f"| {idx}º | **{r['Unidade_Superior']}** | `{int(r['Qtd'])}` |")
         return "\n".join(linhas)
 
     # 4. Se menciona Liquidação / SIAFIC / Fornecedor / Credor / Beneficiário
@@ -659,9 +661,8 @@ def _build_panorama_geral(kb: dict[str, Any]) -> str:
 
     pca_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"] if not df_pca.empty else pd.DataFrame()
     pca_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"] if not df_pca.empty else pd.DataFrame()
-    tot_pca_geof = float(pca_geof["Valor_Estimado_2027"].sum()) if not pca_geof.empty else 0.0
-    tot_pca_tes = float(pca_tes["Valor_Estimado_2027"].sum()) if not pca_tes.empty else 0.0
-    tot_pca_all = float(df_pca["Valor_Estimado_2027"].sum()) if not df_pca.empty else 0.0
+    m_novas = df_pca["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False) if not df_pca.empty else pd.Series(dtype=bool)
+    m_prorr = df_pca["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False) if not df_pca.empty else pd.Series(dtype=bool)
 
     return f"""### 🔮 Panorama Executivo Consolidado (Todas as Bases)
 
@@ -682,10 +683,10 @@ def _build_panorama_geral(kb: dict[str, Any]) -> str:
 * **Economia Total Gerada (Cortes):** `{fmt_brl(sup_econ)}`
 * **Teto Ajustado Pós-Supressão:** `{fmt_brl(sup_teto)}`
 
-#### 4️⃣ Plano de Contratações Anual — PCA 2027 (GELC)
-* **Total Geral PCA 2027:** `{fmt_brl(tot_pca_all)}` ({len(df_pca)} demandas)
-* **Unidade Orçamentária GEOF (Padrão):** `{fmt_brl(tot_pca_geof)}` ({len(pca_geof)} demandas)
-* **Unidade Orçamentária Tesouro:** `{fmt_brl(tot_pca_tes)}` ({len(pca_tes)} demandas)"""
+#### 4️⃣ Plano de Contratações Anual — PCA 2027 (GELC · Gestão & Cronograma)
+* **Total Geral de Demandas Mapeadas:** `{len(df_pca)}` demandas (`{int(m_novas.sum())}` novas contratações e `{int(m_prorr.sum())}` prorrogações)
+* **Unidade Orçamentária GEOF (Padrão):** `{len(pca_geof)}` demandas
+* **Unidade Orçamentária Tesouro:** `{len(pca_tes)}` demandas"""
 
 
 def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
@@ -747,13 +748,15 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
         if mpca.any():
             encontrou = True
             sub = df_pca[mpca]
-            partes.append(f"#### 📑 PCA 2027 (GELC) — {len(sub)} demanda(s)")
+            partes.append(f"#### 📑 PCA 2027 (GELC · Cronograma & Gestão) — {len(sub)} demanda(s)")
             for _, r in sub.head(8).iterrows():
-                dt_dead = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r["Deadline_Contratacao"]) else "N/D"
+                dt_set = r["Data_Inicio_SETRAC"].strftime("%d/%m/%Y") if pd.notna(r.get("Data_Inicio_SETRAC")) else "N/D"
+                dt_enc = r["Data_Encaminhamento_Contratos"].strftime("%d/%m/%Y") if pd.notna(r.get("Data_Encaminhamento_Contratos")) else "N/D"
+                dt_dead = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r.get("Deadline_Contratacao")) else "N/D"
                 partes.append(
                     f"* **Item {r.get('Item', '-')} — {r.get('Objeto_Resumido', '-')}** ({r.get('Unidade_Superior', '-')} · {r.get('Unidade_Demandante', '-')})\n"
-                    f"  * Estimado 2027: `{fmt_brl(r['Valor_Estimado_2027'])}` | Valor Total: `{fmt_brl(r['Valor_Total_Estimado'])}` | "
-                    f"Providência: `{r.get('Providencia_2027', '-')}` | Deadline: `{dt_dead}` | UO: `{r.get('Unidade_Orcamentaria', '-')}`"
+                    f"  * Providência: `{r.get('Providencia_2027', '-')}` | Modalidade: `{r.get('Modalidade', '-')}` | Status: `{r.get('Status_Contratacao', '-')}`\n"
+                    f"  * Início SETRAC: `{dt_set}` | Encam. Contratos: `{dt_enc}` | Deadline: `{dt_dead}` | UO: `{r.get('Unidade_Orcamentaria', '-')}`"
                 )
 
     if not encontrou:
@@ -763,7 +766,7 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
 
 
 def _answer_pca_specific(q_norm: str, kb: dict[str, Any]) -> str:
-    """Responde perguntas focadas no PCA 2027, cronograma, prazos, riscos, GEOF/Tesouro."""
+    """Responde perguntas focadas no PCA 2027 (cronograma, prazos, riscos, GEOF/Tesouro, sem valores monetários)."""
     df_pca = kb["df_pca"].copy()
     if df_pca.empty:
         return "A base do PCA 2027 está vazia no momento."
@@ -798,22 +801,22 @@ def _answer_pca_specific(q_norm: str, kb: dict[str, Any]) -> str:
         sub_alerta = df_geof[m_venc | m_atual].copy()
         linhas = [
             f"### 🚨 Análise de Cronograma & Riscos — PCA 2027 ({escopo_lbl})",
-            f"* **Processos com Marco no Mês Corrente ({MESES_ABREV[mes_at]}/{ano_at}):** `{int(m_atual.sum())}` demandas (`{fmt_brl(df_geof[m_atual]['Valor_Estimado_2027'].sum())}`)",
-            f"* **Processos com Prazos Já Vencidos (< {hoje:%d/%m/%Y}):** `{int(m_venc.sum())}` demandas (`{fmt_brl(df_geof[m_venc]['Valor_Estimado_2027'].sum())}`)",
-            f"* **Processos para o Próximo Mês ({MESES_ABREV[mes_px]}/{ano_px}):** `{int(m_prox.sum())}` demandas (`{fmt_brl(df_geof[m_prox]['Valor_Estimado_2027'].sum())}`)\n",
+            f"* **Processos com Marco no Mês Corrente ({MESES_ABREV[mes_at]}/{ano_at}):** `{int(m_atual.sum())}` demandas",
+            f"* **Processos com Prazos Já Vencidos (< {hoje:%d/%m/%Y}):** `{int(m_venc.sum())}` demandas",
+            f"* **Processos para o Próximo Mês ({MESES_ABREV[mes_px]}/{ano_px}):** `{int(m_prox.sum())}` demandas\n",
         ]
 
         if not sub_alerta.empty:
             linhas.append("#### ⚡ Relação de Processos em Atenção Imediata (Vencidos + Mês Corrente):")
-            linhas.append("| Item | Objeto Resumido | Superintendência | Início SETRAC | Encam. Contratos | Deadline | Estimado 2027 |")
+            linhas.append("| Item | Objeto Resumido | Superintendência | Providência 2027 | Início SETRAC | Encam. Contratos | Deadline |")
             linhas.append("|---|---|---|---|---|---|---|")
-            for _, r in sub_alerta.sort_values("Valor_Estimado_2027", ascending=False).iterrows():
+            for _, r in sub_alerta.sort_values("Deadline_Contratacao", ascending=True, na_position="last").iterrows():
                 d1 = r["Data_Inicio_SETRAC"].strftime("%d/%m/%Y") if pd.notna(r["Data_Inicio_SETRAC"]) else "-"
                 d2 = r["Data_Encaminhamento_Contratos"].strftime("%d/%m/%Y") if pd.notna(r["Data_Encaminhamento_Contratos"]) else "-"
                 d3 = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r["Deadline_Contratacao"]) else "-"
                 it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
                 linhas.append(
-                    f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Superior']} | `{d1}` | `{d2}` | `{d3}` | `{fmt_brl(r['Valor_Estimado_2027'])}` |"
+                    f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Superior']} | {r['Providencia_2027']} | `{d1}` | `{d2}` | `{d3}` |"
                 )
         return "\n".join(linhas)
 
@@ -821,35 +824,34 @@ def _answer_pca_specific(q_norm: str, kb: dict[str, Any]) -> str:
     df_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"]
 
     alvo = df_pca if ("tod" in q_norm or "tesouro" in q_norm) else df_geof
-    lbl_alvo = "Consolidado Geral (GEOF + Tesouro)" if len(alvo) == len(df_pca) else "Padrão GEOF (128 demandas)"
-
-    tot_2027 = float(alvo["Valor_Estimado_2027"].sum())
-    tot_glob = float(alvo["Valor_Total_Estimado"].sum())
+    lbl_alvo = "Consolidado Geral (GEOF + Tesouro)" if len(alvo) == len(df_pca) else f"Padrão GEOF ({len(df_geof)} demandas)"
 
     m_novas = alvo["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)
     m_prorr = alvo["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)
     m_sem = alvo["Providencia_2027"].astype(str).str.upper().str.contains("SEM PROVID", na=False)
 
+    alvo_c = alvo.copy()
+    alvo_c["_is_nova"] = m_novas.astype(int)
+    alvo_c["_is_prorr"] = m_prorr.astype(int)
     por_sup = (
-        alvo.groupby("Unidade_Superior", as_index=False)
-        .agg(Qtd=("Objeto_Resumido", "count"), Est2027=("Valor_Estimado_2027", "sum"), Total=("Valor_Total_Estimado", "sum"))
-        .sort_values("Est2027", ascending=False)
+        alvo_c.groupby("Unidade_Superior", as_index=False)
+        .agg(Qtd=("Objeto_Resumido", "count"), Novas=("_is_nova", "sum"), Prorr=("_is_prorr", "sum"))
+        .sort_values("Qtd", ascending=False)
     )
 
     linhas = [
-        f"### 📑 Resumo Analítico — PCA 2027 ({lbl_alvo})",
-        f"* **Estimado PCA para 2027:** `{fmt_brl(tot_2027)}` ({len(alvo)} demandas)",
-        f"* **Valor Total das Contratações:** `{fmt_brl(tot_glob)}`",
-        f"* **Novas Contratações:** `{int(m_novas.sum())}` processos (`{fmt_brl(alvo[m_novas]['Valor_Estimado_2027'].sum())}`)",
-        f"* **Prorrogações:** `{int(m_prorr.sum())}` aditivos (`{fmt_brl(alvo[m_prorr]['Valor_Estimado_2027'].sum())}`)",
-        f"* **Sem Providências (Vigência Normal):** `{int(m_sem.sum())}` contratos (`{fmt_brl(alvo[m_sem]['Valor_Estimado_2027'].sum())}`)",
-        f"* *(Comparativo de UOs: **GEOF** = `{fmt_brl(df_geof['Valor_Estimado_2027'].sum())}` [{len(df_geof)} itens] | **Tesouro** = `{fmt_brl(df_tes['Valor_Estimado_2027'].sum())}` [{len(df_tes)} itens])*\n",
-        "#### 🏢 Distribuição por Superintendência / Unidade Superior:",
-        "| Superintendência / Unidade Superior | Demandas | Estimado 2027 | Valor Total Contratação |",
+        f"### 📑 Resumo de Gestão & Cronograma — PCA 2027 ({lbl_alvo})",
+        f"* **Total de Demandas Analisadas:** `{len(alvo)}` processos",
+        f"* **Novas Contratações:** `{int(m_novas.sum())}` processos",
+        f"* **Prorrogações:** `{int(m_prorr.sum())}` aditivos",
+        f"* **Sem Providências (Vigência Normal):** `{int(m_sem.sum())}` contratos",
+        f"* *(Distribuição por UO: **GEOF** = `{len(df_geof)}` itens | **Tesouro** = `{len(df_tes)}` itens)*\n",
+        "#### 🏢 Distribuição de Demandas por Superintendência / Unidade Superior:",
+        "| Superintendência / Unidade Superior | Total de Demandas | Novas Contratações | Prorrogações |",
         "|---|---|---|---|",
     ]
     for _, r in por_sup.iterrows():
-        linhas.append(f"| **{r['Unidade_Superior']}** | {int(r['Qtd'])} | `{fmt_brl(r['Est2027'])}` | `{fmt_brl(r['Total'])}` |")
+        linhas.append(f"| **{r['Unidade_Superior']}** | `{int(r['Qtd'])}` | `{int(r['Novas'])}` | `{int(r['Prorr'])}` |")
 
     return "\n".join(linhas)
 
@@ -979,18 +981,20 @@ def _answer_unit_360(unit_key: str, kb: dict[str, Any]) -> str:
         )
 
     if not sub_pca.empty:
-        linhas.append("#### 4️⃣ PCA 2027 — Contratações GELC")
+        m_n = sub_pca["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)
+        m_p = sub_pca["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)
+        linhas.append("#### 4️⃣ PCA 2027 — Contratações GELC (Cronograma & Gestão)")
         linhas.append(
-            f"* **Total de Demandas no PCA 2027:** `{len(sub_pca)}` itens | **Estimado 2027:** `{fmt_brl(sub_pca['Valor_Estimado_2027'].sum())}` | "
-            f"**Valor Global Contratações:** `{fmt_brl(sub_pca['Valor_Total_Estimado'].sum())}`"
+            f"* **Total de Demandas no PCA 2027:** `{len(sub_pca)}` processos (`{int(m_n.sum())}` novas contratações | `{int(m_p.sum())}` prorrogações)"
         )
-        top_pca = sub_pca.sort_values("Valor_Estimado_2027", ascending=False).head(6)
-        linhas.append("| Item | Objeto Resumido | Gerência Demandante | Providência 2027 | Estimado 2027 |")
-        linhas.append("|---|---|---|---|---|")
+        top_pca = sub_pca.sort_values("Deadline_Contratacao", ascending=True, na_position="last").head(8)
+        linhas.append("| Item | Objeto Resumido | Gerência Demandante | Providência 2027 | Modalidade | Deadline |")
+        linhas.append("|---|---|---|---|---|---|")
         for _, r in top_pca.iterrows():
             it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
+            dt_d = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r.get("Deadline_Contratacao")) else "N/D"
             linhas.append(
-                f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Demandante']} | {r['Providencia_2027']} | `{fmt_brl(r['Valor_Estimado_2027'])}` |"
+                f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Demandante']} | {r['Providencia_2027']} | {r['Modalidade']} | `{dt_d}` |"
             )
 
     if not sub27.empty:
@@ -1171,15 +1175,16 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
 
     if not mpca.empty:
         partes.append(
-            f"#### 📑 PCA 2027 (GELC) — `{len(mpca)}` demanda(s) | Estimado 2027: `{fmt_brl(mpca['Valor_Estimado_2027'].sum())}`"
+            f"#### 📑 PCA 2027 (GELC · Cronograma & Contratações) — `{len(mpca)}` demanda(s)"
         )
-        for _, r in mpca.sort_values("Valor_Estimado_2027", ascending=False).head(6).iterrows():
+        for _, r in mpca.head(6).iterrows():
             it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
-            dt_d = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r["Deadline_Contratacao"]) else "N/D"
+            dt_set = r["Data_Inicio_SETRAC"].strftime("%d/%m/%Y") if pd.notna(r.get("Data_Inicio_SETRAC")) else "N/D"
+            dt_d = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r.get("Deadline_Contratacao")) else "N/D"
             partes.append(
                 f"* **Item {it_n}: {r['Objeto_Resumido']}** ({r['Unidade_Superior']} · {r['Unidade_Demandante']})\n"
-                f"  * Estimado 2027: `{fmt_brl(r['Valor_Estimado_2027'])}` | Providência: `{r['Providencia_2027']}` | "
-                f"Status: `{r['Status_Contratacao']}` | Deadline: `{dt_d}` | UO: `{r['Unidade_Orcamentaria']}`"
+                f"  * Providência: `{r['Providencia_2027']}` | Modalidade: `{r['Modalidade']}` | "
+                f"Status: `{r['Status_Contratacao']}` | Início SETRAC: `{dt_set}` | Deadline: `{dt_d}` | UO: `{r['Unidade_Orcamentaria']}`"
             )
 
     if not mliq.empty:
@@ -1243,7 +1248,7 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
             for _, r in df27.sort_values("_val_total", ascending=False).head(10).iterrows()
         )
         partes.append(
-            f"\n[2. PLOA 2027] Inicial={fmt_brl(ini27)} | Déficit={fmt_brl(def27)} ({len(sub_def)} itens) | Total={fmt_brl(tot27)} ({len(df27)} itens) | Cota={fmt_brl(kb['cota_2027'])}\n"
+            f"\n[2. PLOA 2027 (BASE OFICIAL ÚNICA PARA VALORES DE DESPESAS DE 2027)] Inicial={fmt_brl(ini27)} | Déficit={fmt_brl(def27)} ({len(sub_def)} itens) | Total={fmt_brl(tot27)} ({len(df27)} itens) | Cota={fmt_brl(kb['cota_2027'])}\n"
             f"Unidades 2027: {u27_str}\nTop 15 Maiores Déficits 2027:\n{def_str}\nTop 10 Maiores Despesas Totais 2027:\n{top27_str}"
         )
 
@@ -1260,17 +1265,15 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
     if not df_pca.empty:
         df_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"]
         df_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"]
+        m_n = df_pca["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)
+        m_p = df_pca["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)
         pca_sup_str = "; ".join(
-            f"{r['Unidade_Superior']}: {int(r['Qtd'])} itens ({fmt_brl(r['Est'])})"
-            for _, r in df_pca.groupby("Unidade_Superior", as_index=False).agg(Qtd=("Objeto_Resumido", "count"), Est=("Valor_Estimado_2027", "sum")).sort_values("Est", ascending=False).iterrows()
-        )
-        top_pca_str = "\n".join(
-            f"  - Item {r.get('Item')}: {r.get('Objeto_Resumido')} ({r.get('Unidade_Superior')}) | UO={r.get('Unidade_Orcamentaria')} | Prov={r.get('Providencia_2027')} | Est.27={fmt_brl(r['Valor_Estimado_2027'])}"
-            for _, r in df_pca.sort_values("Valor_Estimado_2027", ascending=False).head(12).iterrows()
+            f"{r['Unidade_Superior']}: {int(r['Qtd'])} demandas"
+            for _, r in df_pca.groupby("Unidade_Superior", as_index=False).agg(Qtd=("Objeto_Resumido", "count")).sort_values("Qtd", ascending=False).iterrows()
         )
         partes.append(
-            f"\n[4. PCA 2027 (GELC)] Geral={fmt_brl(df_pca['Valor_Estimado_2027'].sum())} ({len(df_pca)} itens) | GEOF={fmt_brl(df_geof['Valor_Estimado_2027'].sum())} ({len(df_geof)} itens) | Tesouro={fmt_brl(df_tes['Valor_Estimado_2027'].sum())} ({len(df_tes)} itens)\n"
-            f"Superintendências PCA: {pca_sup_str}\nTop 12 PCA 2027:\n{top_pca_str}"
+            f"\n[4. PCA 2027 (GELC - APENAS CRONOGRAMA E GESTÃO DE PROCESSOS, SEM VALORES MONETÁRIOS)] Total={len(df_pca)} demandas (Novas={int(m_n.sum())}, Prorrogações={int(m_p.sum())}) | GEOF={len(df_geof)} demandas | Tesouro={len(df_tes)} demandas\n"
+            f"Demandas por Superintendência no PCA: {pca_sup_str}"
         )
 
     if not df_liq.empty:
@@ -1352,9 +1355,10 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
         "DIRETRIZES OBRIGATÓRIAS:\n"
         "1. Responda sempre em português do Brasil, de forma inteligente, analítica, executiva, clara e direta.\n"
         "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. Nunca invente valores.\n"
-        "3. Formate todos os valores monetários no padrão brasileiro ABNT 2 (ex: R$ 17.498.729,59) e use espaços normais (nunca use caracteres unicode especiais ou espaços estreitos).\n"
-        "4. Quando o usuário perguntar 'qual o maior/menor', destaque imediatamente o 1º lugar (Item, Nome, Unidade e Valor), mostre também a soma agrupada se houver múltiplos itens de mesmo nome, e apresente uma tabela Markdown organizada com os demais itens.\n"
-        "5. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
+        "3. REGRA DE OURO SOBRE VALORES DE 2027: NUNCA considere, cite ou utilize valores monetários das despesas do PCA 2027. Para todo e qualquer valor financeiro/orçamentário de 2027 (Estimado Inicial, Déficit, Estimado Total, Cortes/Supressões), utilize EXCLUSIVAMENTE a base oficial PLOA 2027 (Planejamento 2027) e Supressões PLOA 2027. Do PCA 2027 utilize apenas dados de cronograma e gestão (quantidade de demandas, objeto, superintendência/gerência, modalidade, providência 2027 e datas de início SETRAC, encaminhamento a contratos e deadline).\n"
+        "4. Formate todos os valores monetários no padrão brasileiro ABNT 2 (ex: R$ 17.498.729,59) e use espaços normais (nunca use caracteres unicode especiais ou espaços estreitos).\n"
+        "5. Quando o usuário perguntar 'qual o maior/menor', destaque imediatamente o 1º lugar (Item, Nome, Unidade e Valor), mostre também a soma agrupada se houver múltiplos itens de mesmo nome, e apresente uma tabela Markdown organizada com os demais itens.\n"
+        "6. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
         f"{master_digest}\n\n"
         f"=== RECORTE ESPECÍFICO / CÁLCULO EXATO PANDAS PARA A PERGUNTA ATUAL ===\n{analise_pandas}"
     )
