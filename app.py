@@ -5,12 +5,15 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 from common import inject_css, REFRESH_SECONDS
+import oraculo
 
 st.set_page_config(page_title="Gestão Orçamentária", page_icon="📊", layout="wide")
 inject_css()
 st_autorefresh(interval=REFRESH_SECONDS * 1000, key="auto_refresh")
 
 # ------------------------------------------------------------------ navegação de páginas
+page_oraculo = st.Page("paginas/oraculo_ia.py", title="Oráculo (Assistente IA)", icon="🔮")
+
 pages = {
     "Orçamento 2026 (Execução)": [
         st.Page("paginas/execucao_2026.py", title="Despesas por Unidade", icon="🏢", default=True),
@@ -23,8 +26,16 @@ pages = {
         st.Page("paginas/supressoes_2027.py", title="Supressões PLOA", icon="✂️"),
         st.Page("paginas/pca_2027.py", title="PCA 2027 (GELC)", icon="📑"),
     ],
+    "Inteligência Analítica": [
+        page_oraculo,
+    ],
 }
 
 pg = st.navigation(pages)
+
+# Botão flutuante do Oráculo em todas as páginas de dashboard
+if pg != page_oraculo:
+    oraculo.inject_floating_oraculo()
+
 pg.run()
 

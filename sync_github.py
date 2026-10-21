@@ -36,6 +36,8 @@ FILES_TO_SYNC = [
     "paginas/visao_analitica.py",
     "paginas/liquidacao_contrato.py",
     "paginas/pca_2027.py",
+    "paginas/oraculo_ia.py",
+    "oraculo.py",
     "pca_data.py",
     "liquidado_mensal_data.py",
     "teste_sap_bo.py",
