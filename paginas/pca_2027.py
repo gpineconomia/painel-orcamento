@@ -40,10 +40,10 @@ st.html(
                 display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
                 box-shadow: 0 4px 14px rgba(10,107,86,0.18);">
       <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
-        PCA 2027 por Unidade · Plano de Contratações Anual
+        Plano de Contratações Anual (PCA) 2027
       </h2>
       <div style="text-align:right;">
-        <div style="font-size:0.85rem; color:#A7F3D0; font-weight:600;">Secretaria da Economia · SETRAC</div>
+        <div style="font-size:0.85rem; color:#A7F3D0; font-weight:600;">Secretaria da Economia · GELC</div>
         <div style="font-size:0.75rem; color:#D1FAE5; opacity:0.85; margin-top:2px;">● Atualizado em {dt_pca_str}</div>
       </div>
     </div>"""
