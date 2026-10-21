@@ -31,7 +31,7 @@ st.html(
                 display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
                 box-shadow: 0 4px 14px rgba(10,107,86,0.18);">
       <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
-        Supressões Orçamentárias · Planejamento 2027
+        Supressões PLOA · Planejamento 2027
       </h2>
       <div style="text-align:right;">
         <div style="font-size:0.85rem; color:#A7F3D0; font-weight:600;">Secretaria de Estado da Economia · GPIN</div>
@@ -47,7 +47,7 @@ filtros_aplicados: list[str] = []
 df = df_raw.copy()
 
 with st.sidebar:
-    st.header("Filtros · Supressões 2027")
+    st.header("Filtros · Supressões PLOA")
     if st.button("🔄 Atualizar agora", width="stretch", key="btn_refresh_sup"):
         st.cache_data.clear()
         st.rerun()
