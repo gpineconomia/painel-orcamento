@@ -3,13 +3,20 @@ from __future__ import annotations
 
 import io
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 import pandas as pd
 import requests
 from dotenv import load_dotenv
+
+TZ_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def to_brasilia_datetime(ts: float | int) -> datetime:
+    """Converte timestamp Unix para datetime no fuso de Brasília (UTC-3)."""
+    return datetime.fromtimestamp(ts, tz=timezone.utc).astimezone(TZ_BRASILIA).replace(tzinfo=None)
 
 # Usa os certificados do sistema quando disponível (inclui a CA do governo no Windows).
 try:
@@ -143,7 +150,7 @@ def load_data(ano: int = 2026) -> tuple[pd.DataFrame, datetime, str | None]:
     raw = pd.read_excel(io.BytesIO(cache_file.read_bytes()), sheet_name=cfg["sheet"], header=None)
     raw = raw.dropna(how="all").dropna(axis=1, how="all").reset_index(drop=True)
     df = _promote_header(raw)
-    updated = datetime.fromtimestamp(cache_file.stat().st_mtime)
+    updated = to_brasilia_datetime(cache_file.stat().st_mtime)
     return df, updated, warning
 
 
@@ -222,7 +229,7 @@ def load_supressoes_2027() -> tuple[pd.DataFrame, datetime, str | None]:
     df = pd.DataFrame(records)
     if not df.empty:
         df["% Redução"] = (df["Economia Gerada"] / df["Orçamento 2027"] * 100).fillna(0.0)
-    updated = datetime.fromtimestamp(cache_file.stat().st_mtime)
+    updated = to_brasilia_datetime(cache_file.stat().st_mtime)
     return df, updated, warning
 
 

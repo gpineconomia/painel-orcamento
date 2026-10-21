@@ -1,7 +1,7 @@
 """Página: Liquidação Mensal por Contrato — Execução 2026 vs SAP BO (ConsultaLiquidadoMensal ID: 32115483)."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import difflib
 import re
 import unicodedata
@@ -445,7 +445,8 @@ if busca_livre:
     df_view = df_view[m]
 
 # ------------------------------------------------------------------ KPIS NO TOPO
-hoje = datetime.now()
+tz_brasilia = timezone(timedelta(hours=-3))
+hoje = datetime.now(tz_brasilia)
 dia_atual = hoje.day
 mes_atual = hoje.month
 

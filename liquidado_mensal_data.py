@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -142,5 +142,6 @@ def load_liquidado_mensal_data(auto_download_if_missing: bool = True) -> tuple[p
         )
         df["Valor_Liquidado_Saldo"] = pd.to_numeric(val_str, errors="coerce").fillna(0.0)
 
-    updated_at = datetime.fromtimestamp(CSV_PATH.stat().st_mtime)
+    tz_brasilia = timezone(timedelta(hours=-3))
+    updated_at = datetime.fromtimestamp(CSV_PATH.stat().st_mtime, tz=timezone.utc).astimezone(tz_brasilia).replace(tzinfo=None)
     return df, updated_at
