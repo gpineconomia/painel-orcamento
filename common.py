@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from data_source import CACHE_FILE_2026, CACHE_FILE_2027, get_settings, load_data, load_supressoes_2027
+from data_source import CACHE_FILE_2026, CACHE_FILE_2027, get_settings, load_data, load_supressoes_2027, _AUTH
 
 # Hash SHA-256 com salt da senha de acesso externo
 _AUTH_SALT = "goias_ploa_salt_2026:"
@@ -528,6 +528,13 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
             for k in list(st.session_state.keys()):
                 if k.startswith("f_"):
                     del st.session_state[k]
+            if _AUTH is not None:
+                try:
+                    import sync_github
+                    sync_github.refresh_sharepoint_caches()
+                    sync_github.sync_to_github(refresh_sp=False)
+                except Exception:
+                    pass
             st.rerun()
 
         busca = st.text_input("🔎 Buscar (objeto, resumo, contrato, SEI, IPOF, empresa)", key=f"b_{ano}")
