@@ -1,53 +1,17 @@
-"""Página: Plano de Contratações Anual — PCA 2027 (Google Sheets - SETRAC)."""
+"""Página: PCA 2027 por Unidade — Tabela hierárquica e cards executivos nos moldes de Despesas por Unidade."""
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime, timedelta, timezone
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import streamlit as st
 
 import common
-from common import style, PALETTE
+from common import brl, num
 import pca_data
 
 TZ_BRASILIA = timezone(timedelta(hours=-3))
-
-
-def fmt_brl(v: float | int | None) -> str:
-    """Formata valor monetário no padrão brasileiro ABNT 2 (ex: R$ 1.000,00)."""
-    if v is None or pd.isna(v) or v == "":
-        return "-"
-    try:
-        val = float(v)
-        sign = "-" if val < 0 else ""
-        a = abs(val)
-        s = f"{a:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-        return f"R$ {sign}{s}"
-    except Exception:
-        return str(v)
-
-
-def fmt_card_mi(v: float | int | None) -> str:
-    """Formata valor abreviado em Mi / Bi com 2 casas decimais para cards (ex: R$ 42,28 Mi)."""
-    if v is None or pd.isna(v) or v == 0:
-        return "R$ 0,00"
-    try:
-        val = float(v)
-        sign = "-" if val < 0 else ""
-        a = abs(val)
-        if a >= 1e9:
-            s = f"{a / 1e9:,.2f} Bi"
-        elif a >= 1e6:
-            s = f"{a / 1e6:,.2f} Mi"
-        elif a >= 1e3:
-            s = f"{a / 1e3:,.2f} mil"
-        else:
-            s = f"{a:,.2f}"
-        return "R$ " + sign + s.replace(",", "X").replace(".", ",").replace("X", ".")
-    except Exception:
-        return str(v)
 
 # ------------------------------------------------------------------ CARREGAMENTO DOS DADOS DO PCA
 try:
@@ -60,24 +24,27 @@ if df_pca_raw.empty:
     st.warning("Nenhum dado encontrado na aba 'PCA 2027' da planilha compartilhada do Google Drive.")
     st.stop()
 
+
+def fmt_br(v: float) -> str:
+    """Formata valor em padrão brasileiro ABNT 2."""
+    if v is None or pd.isna(v):
+        return "0,00"
+    return f"{float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
 # ------------------------------------------------------------------ BANNER SUPERIOR
 dt_pca_str = updated_pca.strftime("%d/%m/%Y às %H:%M") if updated_pca else "N/D"
 
 st.html(
-    f"""<div style="background:#0F2A20; border-radius:12px; padding:14px 24px; margin-bottom:1.2rem;
+    f"""<div style="background:#0A6B56; border-radius:12px; padding:12px 24px; margin-bottom:1.2rem;
                 display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
-                box-shadow: 0 4px 14px rgba(15,42,32,0.18);">
-      <div>
-        <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
-          📑 Plano de Contratações Anual · PCA 2027
-        </h2>
-        <div style="font-size:0.82rem; color:#A7F3D0; margin-top:4px;">
-          SETRAC / Secretaria da Economia de Goiás &nbsp;|&nbsp; Planejamento de Contratações, Prazos e Deadlines
-        </div>
-      </div>
-      <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
-        <strong>Fonte:</strong> Google Sheets (SETRAC/PCA 2027)<br>
-        <span style="font-size:0.75rem; color:#D1FAE5;">Sincronizado em: {dt_pca_str}</span>
+                box-shadow: 0 4px 14px rgba(10,107,86,0.18);">
+      <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
+        PCA 2027 por Unidade · Plano de Contratações Anual
+      </h2>
+      <div style="text-align:right;">
+        <div style="font-size:0.85rem; color:#A7F3D0; font-weight:600;">Secretaria da Economia · SETRAC</div>
+        <div style="font-size:0.75rem; color:#D1FAE5; opacity:0.85; margin-top:2px;">● Atualizado em {dt_pca_str}</div>
       </div>
     </div>"""
 )
@@ -86,49 +53,40 @@ st.html(
 with st.sidebar:
     st.header("Filtros · PCA 2027")
 
-    if st.button("🔄 Atualizar dados do PCA", width="stretch", key="btn_refresh_pca"):
+    if st.button("🔄 Atualizar dados do PCA", width="stretch", key="btn_refresh_pca_unidade"):
         with st.spinner("Conectando ao Google Drive e baixando versão mais recente..."):
             pca_data.download_pca_workbook()
             st.cache_data.clear()
             st.rerun()
 
-    busca = st.text_input("🔎 Buscar (Objeto, Processo SEI, Contrato, Unidade)", key="f_pca_busca")
+    busca = st.text_input("🔎 Buscar (Objeto, Processo SEI, Contrato, Unidade)", key="f_pca_u_busca")
 
     # 1. Unidades Demandantes
     opts_uni = sorted([u for u in df_pca_raw["Unidade_Demandante"].dropna().unique() if str(u).strip() != ""])
-    sel_uni = st.multiselect("Unidade Demandante", opts_uni, key="f_pca_uni")
+    sel_uni = st.multiselect("Unidade Demandante", opts_uni, key="f_pca_u_uni")
 
     # 2. Providência em 2027
     opts_prov = sorted([p for p in df_pca_raw["Providencia_2027"].dropna().unique() if str(p).strip() != ""])
-    sel_prov = st.multiselect("Qual providência em 2027?", opts_prov, key="f_pca_prov")
+    sel_prov = st.multiselect("Qual providência em 2027?", opts_prov, key="f_pca_u_prov")
 
     # 3. Status da Contratação
     opts_status = sorted([s for s in df_pca_raw["Status_Contratacao"].dropna().unique() if str(s).strip() != ""])
-    sel_status = st.multiselect("Status da Contratação", opts_status, key="f_pca_status")
+    sel_status = st.multiselect("Status da Contratação", opts_status, key="f_pca_u_status")
 
     # 4. Modalidade
     opts_mod = sorted([m for m in df_pca_raw["Modalidade"].dropna().unique() if str(m).strip() != ""])
-    sel_mod = st.multiselect("Modalidade de Contratação", opts_mod, key="f_pca_mod")
+    sel_mod = st.multiselect("Modalidade de Contratação", opts_mod, key="f_pca_u_mod")
 
     # 5. Possui Contrato Vigente?
     tipo_contrato = st.radio(
         "Contrato Vigente:",
         ["Todos", "Com Contrato Vigente", "Sem Contrato (Novas Demandas)"],
-        key="f_pca_contrato_radio"
+        key="f_pca_u_contrato_radio"
     )
 
-    # 6. Deadlines de Contratação
-    filtro_deadline = st.selectbox(
-        "Janela de Deadline:",
-        [
-            "Todos os Prazos",
-            "Prazos Vencendo em 2026",
-            "Prazos Vencendo em 2027",
-            "Prazos Próximos (Até 90 dias)",
-            "Sem Deadline Cadastrado"
-        ],
-        key="f_pca_deadline_sel"
-    )
+    # 6. Unidade Superior Demandante
+    opts_sup = sorted([s for s in df_pca_raw["Unidade_Superior"].dropna().unique() if str(s).strip() != ""])
+    sel_sup = st.multiselect("Superintendência / Unidade Superior", opts_sup, key="f_pca_u_sup")
 
 # ------------------------------------------------------------------ APLICAÇÃO DOS FILTROS
 df_view = df_pca_raw.copy()
@@ -141,23 +99,13 @@ if sel_status:
     df_view = df_view[df_view["Status_Contratacao"].isin(sel_status)]
 if sel_mod:
     df_view = df_view[df_view["Modalidade"].isin(sel_mod)]
+if sel_sup:
+    df_view = df_view[df_view["Unidade_Superior"].isin(sel_sup)]
 
 if tipo_contrato == "Com Contrato Vigente":
     df_view = df_view[df_view["Tem_Contrato_Vigente"]]
 elif tipo_contrato == "Sem Contrato (Novas Demandas)":
     df_view = df_view[~df_view["Tem_Contrato_Vigente"]]
-
-hoje_ts = pd.Timestamp(datetime.now(TZ_BRASILIA).date())
-
-if filtro_deadline == "Prazos Vencendo em 2026":
-    df_view = df_view[df_view["Deadline_Contratacao"].dt.year == 2026]
-elif filtro_deadline == "Prazos Vencendo em 2027":
-    df_view = df_view[df_view["Deadline_Contratacao"].dt.year == 2027]
-elif filtro_deadline == "Prazos Próximos (Até 90 dias)":
-    limite_90 = hoje_ts + pd.Timedelta(days=90)
-    df_view = df_view[(df_view["Deadline_Contratacao"] >= hoje_ts) & (df_view["Deadline_Contratacao"] <= limite_90)]
-elif filtro_deadline == "Sem Deadline Cadastrado":
-    df_view = df_view[df_view["Deadline_Contratacao"].isna()]
 
 if busca:
     b_norm = busca.strip().lower()
@@ -171,268 +119,407 @@ if busca:
     )
     df_view = df_view[m_busca]
 
-# ------------------------------------------------------------------ KPIS NO TOPO
-tot_itens = len(df_view)
-soma_est_2027 = df_view["Valor_Estimado_2027"].sum()
-soma_total_est = df_view["Valor_Total_Estimado"].sum()
+# ------------------------------------------------------------------ TOTAIS GERAIS
+tot_geral_2027 = float(df_view["Valor_Estimado_2027"].sum())
+tot_geral_contratacao = float(df_view["Valor_Total_Estimado"].sum())
 
-demandam_acao = len(df_view[df_view["Providencia_2027"].str.upper().str.contains("NOVA|PRORROG", na=False)])
-em_andamento = len(df_view[df_view["Status_Contratacao"].str.upper().str.contains("ANDAMENTO", na=False)])
-com_contrato = len(df_view[df_view["Tem_Contrato_Vigente"]])
+mask_novas = df_view["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)
+tot_novas = float(df_view[mask_novas]["Valor_Estimado_2027"].sum())
+qtd_novas = int(mask_novas.sum())
 
-c1, c2, c3, c4, c5 = st.columns(5)
+mask_prorr = df_view["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)
+tot_prorr = float(df_view[mask_prorr]["Valor_Estimado_2027"].sum())
+qtd_prorr = int(mask_prorr.sum())
+
+mask_sem = df_view["Providencia_2027"].astype(str).str.upper().str.contains("SEM PROVID", na=False)
+tot_sem = float(df_view[mask_sem]["Valor_Estimado_2027"].sum())
+qtd_sem = int(mask_sem.sum())
+
+# ------------------------------------------------------------------ CARDS NO TOPO
+c1, c2, c3, c4 = st.columns(4)
+card_base_style = "border-radius:14px; padding:18px 22px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+
 with c1:
-    common.kpi(c1, "Contratações no PCA", f"{tot_itens}", f"de {len(df_pca_raw)} mapeadas")
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #064E3B 0%, #022C22 100%);
+                    box-shadow: 0 6px 18px rgba(6,78,59,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
+                    border: 1.5px solid rgba(52,211,153,0.45); {card_base_style}">
+          <div style="font-size:2.0rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {brl(tot_geral_2027, short=True).replace("R$ ", "")}
+          </div>
+          <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#6EE7B7; margin-top:8px; font-weight:700;">
+            Estimado PCA 2027
+          </div>
+          <div style="font-size:0.74rem; color:#A7F3D0; margin-top:3px;">
+            {len(df_view)} demandas mapeadas
+          </div>
+        </div>"""
+    )
+
 with c2:
-    common.kpi(c2, "Estimado para 2027", fmt_card_mi(soma_est_2027), fmt_brl(soma_est_2027))
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #B45309 0%, #78350F 100%);
+                    box-shadow: 0 4px 14px rgba(180,83,9,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
+          <div style="font-size:2.0rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {brl(tot_novas, short=True).replace("R$ ", "")}
+          </div>
+          <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#FDE68A; margin-top:8px; font-weight:700;">
+            Novas Contratações 2027
+          </div>
+          <div style="font-size:0.74rem; color:#FEF3C7; margin-top:3px;">
+            {qtd_novas} processos a licitar
+          </div>
+        </div>"""
+    )
+
 with c3:
-    common.kpi(c3, "Demandam Providência", f"{demandam_acao}", "Nova contratação / Prorrogação", warn=demandam_acao > 0)
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #1D4ED8 0%, #1E3A8A 100%);
+                    box-shadow: 0 4px 14px rgba(29,78,216,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
+          <div style="font-size:2.0rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {brl(tot_prorr, short=True).replace("R$ ", "")}
+          </div>
+          <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#BFDBFE; margin-top:8px; font-weight:700;">
+            Prorrogações 2027
+          </div>
+          <div style="font-size:0.74rem; color:#DBEAFE; margin-top:3px;">
+            {qtd_prorr} aditivos contratuais
+          </div>
+        </div>"""
+    )
+
 with c4:
-    common.kpi(c4, "Em Andamento", f"{em_andamento}", "Processos em tramitação")
-with c5:
-    common.kpi(c5, "Contratos Vigentes", f"{com_contrato}", "Com contrato formal ativo")
-
-st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
-
-# ------------------------------------------------------------------ GRÁFICOS VISUAIS
-col_g1, col_g2 = st.columns([1.3, 1])
-
-with col_g1:
-    # Gráfico 1: Top Unidades Demandantes por Valor Estimado para 2027
-    df_uni = (
-        df_view.groupby("Unidade_Demandante")["Valor_Estimado_2027"]
-        .sum()
-        .reset_index()
-        .sort_values(by="Valor_Estimado_2027", ascending=True)
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+                    box-shadow: 0 4px 14px rgba(15,118,110,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
+          <div style="font-size:2.0rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {brl(tot_sem, short=True).replace("R$ ", "")}
+          </div>
+          <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#99F6E4; margin-top:8px; font-weight:700;">
+            Sem Providências
+          </div>
+          <div style="font-size:0.74rem; color:#CCFBF1; margin-top:3px;">
+            {qtd_sem} contratos em vigência normal
+          </div>
+        </div>"""
     )
-    # Pega top 10 para clareza
-    df_uni_top = df_uni.tail(10)
 
-    fig_uni = px.bar(
-        df_uni_top,
-        x="Valor_Estimado_2027",
-        y="Unidade_Demandante",
-        orientation="h",
-        title="Top 10 Unidades Demandantes por Valor Estimado 2027",
-        text=df_uni_top["Valor_Estimado_2027"].apply(fmt_card_mi),
-        color_discrete_sequence=["#047857"],
+st.write("")
+
+# ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO
+ctrl_col1, ctrl_col2, _ = st.columns([1.6, 1.3, 3])
+
+with ctrl_col1:
+    sort_col = st.selectbox(
+        "Ordenar dados por:",
+        ["Estimado para 2027", "Valor Total Contratação", "Nome da Unidade Demandante"],
+        index=0,
+        key="sort_col_pca_u",
     )
-    fig_uni.update_traces(textposition="outside", cliponaxis=False)
-    fig_uni.update_layout(
-        xaxis_title="Valor Estimado 2027",
-        yaxis_title="",
-        margin=dict(l=10, r=40, t=50, b=10),
-        height=360,
+
+with ctrl_col2:
+    sort_dir = st.selectbox(
+        "Direção:",
+        ["Decrescente (Maior ➔ Menor)", "Crescente (Menor ➔ Maior)"],
+        index=0,
+        key="sort_dir_pca_u",
     )
-    style(fig_uni, height=360)
-    st.plotly_chart(fig_uni, use_container_width=True)
 
-with col_g2:
-    # Gráfico 2: Distribuição de Providências em 2027
-    df_prov = df_view["Providencia_2027"].value_counts().reset_index()
-    df_prov.columns = ["Providencia", "Qtd"]
-
-    cores_map = {
-        "FAZER NOVA CONTRATAÇÃO": "#F59E0B",
-        "PRORROGAR": "#3B82F6",
-        "SEM PROVIDÊNCIAS": "#10B981",
-        "NÃO CONTRATAR NOVAMENTE": "#6B7280",
-    }
-    cores_lista = [cores_map.get(str(p).upper(), "#047857") for p in df_prov["Providencia"]]
-
-    fig_prov = go.Figure(
-        data=[
-            go.Pie(
-                labels=df_prov["Providencia"],
-                values=df_prov["Qtd"],
-                hole=0.55,
-                marker=dict(colors=cores_lista),
-                textinfo="label+value",
-                hoverinfo="label+value+percent",
-            )
-        ]
-    )
-    fig_prov.update_layout(
-        title="Qual Providência Requerida em 2027?",
-        showlegend=False,
-        margin=dict(l=10, r=10, t=50, b=10),
-        height=360,
-    )
-    style(fig_prov, height=360)
-    st.plotly_chart(fig_prov, use_container_width=True)
-
-# ------------------------------------------------------------------ SEGUNDA LINHA DE GRÁFICOS: MODALIDADE E DEADLINES
-col_g3, col_g4 = st.columns([1, 1.3])
-
-with col_g3:
-    # Gráfico de Modalidades
-    df_mod = df_view["Modalidade"].value_counts().head(6).reset_index()
-    df_mod.columns = ["Modalidade", "Qtd"]
-    fig_mod = px.bar(
-        df_mod,
-        x="Modalidade",
-        y="Qtd",
-        title="Contratações por Modalidade",
-        text="Qtd",
-        color_discrete_sequence=["#10B981"],
-    )
-    fig_mod.update_traces(textposition="outside")
-    fig_mod.update_layout(yaxis_title="Quantidade", xaxis_title="", height=320)
-    style(fig_mod, height=320)
-    st.plotly_chart(fig_mod, use_container_width=True)
-
-with col_g4:
-    # Deadlines por Trimestre/Ano
-    df_deadlines = df_view.dropna(subset=["Deadline_Contratacao"]).copy()
-    if not df_deadlines.empty:
-        df_deadlines["Periodo_Deadline"] = df_deadlines["Deadline_Contratacao"].dt.to_period("Q").astype(str)
-        df_dead_grp = (
-            df_deadlines.groupby(["Periodo_Deadline", "Providencia_2027"])
-            .size()
-            .reset_index(name="Qtd")
-            .sort_values(by="Periodo_Deadline")
-        )
-        # Limita aos próximos períodos relevantes
-        fig_dead = px.bar(
-            df_dead_grp,
-            x="Periodo_Deadline",
-            y="Qtd",
-            color="Providencia_2027",
-            title="Cronograma de Deadlines da SETRAC (por Trimestre)",
-            barmode="stack",
-            color_discrete_map=cores_map,
-        )
-        fig_dead.update_layout(xaxis_title="Trimestre do Prazo Limite", yaxis_title="Contratações", height=320)
-        style(fig_dead, height=320)
-        st.plotly_chart(fig_dead, use_container_width=True)
-    else:
-        st.info("Nenhum registro com deadline informado no filtro atual.")
-
-# ------------------------------------------------------------------ TABELA ANALÍTICA DO PCA
-st.markdown("### 📋 Tabela Analítica de Contratações (PCA 2027)")
-
-# Formatação para exibição
-df_table = df_view.copy()
-df_table["Item"] = df_table["Item"].apply(lambda x: str(int(x)) if pd.notna(x) else "-")
-df_table["Estimado 2027"] = df_table["Valor_Estimado_2027"].apply(fmt_brl)
-df_table["Valor Total"] = df_table["Valor_Total_Estimado"].apply(fmt_brl)
-df_table["Deadline SETRAC"] = df_table["Deadline_Contratacao"].apply(
-    lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else "-"
-)
-df_table["Início SETRAC"] = df_table["Data_Inicio_SETRAC"].apply(
-    lambda d: d.strftime("%d/%m/%Y") if pd.notna(d) else "-"
-)
-
-cols_display = [
-    "Item",
-    "Processo_SEI",
-    "Contrato_Vigente",
-    "Objeto_Resumido",
-    "Unidade_Demandante",
-    "Providencia_2027",
-    "Status_Contratacao",
-    "Modalidade",
-    "Deadline SETRAC",
-    "Estimado 2027",
-    "Valor Total",
-]
-
-col_renames = {
-    "Processo_SEI": "Processo SEI",
-    "Contrato_Vigente": "Contrato Vigente",
-    "Objeto_Resumido": "Objeto",
-    "Unidade_Demandante": "Unidade Demandante",
-    "Providencia_2027": "Providência 2027",
-    "Status_Contratacao": "Status",
+# Configurações de colunas da tabela hierárquica
+COL_CONFIGS = {
+    "Estimado para 2027": {
+        "key": "Valor_Estimado_2027",
+        "header": "Estimado 2027",
+        "width": 170,
+        "format": lambda val, is_footer: fmt_br(val),
+        "color": lambda val, is_footer: "#FFFFFF" if is_footer else "#0A6B56",
+    },
+    "Valor Total Contratação": {
+        "key": "Valor_Total_Estimado",
+        "header": "Valor Total Contratação",
+        "width": 190,
+        "format": lambda val, is_footer: fmt_br(val),
+        "color": lambda val, is_footer: "#FFFFFF" if is_footer else "#475569",
+    },
 }
 
-df_show = df_table[cols_display].rename(columns=col_renames)
+cols_ativas = ["Estimado para 2027", "Valor Total Contratação"]
 
-st.dataframe(
-    df_show,
-    use_container_width=True,
-    hide_index=True,
-    height=480,
-    column_config={
-        "Item": st.column_config.TextColumn("Nº", width="small"),
-        "Processo SEI": st.column_config.TextColumn("Processo SEI", width="medium"),
-        "Contrato Vigente": st.column_config.TextColumn("Contrato", width="small"),
-        "Objeto": st.column_config.TextColumn("Objeto da Contratação", width="large"),
-        "Unidade Demandante": st.column_config.TextColumn("Unidade Demandante", width="medium"),
-        "Providência 2027": st.column_config.TextColumn("Providência 2027", width="medium"),
-        "Status": st.column_config.TextColumn("Status", width="small"),
-        "Modalidade": st.column_config.TextColumn("Modalidade", width="small"),
-        "Deadline SETRAC": st.column_config.TextColumn("Deadline", width="small"),
-        "Estimado 2027": st.column_config.TextColumn("Estimado 2027", width="medium"),
-        "Valor Total": st.column_config.TextColumn("Valor Total", width="medium"),
-    },
+
+def render_valores(val_map: dict[str, float], font_size: str, peso: str = "700", is_footer: bool = False, custom_colors: dict | None = None) -> str:
+    spans = []
+    for c in cols_ativas:
+        cfg = COL_CONFIGS[c]
+        val = val_map.get(cfg["key"], 0.0)
+        txt = cfg["format"](val, is_footer)
+        cor = custom_colors.get(c) if custom_colors and c in custom_colors else cfg["color"](val, is_footer)
+        spans.append(f'<span style="width:{cfg["width"]}px; color:{cor};">{txt}</span>')
+    return (
+        f'<div style="display:flex; gap:16px; align-items:center; font-variant-numeric:tabular-nums; '
+        f'font-size:{font_size}; font-weight:{peso}; text-align:right;">'
+        f'{"".join(spans)}'
+        f'</div>'
+    )
+
+
+# ------------------------------------------------------------------ ESTADO DE EXPANSÃO (CONTROLE INFERIOR)
+expandir_tudo = st.session_state.get("expandir_todas_pca_u", False)
+open_attr = "open" if expandir_tudo else ""
+
+# ------------------------------------------------------------------ APLICAÇÃO DA ORDENAÇÃO
+is_descending = sort_dir.startswith("Decrescente")
+col_sort_map = {
+    "Estimado para 2027": "Valor_Estimado_2027",
+    "Valor Total Contratação": "Valor_Total_Estimado",
+}
+sort_k = col_sort_map.get(sort_col, "Valor_Estimado_2027")
+
+if sort_col == "Nome da Unidade Demandante":
+    ordem_unidades = df_view.groupby("Unidade_Demandante")["Valor_Estimado_2027"].sum().sort_index(ascending=not is_descending)
+else:
+    ordem_unidades = df_view.groupby("Unidade_Demandante")[sort_k].sum().sort_values(ascending=not is_descending)
+
+linhas_html = []
+for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
+    bg_row = "#F6FAF8" if idx % 2 == 1 else "#FFFFFF"
+    sub_df = df_view[df_view["Unidade_Demandante"] == unidade].copy()
+
+    u_est_2027 = float(sub_df["Valor_Estimado_2027"].sum())
+    u_total_est = float(sub_df["Valor_Total_Estimado"].sum())
+    val_map_u = {"Valor_Estimado_2027": u_est_2027, "Valor_Total_Estimado": u_total_est}
+
+    # Ordena as contratações daquela unidade
+    if sort_col == "Nome da Unidade Demandante":
+        sub_df = sub_df.sort_values(by="Objeto_Resumido", ascending=not is_descending)
+    else:
+        sub_df = sub_df.sort_values(by=sort_k, ascending=not is_descending)
+
+    itens_html = []
+    for _, row in sub_df.iterrows():
+        r_est_2027 = float(row["Valor_Estimado_2027"])
+        r_total_est = float(row["Valor_Total_Estimado"])
+        val_map_r = {"Valor_Estimado_2027": r_est_2027, "Valor_Total_Estimado": r_total_est}
+
+        valores_item = render_valores(val_map_r, font_size="0.86rem", peso="600")
+
+        # Tags do Item
+        tags = []
+
+        # Contrato
+        if row["Tem_Contrato_Vigente"]:
+            tags.append(
+                f'<span style="background:#F1F5F9; color:#1E293B; font-size:0.75rem; '
+                f'font-weight:700; padding:2px 7px; border-radius:4px; border:1px solid #CBD5E1; '
+                f'font-variant-numeric:tabular-nums;">Contrato: {row["Contrato_Vigente"]}</span>'
+            )
+        else:
+            tags.append(
+                f'<span style="background:#F8FAFC; color:#64748B; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px dashed #CBD5E1;">'
+                f'Sem Contrato</span>'
+            )
+
+        # Processo SEI
+        if row["Processo_SEI"]:
+            tags.append(
+                f'<span style="background:#EBF5F0; color:#0A6B56; font-size:0.75rem; '
+                f'font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #CDE5DA; '
+                f'font-variant-numeric:tabular-nums;">SEI {row["Processo_SEI"]}</span>'
+            )
+
+        # Providência 2027
+        prov = str(row["Providencia_2027"]).upper()
+        if "NOVA" in prov:
+            tags.append(
+                f'<span style="background:#FEF3C7; color:#B45309; font-size:0.74rem; '
+                f'font-weight:700; padding:2px 7px; border-radius:4px; border:1px solid #FCD34D;">'
+                f'Nova Contratação</span>'
+            )
+        elif "PRORROG" in prov:
+            tags.append(
+                f'<span style="background:#EFF6FF; color:#1D4ED8; font-size:0.74rem; '
+                f'font-weight:700; padding:2px 7px; border-radius:4px; border:1px solid #BFDBFE;">'
+                f'Prorrogar</span>'
+            )
+        elif "NÃO CONTRATAR" in prov:
+            tags.append(
+                f'<span style="background:#F3F4F6; color:#4B5563; font-size:0.74rem; '
+                f'font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #D1D5DB;">'
+                f'Não Contratar</span>'
+            )
+        else:
+            tags.append(
+                f'<span style="background:#ECFDF5; color:#047857; font-size:0.74rem; '
+                f'font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #A7F3D0;">'
+                f'Sem Providências</span>'
+            )
+
+        # Status
+        st_txt = str(row["Status_Contratacao"]).upper()
+        if "ANDAMENTO" in st_txt:
+            tags.append(
+                f'<span style="background:#EEF2FF; color:#4338CA; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #C7D2FE;">'
+                f'Em Andamento</span>'
+            )
+        elif "PLANEJADO" in st_txt:
+            tags.append(
+                f'<span style="background:#FDF4FF; color:#86198F; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #F5D0FE;">'
+                f'Planejado</span>'
+            )
+
+        # Deadline
+        if pd.notna(row["Deadline_Contratacao"]):
+            dt_d_str = row["Deadline_Contratacao"].strftime("%d/%m/%Y")
+            tags.append(
+                f'<span style="background:#FFFBEB; color:#92400E; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #FDE68A;">'
+                f'Deadline: {dt_d_str}</span>'
+            )
+
+        # Modalidade
+        if row["Modalidade"] and row["Modalidade"] != "-":
+            tags.append(
+                f'<span style="background:#F8FAFC; color:#475569; font-size:0.72rem; '
+                f'padding:2px 6px; border-radius:4px; border:1px solid #E2E8F0;">'
+                f'{row["Modalidade"]}</span>'
+            )
+
+        detalhe_extra = ""
+        if row["Detalhamento_Objeto"]:
+            detalhe_extra = (
+                f'<div style="font-size:0.80rem; color:#475569; margin-top:6px; line-height:1.45; '
+                f'background:#F1F5F9; padding:8px 12px; border-radius:6px; border-left:3px solid #0A6B56;">'
+                f'<strong>Detalhamento:</strong> {row["Detalhamento_Objeto"]}'
+                f'</div>'
+            )
+
+        item_label = f"Item {int(row['Item'])}" if pd.notna(row['Item']) else "Item -"
+        itens_html.append(
+            f'<div style="padding:10px 20px 10px 42px; border-bottom:1px dashed #E1EEE7; background:#FBFDFD;">'
+            f'<div style="display:flex; justify-content:space-between; align-items:flex-start;">'
+            f'<div style="flex:1; padding-right:16px;">'
+            f'<div style="font-size:0.90rem; font-weight:600; color:#0F2A20;">'
+            f'<span style="color:#059669; margin-right:6px; font-size:0.75rem;">▪</span>'
+            f'{item_label}: {row["Objeto_Resumido"]}'
+            f'</div>'
+            f'<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center;">'
+            f'{"".join(tags)}'
+            f'</div>'
+            f'{detalhe_extra}'
+            f'</div>'
+            f'<div style="align-self:center;">{valores_item}</div>'
+            f'</div>'
+            f'</div>'
+        )
+
+    # Badges da unidade no resumo
+    qtd_u_itens = len(sub_df)
+    qtd_u_novas = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("NOVA", na=False)])
+    qtd_u_prorr = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("PRORROG", na=False)])
+
+    resumo_u_badges = [
+        f'<span style="font-size:0.74rem; color:#5B7A6C; background:#EEF6F2; padding:2px 7px; '
+        f'border-radius:999px; font-weight:600; margin-left:8px;">{qtd_u_itens} demandas</span>'
+    ]
+    if qtd_u_novas > 0:
+        resumo_u_badges.append(
+            f'<span style="font-size:0.72rem; color:#B45309; background:#FEF3C7; padding:2px 6px; '
+            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_u_novas} novas</span>'
+        )
+    if qtd_u_prorr > 0:
+        resumo_u_badges.append(
+            f'<span style="font-size:0.72rem; color:#1D4ED8; background:#EFF6FF; padding:2px 6px; '
+            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_u_prorr} prorrogações</span>'
+        )
+
+    valores_unidade = render_valores(val_map_u, font_size="0.95rem", peso="700",
+                                     custom_colors={"Estimado para 2027": "#0A6B56", "Valor Total Contratação": "#1E293B"})
+
+    linhas_html.append(
+        f'<details {open_attr} style="border-bottom:1px solid #DCEBE3;">'
+        f'<summary style="display:flex; justify-content:space-between; align-items:center; '
+        f'padding:11px 20px; font-weight:600; color:#0F2A20; cursor:pointer; '
+        f'background:{bg_row}; list-style:none; user-select:none; transition: background 0.15s ease;">'
+        f'<span style="flex:1; display:flex; align-items:center; padding-right:12px;">'
+        f'<span style="display:inline-block; width:18px; height:18px; line-height:16px; '
+        f'text-align:center; border:1px solid #0A6B56; border-radius:4px; margin-right:10px; '
+        f'font-size:0.8rem; color:#0A6B56; font-weight:bold;">+</span>'
+        f'{unidade}'
+        f'{"".join(resumo_u_badges)}</span>'
+        f'{valores_unidade}'
+        f'</summary>'
+        f'<div style="background:#FAFCFB;">{"".join(itens_html)}</div>'
+        f'</details>'
+    )
+
+val_map_tot = {"Valor_Estimado_2027": tot_geral_2027, "Valor_Total_Estimado": tot_geral_contratacao}
+valores_total = render_valores(val_map_tot, font_size="1.05rem", peso="800", is_footer=True)
+
+# Indicador visual no cabeçalho
+arrow = "▼" if is_descending else "▲"
+header_spans = []
+for c in cols_ativas:
+    cfg = COL_CONFIGS[c]
+    indicator = f" {arrow}" if sort_col == c else ""
+    header_spans.append(f'<span style="width:{cfg["width"]}px;">{cfg["header"]}{indicator}</span>')
+
+unidade_indicator = f" {arrow}" if sort_col == "Nome da Unidade Demandante" else ""
+
+tabela_completa = (
+    f'<div class="notranslate" translate="no" style="border:1.5px solid #0A6B56; border-radius:14px; overflow-x:auto; '
+    f'box-shadow:0 4px 18px rgba(10,107,86,0.08); background:#FFFFFF; margin-top:0.5rem; margin-bottom:1rem;">'
+    f'<div style="background:#0A6B56; color:#FFFFFF; padding:12px 20px; font-weight:700; '
+    f'font-size:0.92rem; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.02em;">'
+    f'<span style="flex:1;">Unidade Demandante / Contratação{unidade_indicator}</span>'
+    f'<div style="display:flex; gap:16px; align-items:center; text-align:right;">'
+    f'{"".join(header_spans)}'
+    f'</div>'
+    f'</div>'
+    f'<div>{"".join(linhas_html)}</div>'
+    f'<div style="background:#0A6B56; color:#FFFFFF; padding:13px 20px; font-weight:800; '
+    f'font-size:1.05rem; display:flex; justify-content:space-between; align-items:center;">'
+    f'<span style="flex:1;">Total Geral ({len(df_view)} demandas)</span>'
+    f'{valores_total}'
+    f'</div>'
+    f'</div>'
 )
 
-# ------------------------------------------------------------------ DOWNLOAD EXCEL / CSV
-col_down1, col_down2, _ = st.columns([1, 1, 3])
+st.html(tabela_completa)
 
-with col_down1:
+# ------------------------------------------------------------------ CONTROLE DE EXPANSÃO (EMBAIXO DA TABELA)
+st.checkbox("Expandir todas as unidades", key="expandir_todas_pca_u")
+
+# ------------------------------------------------------------------ DOWNLOADS
+col_d1, col_d2, _ = st.columns([1, 1, 3])
+
+with col_d1:
     buffer_csv = io.StringIO()
-    df_show.to_csv(buffer_csv, index=False, sep=";", encoding="utf-8-sig")
+    df_view.to_csv(buffer_csv, index=False, sep=";", encoding="utf-8-sig")
     st.download_button(
         label="📥 Baixar Tabela em CSV",
         data=buffer_csv.getvalue().encode("utf-8-sig"),
-        file_name=f"PCA_2027_SETRAC_{datetime.now():%Y%m%d}.csv",
+        file_name=f"PCA_2027_Unidades_{datetime.now():%Y%m%d}.csv",
         mime="text/csv",
         use_container_width=True,
     )
 
-with col_down2:
+with col_d2:
     buffer_xlsx = io.BytesIO()
     with pd.ExcelWriter(buffer_xlsx, engine="openpyxl") as writer:
-        df_show.to_excel(writer, index=False, sheet_name="PCA 2027")
+        df_view.to_excel(writer, index=False, sheet_name="PCA 2027")
     st.download_button(
         label="📊 Baixar Tabela em Excel",
         data=buffer_xlsx.getvalue(),
-        file_name=f"PCA_2027_SETRAC_{datetime.now():%Y%m%d}.xlsx",
+        file_name=f"PCA_2027_Unidades_{datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
-
-# ------------------------------------------------------------------ DETALHAMENTO DE ITEM SELECIONADO
-st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
-with st.expander("🔍 Inspecionar Detalhamento Completo do Objeto de um Item do PCA"):
-    if not df_view.empty:
-        opcoes_map = {}
-        for idx_row, r in df_view.iterrows():
-            if pd.notna(r.get("Item")):
-                try:
-                    item_num_str = f"Item {int(r['Item'])}"
-                except Exception:
-                    item_num_str = f"Item {r['Item']}"
-            else:
-                item_num_str = f"Item (L.{idx_row + 1})"
-            label = f"{item_num_str} — {r['Objeto_Resumido']} ({r['Unidade_Demandante']})"
-            opcoes_map[label] = r
-
-        sel_item_str = st.selectbox("Selecione o Item para inspecionar:", list(opcoes_map.keys()), key="sel_item_pca")
-        if sel_item_str:
-            row_item = opcoes_map[sel_item_str]
-
-            ci1, ci2 = st.columns([2, 1])
-            with ci1:
-                st.markdown(f"#### {row_item['Objeto_Resumido']}")
-                st.markdown(f"**Unidade Demandante:** {row_item['Unidade_Demandante']} *(Superior: {row_item['Unidade_Superior']})*")
-                st.markdown(f"**Detalhamento Completo do Objeto:**\n\n{row_item['Detalhamento_Objeto'] or '(Não detalhado)'}")
-
-            with ci2:
-                deadline_str = row_item['Deadline_Contratacao'].strftime('%d/%m/%Y') if pd.notna(row_item['Deadline_Contratacao']) else '-'
-                st.markdown(
-                    f"""<div style="background:#F6FAF8; border:1px solid #DCEBE3; border-radius:12px; padding:16px;">
-                      <div style="font-size:0.8rem; color:#5B7A6C; text-transform:uppercase; font-weight:600;">Resumo da Demanda</div>
-                      <div style="margin-top:8px; font-size:0.9rem;"><strong>Processo SEI:** {row_item['Processo_SEI'] or '-'}</div>
-                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Contrato Vigente:** {row_item['Contrato_Vigente']}</div>
-                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Modalidade:** {row_item['Modalidade']}</div>
-                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Providência 2027:** <span style="font-weight:600; color:#047857;">{row_item['Providencia_2027']}</span></div>
-                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Status:** {row_item['Status_Contratacao']}</div>
-                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Deadline SETRAC:** {deadline_str}</div>
-                      <div style="margin-top:8px; font-size:1.05rem; font-weight:700; color:#0F2A20;">Estimado 2027: {fmt_brl(row_item['Valor_Estimado_2027'])}</div>
-                      <div style="font-size:0.85rem; color:#5B7A6C;">Total Contratação: {fmt_brl(row_item['Valor_Total_Estimado'])}</div>
-                    </div>""",
-                    unsafe_allow_html=True,
-                )
