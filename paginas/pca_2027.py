@@ -31,6 +31,42 @@ def fmt_br(v: float) -> str:
     return f"{float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+MESES_PT_ABREV = {
+    1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
+    7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
+}
+
+
+def formatar_mes_ano(dt) -> str:
+    """Retorna o rótulo Mês/Ano (ex: Jan/2027) para agrupamento e filtros."""
+    if pd.isna(dt):
+        return ""
+    try:
+        y = dt.year
+        m = dt.month
+        if y < 2024:
+            return ""
+        return f"{MESES_PT_ABREV[m]}/{y}"
+    except Exception:
+        return ""
+
+
+def extrair_opcoes_meses(series: pd.Series) -> list[str]:
+    """Extrai opções únicas de Mês/Ano ordenadas cronologicamente."""
+    s_fmt = series.apply(formatar_mes_ano)
+    opts = [o for o in set(s_fmt) if o]
+    return sorted(
+        opts,
+        key=lambda x: (int(x.split("/")[1]), list(MESES_PT_ABREV.values()).index(x.split("/")[0]))
+    )
+
+
+# Adiciona colunas auxiliares de mês/ano para filtros
+df_pca_raw["_Mes_Inicio_SETRAC"] = df_pca_raw["Data_Inicio_SETRAC"].apply(formatar_mes_ano)
+df_pca_raw["_Mes_Encam_Contratos"] = df_pca_raw["Data_Encaminhamento_Contratos"].apply(formatar_mes_ano)
+df_pca_raw["_Mes_Deadline"] = df_pca_raw["Deadline_Contratacao"].apply(formatar_mes_ano)
+
+
 # ------------------------------------------------------------------ BANNER SUPERIOR
 dt_pca_str = updated_pca.strftime("%d/%m/%Y às %H:%M") if updated_pca else "N/D"
 
@@ -68,24 +104,43 @@ with st.sidebar:
     opts_uni = sorted([u for u in df_pca_raw["Unidade_Demandante"].dropna().unique() if str(u).strip() != ""])
     sel_uni = st.multiselect("Unidade Demandante (Gerência)", opts_uni, key="f_pca_u_uni")
 
-    # 3. Providência em 2027
+    # 3. Unidade Orçamentária
+    opts_uo = sorted([u for u in df_pca_raw["Unidade_Orcamentaria"].dropna().unique() if str(u).strip() != ""])
+    sel_uo = st.multiselect("Unidade Orçamentária", opts_uo, key="f_pca_u_uo")
+
+    # 4. Providência em 2027
     opts_prov = sorted([p for p in df_pca_raw["Providencia_2027"].dropna().unique() if str(p).strip() != ""])
     sel_prov = st.multiselect("Qual providência em 2027?", opts_prov, key="f_pca_u_prov")
 
-    # 4. Status da Contratação
+    # 5. Status da Contratação
     opts_status = sorted([s for s in df_pca_raw["Status_Contratacao"].dropna().unique() if str(s).strip() != ""])
     sel_status = st.multiselect("Status da Contratação", opts_status, key="f_pca_u_status")
 
-    # 5. Modalidade
+    # 6. Modalidade
     opts_mod = sorted([m for m in df_pca_raw["Modalidade"].dropna().unique() if str(m).strip() != ""])
     sel_mod = st.multiselect("Modalidade de Contratação", opts_mod, key="f_pca_u_mod")
 
-    # 6. Possui Contrato Vigente?
+    # 7. Possui Contrato Vigente?
     tipo_contrato = st.radio(
         "Contrato Vigente:",
         ["Todos", "Com Contrato Vigente", "Sem Contrato (Novas Demandas)"],
         key="f_pca_u_contrato_radio"
     )
+
+    st.markdown("---")
+    st.markdown("**Cronograma (por Mês)**")
+
+    # 8. Data Limite para Início do Processo (SETRAC)
+    opts_setrac = extrair_opcoes_meses(df_pca_raw["Data_Inicio_SETRAC"])
+    sel_setrac = st.multiselect("Limite Início (SETRAC)", opts_setrac, key="f_pca_u_setrac", help="Data limite para início do processo no SEI")
+
+    # 9. Data Limite para Encaminhamento ao Agente/Setor de Contratos
+    opts_contratos = extrair_opcoes_meses(df_pca_raw["Data_Encaminhamento_Contratos"])
+    sel_contratos = st.multiselect("Limite Encam. (Contratos)", opts_contratos, key="f_pca_u_contratos", help="Data limite para encaminhamento ao Agente de Contratação / Setor de Contratos")
+
+    # 10. Deadline da Contratação
+    opts_deadline = extrair_opcoes_meses(df_pca_raw["Deadline_Contratacao"])
+    sel_deadline = st.multiselect("Deadline da Contratação", opts_deadline, key="f_pca_u_deadline", help="Deadline para conclusão e formalização da contratação")
 
 # ------------------------------------------------------------------ APLICAÇÃO DOS FILTROS
 df_view = df_pca_raw.copy()
@@ -94,12 +149,21 @@ if sel_sup:
     df_view = df_view[df_view["Unidade_Superior"].isin(sel_sup)]
 if sel_uni:
     df_view = df_view[df_view["Unidade_Demandante"].isin(sel_uni)]
+if sel_uo:
+    df_view = df_view[df_view["Unidade_Orcamentaria"].isin(sel_uo)]
 if sel_prov:
     df_view = df_view[df_view["Providencia_2027"].isin(sel_prov)]
 if sel_status:
     df_view = df_view[df_view["Status_Contratacao"].isin(sel_status)]
 if sel_mod:
     df_view = df_view[df_view["Modalidade"].isin(sel_mod)]
+
+if sel_setrac:
+    df_view = df_view[df_view["_Mes_Inicio_SETRAC"].isin(sel_setrac)]
+if sel_contratos:
+    df_view = df_view[df_view["_Mes_Encam_Contratos"].isin(sel_contratos)]
+if sel_deadline:
+    df_view = df_view[df_view["_Mes_Deadline"].isin(sel_deadline)]
 
 if tipo_contrato == "Com Contrato Vigente":
     df_view = df_view[df_view["Tem_Contrato_Vigente"]]
@@ -319,6 +383,18 @@ for idx, (sup_nome, total_sup) in enumerate(ordem_superintendencias.items()):
                 f'📍 {row["Unidade_Demandante"]}</span>'
             )
 
+        # Unidade Orçamentária
+        if row["Unidade_Orcamentaria"]:
+            uo_txt = str(row["Unidade_Orcamentaria"]).strip()
+            uo_bg = "#F0FDF4" if "Tesouro" in uo_txt else "#EFF6FF"
+            uo_cor = "#166534" if "Tesouro" in uo_txt else "#1E40AF"
+            uo_borda = "#BBF7D0" if "Tesouro" in uo_txt else "#BFDBFE"
+            tags.append(
+                f'<span style="background:{uo_bg}; color:{uo_cor}; font-size:0.74rem; '
+                f'font-weight:700; padding:2px 7px; border-radius:4px; border:1px solid {uo_borda};">'
+                f'UO: {uo_txt}</span>'
+            )
+
         # Contrato Vigente
         if row["Tem_Contrato_Vigente"]:
             tags.append(
@@ -381,6 +457,24 @@ for idx, (sup_nome, total_sup) in enumerate(ordem_superintendencias.items()):
                 f'<span style="background:#FDF4FF; color:#86198F; font-size:0.73rem; '
                 f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #F5D0FE;">'
                 f'Planejado</span>'
+            )
+
+        # Início SETRAC
+        if pd.notna(row["Data_Inicio_SETRAC"]):
+            dt_s_str = row["Data_Inicio_SETRAC"].strftime("%d/%m/%Y")
+            tags.append(
+                f'<span style="background:#F0F9FF; color:#0369A1; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #BAE6FD;">'
+                f'Início SETRAC: {dt_s_str}</span>'
+            )
+
+        # Encam. Contratos
+        if pd.notna(row["Data_Encaminhamento_Contratos"]):
+            dt_c_str = row["Data_Encaminhamento_Contratos"].strftime("%d/%m/%Y")
+            tags.append(
+                f'<span style="background:#FAF5FF; color:#7E22CE; font-size:0.73rem; '
+                f'font-weight:600; padding:2px 6px; border-radius:4px; border:1px solid #E9D5FF;">'
+                f'Encam. Contratos: {dt_c_str}</span>'
             )
 
         # Deadline
