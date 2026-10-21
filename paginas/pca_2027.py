@@ -1,8 +1,7 @@
-"""Página: PCA 2027 por Unidade — Tabela hierárquica e cards executivos nos moldes de Despesas por Unidade."""
+"""Página: PCA 2027 por Superintendência — Tabela hierárquica e cards executivos nos moldes de Despesas por Unidade."""
 from __future__ import annotations
 
 import io
-import re
 from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
@@ -61,36 +60,38 @@ with st.sidebar:
 
     busca = st.text_input("🔎 Buscar (Objeto, Processo SEI, Contrato, Unidade)", key="f_pca_u_busca")
 
-    # 1. Unidades Demandantes
-    opts_uni = sorted([u for u in df_pca_raw["Unidade_Demandante"].dropna().unique() if str(u).strip() != ""])
-    sel_uni = st.multiselect("Unidade Demandante", opts_uni, key="f_pca_u_uni")
+    # 1. Superintendência / Unidade Superior
+    opts_sup = sorted([s for s in df_pca_raw["Unidade_Superior"].dropna().unique() if str(s).strip() != ""])
+    sel_sup = st.multiselect("Superintendência / Unidade Superior", opts_sup, key="f_pca_u_sup")
 
-    # 2. Providência em 2027
+    # 2. Unidade Demandante (Gerência)
+    opts_uni = sorted([u for u in df_pca_raw["Unidade_Demandante"].dropna().unique() if str(u).strip() != ""])
+    sel_uni = st.multiselect("Unidade Demandante (Gerência)", opts_uni, key="f_pca_u_uni")
+
+    # 3. Providência em 2027
     opts_prov = sorted([p for p in df_pca_raw["Providencia_2027"].dropna().unique() if str(p).strip() != ""])
     sel_prov = st.multiselect("Qual providência em 2027?", opts_prov, key="f_pca_u_prov")
 
-    # 3. Status da Contratação
+    # 4. Status da Contratação
     opts_status = sorted([s for s in df_pca_raw["Status_Contratacao"].dropna().unique() if str(s).strip() != ""])
     sel_status = st.multiselect("Status da Contratação", opts_status, key="f_pca_u_status")
 
-    # 4. Modalidade
+    # 5. Modalidade
     opts_mod = sorted([m for m in df_pca_raw["Modalidade"].dropna().unique() if str(m).strip() != ""])
     sel_mod = st.multiselect("Modalidade de Contratação", opts_mod, key="f_pca_u_mod")
 
-    # 5. Possui Contrato Vigente?
+    # 6. Possui Contrato Vigente?
     tipo_contrato = st.radio(
         "Contrato Vigente:",
         ["Todos", "Com Contrato Vigente", "Sem Contrato (Novas Demandas)"],
         key="f_pca_u_contrato_radio"
     )
 
-    # 6. Unidade Superior Demandante
-    opts_sup = sorted([s for s in df_pca_raw["Unidade_Superior"].dropna().unique() if str(s).strip() != ""])
-    sel_sup = st.multiselect("Superintendência / Unidade Superior", opts_sup, key="f_pca_u_sup")
-
 # ------------------------------------------------------------------ APLICAÇÃO DOS FILTROS
 df_view = df_pca_raw.copy()
 
+if sel_sup:
+    df_view = df_view[df_view["Unidade_Superior"].isin(sel_sup)]
 if sel_uni:
     df_view = df_view[df_view["Unidade_Demandante"].isin(sel_uni)]
 if sel_prov:
@@ -99,8 +100,6 @@ if sel_status:
     df_view = df_view[df_view["Status_Contratacao"].isin(sel_status)]
 if sel_mod:
     df_view = df_view[df_view["Modalidade"].isin(sel_mod)]
-if sel_sup:
-    df_view = df_view[df_view["Unidade_Superior"].isin(sel_sup)]
 
 if tipo_contrato == "Com Contrato Vigente":
     df_view = df_view[df_view["Tem_Contrato_Vigente"]]
@@ -214,12 +213,12 @@ with c4:
 st.write("")
 
 # ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO
-ctrl_col1, ctrl_col2, _ = st.columns([1.6, 1.3, 3])
+ctrl_col1, ctrl_col2, _ = st.columns([1.8, 1.3, 3])
 
 with ctrl_col1:
     sort_col = st.selectbox(
         "Ordenar dados por:",
-        ["Estimado para 2027", "Valor Total Contratação", "Nome da Unidade Demandante"],
+        ["Estimado para 2027", "Valor Total Contratação", "Superintendência / Unidade Superior"],
         index=0,
         key="sort_col_pca_u",
     )
@@ -281,22 +280,22 @@ col_sort_map = {
 }
 sort_k = col_sort_map.get(sort_col, "Valor_Estimado_2027")
 
-if sort_col == "Nome da Unidade Demandante":
-    ordem_unidades = df_view.groupby("Unidade_Demandante")["Valor_Estimado_2027"].sum().sort_index(ascending=not is_descending)
+if sort_col == "Superintendência / Unidade Superior":
+    ordem_superintendencias = df_view.groupby("Unidade_Superior")["Valor_Estimado_2027"].sum().sort_index(ascending=not is_descending)
 else:
-    ordem_unidades = df_view.groupby("Unidade_Demandante")[sort_k].sum().sort_values(ascending=not is_descending)
+    ordem_superintendencias = df_view.groupby("Unidade_Superior")[sort_k].sum().sort_values(ascending=not is_descending)
 
 linhas_html = []
-for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
+for idx, (sup_nome, total_sup) in enumerate(ordem_superintendencias.items()):
     bg_row = "#F6FAF8" if idx % 2 == 1 else "#FFFFFF"
-    sub_df = df_view[df_view["Unidade_Demandante"] == unidade].copy()
+    sub_df = df_view[df_view["Unidade_Superior"] == sup_nome].copy()
 
-    u_est_2027 = float(sub_df["Valor_Estimado_2027"].sum())
-    u_total_est = float(sub_df["Valor_Total_Estimado"].sum())
-    val_map_u = {"Valor_Estimado_2027": u_est_2027, "Valor_Total_Estimado": u_total_est}
+    s_est_2027 = float(sub_df["Valor_Estimado_2027"].sum())
+    s_total_est = float(sub_df["Valor_Total_Estimado"].sum())
+    val_map_sup = {"Valor_Estimado_2027": s_est_2027, "Valor_Total_Estimado": s_total_est}
 
-    # Ordena as contratações daquela unidade
-    if sort_col == "Nome da Unidade Demandante":
+    # Ordena as demandas dentro da Superintendência
+    if sort_col == "Superintendência / Unidade Superior":
         sub_df = sub_df.sort_values(by="Objeto_Resumido", ascending=not is_descending)
     else:
         sub_df = sub_df.sort_values(by=sort_k, ascending=not is_descending)
@@ -312,7 +311,15 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
         # Tags do Item
         tags = []
 
-        # Contrato
+        # Tag da Gerência Demandante (em destaque)
+        if row["Unidade_Demandante"]:
+            tags.append(
+                f'<span style="background:#E0F2FE; color:#0369A1; font-size:0.75rem; '
+                f'font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid #BAE6FD;">'
+                f'📍 {row["Unidade_Demandante"]}</span>'
+            )
+
+        # Contrato Vigente
         if row["Tem_Contrato_Vigente"]:
             tags.append(
                 f'<span style="background:#F1F5F9; color:#1E293B; font-size:0.75rem; '
@@ -421,28 +428,29 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
             f'</div>'
         )
 
-    # Badges da unidade no resumo
-    qtd_u_itens = len(sub_df)
-    qtd_u_novas = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("NOVA", na=False)])
-    qtd_u_prorr = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("PRORROG", na=False)])
+    # Badges da Superintendência no resumo
+    qtd_s_itens = len(sub_df)
+    qtd_s_gerencias = sub_df["Unidade_Demandante"].nunique()
+    qtd_s_novas = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("NOVA", na=False)])
+    qtd_s_prorr = len(sub_df[sub_df["Providencia_2027"].str.upper().str.contains("PRORROG", na=False)])
 
-    resumo_u_badges = [
+    resumo_s_badges = [
         f'<span style="font-size:0.74rem; color:#5B7A6C; background:#EEF6F2; padding:2px 7px; '
-        f'border-radius:999px; font-weight:600; margin-left:8px;">{qtd_u_itens} demandas</span>'
+        f'border-radius:999px; font-weight:600; margin-left:8px;">{qtd_s_itens} demandas ({qtd_s_gerencias} gerências)</span>'
     ]
-    if qtd_u_novas > 0:
-        resumo_u_badges.append(
+    if qtd_s_novas > 0:
+        resumo_s_badges.append(
             f'<span style="font-size:0.72rem; color:#B45309; background:#FEF3C7; padding:2px 6px; '
-            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_u_novas} novas</span>'
+            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_s_novas} novas</span>'
         )
-    if qtd_u_prorr > 0:
-        resumo_u_badges.append(
+    if qtd_s_prorr > 0:
+        resumo_s_badges.append(
             f'<span style="font-size:0.72rem; color:#1D4ED8; background:#EFF6FF; padding:2px 6px; '
-            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_u_prorr} prorrogações</span>'
+            f'border-radius:4px; font-weight:700; margin-left:4px;">{qtd_s_prorr} prorrogações</span>'
         )
 
-    valores_unidade = render_valores(val_map_u, font_size="0.95rem", peso="700",
-                                     custom_colors={"Estimado para 2027": "#0A6B56", "Valor Total Contratação": "#1E293B"})
+    valores_sup = render_valores(val_map_sup, font_size="0.95rem", peso="700",
+                                custom_colors={"Estimado para 2027": "#0A6B56", "Valor Total Contratação": "#1E293B"})
 
     linhas_html.append(
         f'<details {open_attr} style="border-bottom:1px solid #DCEBE3;">'
@@ -453,9 +461,9 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
         f'<span style="display:inline-block; width:18px; height:18px; line-height:16px; '
         f'text-align:center; border:1px solid #0A6B56; border-radius:4px; margin-right:10px; '
         f'font-size:0.8rem; color:#0A6B56; font-weight:bold;">+</span>'
-        f'{unidade}'
-        f'{"".join(resumo_u_badges)}</span>'
-        f'{valores_unidade}'
+        f'{sup_nome}'
+        f'{"".join(resumo_s_badges)}</span>'
+        f'{valores_sup}'
         f'</summary>'
         f'<div style="background:#FAFCFB;">{"".join(itens_html)}</div>'
         f'</details>'
@@ -472,14 +480,14 @@ for c in cols_ativas:
     indicator = f" {arrow}" if sort_col == c else ""
     header_spans.append(f'<span style="width:{cfg["width"]}px;">{cfg["header"]}{indicator}</span>')
 
-unidade_indicator = f" {arrow}" if sort_col == "Nome da Unidade Demandante" else ""
+sup_indicator = f" {arrow}" if sort_col == "Superintendência / Unidade Superior" else ""
 
 tabela_completa = (
     f'<div class="notranslate" translate="no" style="border:1.5px solid #0A6B56; border-radius:14px; overflow-x:auto; '
     f'box-shadow:0 4px 18px rgba(10,107,86,0.08); background:#FFFFFF; margin-top:0.5rem; margin-bottom:1rem;">'
     f'<div style="background:#0A6B56; color:#FFFFFF; padding:12px 20px; font-weight:700; '
     f'font-size:0.92rem; display:flex; justify-content:space-between; align-items:center; letter-spacing:0.02em;">'
-    f'<span style="flex:1;">Unidade Demandante / Contratação{unidade_indicator}</span>'
+    f'<span style="flex:1;">Superintendência / Unidade Superior{sup_indicator}</span>'
     f'<div style="display:flex; gap:16px; align-items:center; text-align:right;">'
     f'{"".join(header_spans)}'
     f'</div>'
@@ -496,7 +504,7 @@ tabela_completa = (
 st.html(tabela_completa)
 
 # ------------------------------------------------------------------ CONTROLE DE EXPANSÃO (EMBAIXO DA TABELA)
-st.checkbox("Expandir todas as unidades", key="expandir_todas_pca_u")
+st.checkbox("Expandir todas as superintendências", key="expandir_todas_pca_u")
 
 # ------------------------------------------------------------------ DOWNLOADS
 col_d1, col_d2, _ = st.columns([1, 1, 3])
@@ -507,7 +515,7 @@ with col_d1:
     st.download_button(
         label="📥 Baixar Tabela em CSV",
         data=buffer_csv.getvalue().encode("utf-8-sig"),
-        file_name=f"PCA_2027_Unidades_{datetime.now():%Y%m%d}.csv",
+        file_name=f"PCA_2027_Superintendencias_{datetime.now():%Y%m%d}.csv",
         mime="text/csv",
         use_container_width=True,
     )
@@ -519,7 +527,7 @@ with col_d2:
     st.download_button(
         label="📊 Baixar Tabela em Excel",
         data=buffer_xlsx.getvalue(),
-        file_name=f"PCA_2027_Unidades_{datetime.now():%Y%m%d}.xlsx",
+        file_name=f"PCA_2027_Superintendencias_{datetime.now():%Y%m%d}.xlsx",
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         use_container_width=True,
     )
