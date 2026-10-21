@@ -58,7 +58,18 @@ def download_liquidado_mensal_csv(timeout: int = 60) -> bool:
 
 def load_liquidado_mensal_data(auto_download_if_missing: bool = True) -> tuple[pd.DataFrame, datetime | None]:
     """Retorna DataFrame padronizado com os dados de liquidação mensal extraídos do SAP BO."""
-    if not CSV_PATH.exists() and auto_download_if_missing:
+    # Na nuvem Streamlit Cloud (Linux), atualiza diretamente do GitHub público
+    if os.name != "nt":
+        try:
+            import time
+            import requests
+            url = f"https://raw.githubusercontent.com/gpineconomia/painel-orcamento/main/data/liquidado_mensal_sap.csv?_t={int(time.time())}"
+            resp = requests.get(url, timeout=15, headers={"Cache-Control": "no-cache"})
+            if resp.status_code == 200 and len(resp.content) > 500:
+                CSV_PATH.write_bytes(resp.content)
+        except Exception:
+            pass
+    elif not CSV_PATH.exists() and auto_download_if_missing:
         download_liquidado_mensal_csv()
 
     if not CSV_PATH.exists():

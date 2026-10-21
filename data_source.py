@@ -98,6 +98,25 @@ def download_workbook(url: str) -> bytes:
     return content
 
 
+GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gpineconomia/painel-orcamento/main/data"
+
+
+def fetch_from_github_cloud(filename: str, cache_file: Path) -> bool:
+    """Na nuvem Streamlit Cloud (_AUTH is None), busca o arquivo mais recente diretamente do repositório público do GitHub."""
+    if _AUTH is not None:
+        return False
+    try:
+        import time
+        url = f"{GITHUB_RAW_BASE}/{filename}?_t={int(time.time())}"
+        resp = requests.get(url, timeout=20, headers={"Cache-Control": "no-cache"})
+        if resp.status_code == 200 and len(resp.content) > 500:
+            cache_file.write_bytes(resp.content)
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def load_data(ano: int = 2026) -> tuple[pd.DataFrame, datetime, str | None]:
     """Retorna (dataframe, momento_da_atualizacao, aviso).
 
@@ -107,9 +126,9 @@ def load_data(ano: int = 2026) -> tuple[pd.DataFrame, datetime, str | None]:
     warning = None
     cache_file = CACHE_FILE_2026 if ano == 2026 else CACHE_FILE_2027
     cache_file.parent.mkdir(exist_ok=True)
+    filename = cache_file.name
 
-    # Na nuvem Linux (_AUTH is None), se o cache já estiver presente no repositório, carrega direto sem travar na intranet
-    if _AUTH is not None or not cache_file.exists():
+    if _AUTH is not None:
         try:
             if not cfg["url"]:
                 raise RuntimeError(f"SHAREPOINT_URL para {ano} não configurada.")
@@ -118,6 +137,8 @@ def load_data(ano: int = 2026) -> tuple[pd.DataFrame, datetime, str | None]:
             if not cache_file.exists():
                 raise
             warning = f"Não foi possível atualizar da fonte ({exc}). Exibindo dados do cache."
+    else:
+        fetch_from_github_cloud(filename, cache_file)
 
     raw = pd.read_excel(io.BytesIO(cache_file.read_bytes()), sheet_name=cfg["sheet"], header=None)
     raw = raw.dropna(how="all").dropna(axis=1, how="all").reset_index(drop=True)
@@ -152,8 +173,9 @@ def load_supressoes_2027() -> tuple[pd.DataFrame, datetime, str | None]:
     cache_file = CACHE_FILE_SUPRESSOES_2027
     cache_file.parent.mkdir(exist_ok=True)
     url = os.getenv("SHAREPOINT_URL_SUPRESSOES_2027", URL_SUPRESSOES_2027_DEFAULT).strip()
+    filename = cache_file.name
 
-    if _AUTH is not None or not cache_file.exists():
+    if _AUTH is not None:
         try:
             if url:
                 cache_file.write_bytes(download_workbook(url))
@@ -161,6 +183,8 @@ def load_supressoes_2027() -> tuple[pd.DataFrame, datetime, str | None]:
             if not cache_file.exists():
                 raise
             warning = f"Não foi possível atualizar Supressões da fonte ({exc}). Exibindo dados do cache."
+    else:
+        fetch_from_github_cloud(filename, cache_file)
 
     raw = pd.read_excel(io.BytesIO(cache_file.read_bytes()), sheet_name=0, header=None)
     records = []
