@@ -1,4 +1,4 @@
-"""Página dedicada: Oráculo — Inteligência Analítica Multi-Base (2026, SIAFIC, PLOA 2027, Supressões e PCA 2027)."""
+"""Página dedicada: Oráculo — Inteligência Orçamentária."""
 from __future__ import annotations
 
 import streamlit as st
@@ -12,10 +12,10 @@ st.html(
                 box-shadow: 0 4px 16px rgba(6,78,59,0.22);">
       <div>
         <h2 style="margin:0; font-size:1.55rem; font-weight:800; color:#FFFFFF; letter-spacing:-0.02em;">
-          🔮 Oráculo · Inteligência Orçamentária & Contratações
+          🔮 Oráculo · Inteligência Orçamentária
         </h2>
         <div style="font-size:0.84rem; color:#A7F3D0; margin-top:3px;">
-          Consulta unificada em linguagem natural sobre Execução 2026, SIAFIC, PLOA 2027, Supressões e PCA 2027
+          Consulta unificada em linguagem natural.
         </div>
       </div>
       <div style="text-align:right;">

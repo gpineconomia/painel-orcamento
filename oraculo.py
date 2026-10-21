@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import difflib
 import re
 import unicodedata
 from typing import Any
@@ -41,10 +42,85 @@ MESES_NOMES = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
     "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
 ]
+MESES_NORM_MAP = {norm_text(m): m for m in MESES_NOMES}
 MESES_ABREV = {
     1: "Jan", 2: "Fev", 3: "Mar", 4: "Abr", 5: "Mai", 6: "Jun",
     7: "Jul", 8: "Ago", 9: "Set", 10: "Out", 11: "Nov", 12: "Dez"
 }
+
+# Dicionário de correção automática de erros de digitação (typos comuns em português)
+TYPO_CORRECTIONS = {
+    "depesa": "despesa",
+    "depesas": "despesas",
+    "despeza": "despesa",
+    "despezas": "despesas",
+    "dspesa": "despesa",
+    "defict": "deficit",
+    "deficite": "deficit",
+    "deficti": "deficit",
+    "defcit": "deficit",
+    "defice": "deficit",
+    "suprisao": "supressao",
+    "suprisoes": "supressoes",
+    "supresao": "supressao",
+    "supresoes": "supressoes",
+    "orcamento": "orcamento",
+    "orsamento": "orcamento",
+    "orcameto": "orcamento",
+    "liquidacao": "liquidacao",
+    "liqidacao": "liquidacao",
+    "liquidaçao": "liquidacao",
+    "contratacao": "contratacao",
+    "contrataçao": "contratacao",
+    "contratacoes": "contratacoes",
+    "prorrogacao": "prorrogacao",
+    "prorrogaçao": "prorrogacao",
+    "superintedencia": "superintendencia",
+    "superitendencia": "superintendencia",
+    "fornessedor": "fornecedor",
+    "fornesedor": "fornecedor",
+    "vigilansa": "vigilancia",
+    "limpesa": "limpeza",
+    "tercerizacao": "terceirizacao",
+    "terceirizaçao": "terceirizacao",
+}
+
+DOMAIN_VOCAB = [
+    "despesa", "despesas", "deficit", "orcamento", "contrato", "contratos",
+    "processo", "processos", "supressao", "supressoes", "liquidacao", "liquidado",
+    "fornecedor", "fornecedores", "empresa", "empresas", "beneficiario", "credor",
+    "unidade", "unidades", "superintendencia", "gerencia", "modalidade",
+    "prorrogacao", "prorrogacoes", "contratacao", "contratacoes", "indicado",
+    "restante", "saldo", "inicial", "global", "custeio", "investimento",
+    "janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho",
+    "agosto", "setembro", "outubro", "novembro", "dezembro", "vigilancia",
+    "limpeza", "veiculos", "tecnologia", "receita", "gestao", "integrada",
+    "tesouro", "deadline", "setrac", "vencido", "vencidos", "atrasado", "atrasados",
+    "maior", "maiores", "menor", "menores", "economias", "economia", "corte", "cortes",
+]
+
+
+def normalize_and_fix_typos(text: str, extra_vocab: list[str] | None = None) -> str:
+    """Normaliza a pergunta e corrige automaticamente erros de digitação usando dicionário e similaridade."""
+    base = norm_text(text)
+    tokens = re.findall(r"[a-z0-9/]+", base)
+    vocab = list(set(DOMAIN_VOCAB + (extra_vocab or [])))
+    fixed_tokens = []
+    for tok in tokens:
+        if tok in TYPO_CORRECTIONS:
+            fixed_tokens.append(TYPO_CORRECTIONS[tok])
+        elif tok.isdigit() or len(tok) <= 3 or tok in vocab or "/" in tok:
+            fixed_tokens.append(tok)
+        else:
+            matches = difflib.get_close_matches(tok, DOMAIN_VOCAB, n=1, cutoff=0.80)
+            if matches:
+                fixed_tokens.append(matches[0])
+            elif extra_vocab:
+                m_extra = difflib.get_close_matches(tok, extra_vocab, n=1, cutoff=0.82)
+                fixed_tokens.append(m_extra[0] if m_extra else tok)
+            else:
+                fixed_tokens.append(tok)
+    return " ".join(fixed_tokens)
 
 
 def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
@@ -61,6 +137,11 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
     for c in [c_total, *c_meses]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0.0)
+
+    if "Valor Global do Contrato" in df.columns:
+        df["_val_global"] = pd.to_numeric(df["Valor Global do Contrato"], errors="coerce").fillna(0.0)
+    else:
+        df["_val_global"] = 0.0
 
     if ano == 2026:
         for c in df.columns:
@@ -94,7 +175,6 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
         df["_val_deficit"] = pd.to_numeric(df[def_cols[0]], errors="coerce").fillna(0.0) if def_cols else 0.0
         df["_val_total"] = df["_val_inicial"] + df["_val_deficit"]
 
-    # Campo unificado de busca textual
     search_cols = [
         c for c in ["Item", "Objeto", "Resumo", "Classificação do Objeto", "Nº do Contrato (se houver)",
                     "Nº Processo (se houver)", "Nº IPOF (se houver)", "Empresa Contratada", "Unidade",
@@ -138,7 +218,6 @@ def load_oraculo_kb() -> dict[str, Any]:
 
     if not df_liq.empty:
         df_liq = df_liq.copy()
-        # Filtra exercício de 2026 como padrão de análise de execução atual
         df_liq_2026 = df_liq[df_liq["Ano_Referencia"] == 2026].copy() if "Ano_Referencia" in df_liq.columns else df_liq.copy()
         df_liq_2026["_search_blob"] = (
             df_liq_2026[["Processo_SEI", "Beneficiario_Nome", "Natureza_Despesa_Nome", "Natureza_Despesa_Codigo"]]
@@ -146,6 +225,18 @@ def load_oraculo_kb() -> dict[str, Any]:
         )
     else:
         df_liq_2026 = pd.DataFrame()
+
+    # Vocabulário dinâmico extraído dos objetos reais das planilhas para correção de typos
+    vocab_objs: set[str] = set()
+    for s_col in [
+        df26.get("Resumo", pd.Series(dtype=str)),
+        df27.get("Resumo", pd.Series(dtype=str)),
+        df_sup.get("Item de Despesa", pd.Series(dtype=str)),
+        df_pca.get("Objeto_Resumido", pd.Series(dtype=str)),
+    ]:
+        for val in s_col.dropna():
+            for w in re.findall(r"[a-z]{4,}", norm_text(val)):
+                vocab_objs.add(w)
 
     return {
         "df26": df26,
@@ -160,10 +251,10 @@ def load_oraculo_kb() -> dict[str, Any]:
         "u_liq": u_liq,
         "cota_2026": 207478837.10,
         "cota_2027": 144089232.46,
+        "extra_vocab": sorted(vocab_objs),
     }
 
 
-# Mapeamento inteligente de siglas e unidades entre todas as planilhas
 UNIT_ALIASES = {
     "sti": {
         "nome": "Superintendência de Tecnologia da Informação (STI)",
@@ -207,7 +298,6 @@ UNIT_ALIASES = {
     },
 }
 
-
 STOPWORDS_PT = {
     "o", "a", "os", "as", "um", "uma", "de", "do", "da", "dos", "das", "em", "no", "na",
     "nos", "nas", "por", "para", "com", "sem", "qual", "quais", "quanto", "quantos", "quantas",
@@ -220,8 +310,325 @@ STOPWORDS_PT = {
     "maiores", "menor", "menores", "top", "ranking", "comparar", "comparativo", "compare",
     "2026", "2027", "ploa", "execucao", "planejamento", "unidade", "unidades", "superintendencia",
     "superintendencias", "base", "bases", "cota", "deficit", "estimado", "indicado", "liquidado",
-    "saldo", "restante", "geral", "consolidado", "situacao",
+    "saldo", "restante", "geral", "consolidado", "situacao", "gasto", "gastos", "custo", "custos",
+    "previsto", "prevista", "planejado", "planejada", "alto", "alta", "baixo", "baixa", "caro", "cara",
 }
+
+
+def _detect_unit(q_norm: str) -> str | None:
+    for u_key, u_info in UNIT_ALIASES.items():
+        for term in u_info["terms"]:
+            if re.search(rf"\b{re.escape(term)}\b", q_norm):
+                return u_key
+    return None
+
+
+def _answer_deficit_analysis(q_norm: str, kb: dict[str, Any], unit_key: str | None = None) -> str:
+    """Responde de forma cirúrgica qualquer pergunta sobre Déficit 2027 (maior déficit, menor, por unidade, total)."""
+    df27 = kb["df27"].copy()
+    if unit_key:
+        df27 = df27[df27["Unidade"].isin(UNIT_ALIASES[unit_key]["orc"])].copy()
+
+    sub_def = df27[df27["_val_deficit"] > 0].copy()
+    if sub_def.empty:
+        return "Não há nenhuma despesa com déficit registrado para o filtro consultado."
+
+    is_menor = any(w in q_norm for w in ["menor", "menores", "mais baixo", "minimo"])
+    sub_def = sub_def.sort_values("_val_deficit", ascending=is_menor)
+
+    tot_def_geral = float(sub_def["_val_deficit"].sum())
+    tot_ini_geral = float(df27["_val_inicial"].sum())
+    tot_2027_geral = float(df27["_val_total"].sum())
+
+    # Top 1 individual (linha da planilha)
+    top1 = sub_def.iloc[0]
+    top1_item = int(top1["Item"]) if pd.notna(top1.get("Item")) and str(top1.get("Item")).replace(".0", "").isdigit() else top1.get("Item", "-")
+    top1_res = top1.get("Resumo", top1.get("Objeto", "-"))
+    top1_uni = top1.get("Unidade", "-")
+    top1_def = float(top1["_val_deficit"])
+    top1_ini = float(top1["_val_inicial"])
+    top1_tot = float(top1["_val_total"])
+    top1_pct = (top1_def / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+
+    # Agrupado por Resumo (caso a mesma despesa esteja dividida em mais de um item)
+    por_resumo = (
+        sub_def.groupby(["Resumo", "Unidade"], as_index=False)
+        .agg(Qtd=("Item", "count"), Ini=("_val_inicial", "sum"), Def=("_val_deficit", "sum"), Tot=("_val_total", "sum"))
+        .sort_values("Def", ascending=is_menor)
+    )
+    top1_agrup = por_resumo.iloc[0]
+
+    # Agrupado por Unidade
+    por_uni = (
+        sub_def.groupby("Unidade", as_index=False)
+        .agg(Qtd=("Item", "count"), Ini=("_val_inicial", "sum"), Def=("_val_deficit", "sum"), Tot=("_val_total", "sum"))
+        .sort_values("Def", ascending=False)
+    )
+    u_lider = por_uni.iloc[0]
+    u_lider_pct = (float(u_lider["Def"]) / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+
+    titulo_extremo = "Menor Déficit" if is_menor else "Maior Déficit"
+    escopo_txt = f" ({UNIT_ALIASES[unit_key]['nome']})" if unit_key else " (PLOA 2027)"
+
+    linhas = [
+        f"### 🎯 Análise de Déficit Orçamentário 2027 — {titulo_extremo}{escopo_txt}\n",
+        f"🏆 **Despesa com o {titulo_extremo} Individual:**",
+        f"* **Item {top1_item} — {top1_res}** (*Unidade: {top1_uni}*)",
+        f"  * **Déficit Estimado para 2027:** **`{fmt_brl(top1_def)}`** *(representa `{top1_pct:.1f}%` de todo o déficit de 2027)*",
+        f"  * **Estimado Inicial:** `{fmt_brl(top1_ini)}` | **Estimado Total 2027:** `{fmt_brl(top1_tot)}`",
+        f"  * **Contrato:** `{top1.get('Nº do Contrato (se houver)', '-')}` | **Empresa:** `{top1.get('Empresa Contratada', '-')}`",
+    ]
+
+    if int(top1_agrup["Qtd"]) > 1 and not is_menor:
+        pct_ag = (float(top1_agrup["Def"]) / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+        linhas.append(
+            f"\n💡 **Nota Consolidada:** Somando os **{int(top1_agrup['Qtd'])} itens** de **`{top1_agrup['Resumo']}`** ({top1_agrup['Unidade']}), "
+            f"o déficit acumulado desse objeto chega a **`{fmt_brl(top1_agrup['Def'])}`** (`{pct_ag:.1f}%` do déficit total)."
+        )
+
+    linhas.extend([
+        f"\n📊 **Resumo Geral do Déficit 2027:**",
+        f"* **Déficit Total Mapeado em 2027:** `{fmt_brl(tot_def_geral)}` (distribuído em `{len(sub_def)}` itens de despesa)",
+        f"* **Unidade com Maior Déficit Acumulado:** **{u_lider['Unidade']}** com `{fmt_brl(u_lider['Def'])}` (`{u_lider_pct:.1f}%` do total, em `{int(u_lider['Qtd'])}` itens)",
+        f"* **Orçamento Inicial 2027:** `{fmt_brl(tot_ini_geral)}` ➔ **Total Planejado (Inicial + Déficit):** `{fmt_brl(tot_2027_geral)}`\n",
+        f"#### 🔝 Top 10 Despesas por {titulo_extremo} em 2027:",
+        "| # | Item | Despesa (Resumo) | Unidade | Estimado Inicial | Déficit 2027 | Total 2027 | % do Déficit |",
+        "|---|---|---|---|---|---|---|---|",
+    ])
+
+    for idx, (_, r) in enumerate(sub_def.head(10).iterrows(), 1):
+        it_num = int(r["Item"]) if pd.notna(r.get("Item")) and str(r.get("Item")).replace(".0", "").isdigit() else r.get("Item", "-")
+        pct_i = (float(r["_val_deficit"]) / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+        linhas.append(
+            f"| {idx}º | {it_num} | **{r.get('Resumo', r.get('Objeto', '-'))}** | {r.get('Unidade', '-')} | "
+            f"`{fmt_brl(r['_val_inicial'])}` | **`{fmt_brl(r['_val_deficit'])}`** | `{fmt_brl(r['_val_total'])}` | `{pct_i:.1f}%` |"
+        )
+
+    if not unit_key and len(por_uni) > 1:
+        linhas.extend([
+            "\n#### 🏢 Déficit 2027 Consolidado por Unidade:",
+            "| Unidade | Itens c/ Déficit | Déficit 2027 | % Participação |",
+            "|---|---|---|---|",
+        ])
+        for _, r in por_uni.iterrows():
+            p_u = (float(r["Def"]) / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+            linhas.append(f"| **{r['Unidade']}** | {int(r['Qtd'])} | **`{fmt_brl(r['Def'])}`** | `{p_u:.1f}%` |")
+
+    return "\n".join(linhas)
+
+
+def _answer_ranking_or_extreme(q_norm: str, kb: dict[str, Any], unit_key: str | None = None) -> str | None:
+    """Motor de ranking inteligente: responde 'qual a maior/menor despesa, contrato, fornecedor, corte, etc.' em qualquer base."""
+    has_extreme = any(w in q_norm for w in [
+        "maior", "maiores", "mais cara", "mais caro", "mais alto", "mais alta",
+        "menor", "menores", "mais barata", "mais barato", "mais baixo", "mais baixa",
+        "top", "ranking", "campeao", "lider", "primeiro", "principal", "principais", "gasta mais", "consome mais"
+    ])
+    if not has_extreme:
+        return None
+
+    is_menor = any(w in q_norm for w in ["menor", "menores", "mais barata", "mais barato", "mais baixo", "mais baixa"])
+    lbl_ord = "Menor" if is_menor else "Maior"
+
+    # 1. Se menciona Déficit -> análise dedicada de déficit
+    if "deficit" in q_norm:
+        return _answer_deficit_analysis(q_norm, kb, unit_key=unit_key)
+
+    # 2. Se menciona Supressões / Cortes / Economia
+    if any(w in q_norm for w in ["supressao", "supressoes", "corte", "cortes", "economia", "reduzir", "reducao"]):
+        df_sup = kb["df_sup"].copy()
+        if unit_key and UNIT_ALIASES[unit_key]["sup"]:
+            df_sup = df_sup[df_sup["Unidade"].isin(UNIT_ALIASES[unit_key]["sup"])].copy()
+        if df_sup.empty:
+            return "Não há registros de supressão para este filtro."
+        sub = df_sup.sort_values("Economia Gerada", ascending=is_menor)
+        top1 = sub.iloc[0]
+        tot_ec = float(df_sup["Economia Gerada"].sum())
+        pct1 = (float(top1["Economia Gerada"]) / tot_ec * 100) if tot_ec > 0 else 0.0
+        linhas = [
+            f"### ✂️ {lbl_ord} Supressão / Corte na PLOA 2027",
+            f"🏆 **1º Lugar:** **{top1['Item de Despesa']}** (*Unidade: {top1['Unidade']}*)",
+            f"* **Economia Gerada (Corte):** **`{fmt_brl(top1['Economia Gerada'])}`** (`{pct1:.1f}%` da economia total de `{fmt_brl(tot_ec)}`)",
+            f"* **Orçamento Inicial 2027:** `{fmt_brl(top1['Orçamento 2027'])}` ➔ **Novo Teto Ajustado:** `{fmt_brl(top1['Teto Ajustado 2027'])}`",
+            f"* **Ação Sugerida:** *{top1['Ação Sugerida']}*\n",
+            f"#### 🔝 Top 10 {lbl_ord}es Supressões (PLOA 2027):",
+            "| # | Unidade | Item de Despesa | Orçamento 2027 | Economia Gerada (Corte) | Teto Ajustado 2027 | Ação Sugerida |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for idx, (_, r) in enumerate(sub.head(10).iterrows(), 1):
+            linhas.append(
+                f"| {idx}º | {r['Unidade']} | **{r['Item de Despesa']}** | `{fmt_brl(r['Orçamento 2027'])}` | **`{fmt_brl(r['Economia Gerada'])}`** | `{fmt_brl(r['Teto Ajustado 2027'])}` | {r['Ação Sugerida']} |"
+            )
+        return "\n".join(linhas)
+
+    # 3. Se menciona PCA 2027 / GELC / Nova Contratação / Prorrogação
+    if any(w in q_norm for w in ["pca", "gelc", "nova contratacao", "novas contratacoes", "prorrogacao", "prorrogacoes", "licitar"]):
+        df_pca = kb["df_pca"].copy()
+        if "tesouro" in q_norm and "geof" not in q_norm:
+            df_pca = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"].copy()
+        elif "tod" not in q_norm:
+            df_pca = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"].copy()
+
+        if unit_key and UNIT_ALIASES[unit_key]["pca"]:
+            df_pca = df_pca[df_pca["Unidade_Superior"].isin(UNIT_ALIASES[unit_key]["pca"])].copy()
+
+        if "nova" in q_norm:
+            df_pca = df_pca[df_pca["Providencia_2027"].astype(str).str.upper().str.contains("NOVA", na=False)]
+        elif "prorrog" in q_norm:
+            df_pca = df_pca[df_pca["Providencia_2027"].astype(str).str.upper().str.contains("PRORROG", na=False)]
+
+        col_val = "Valor_Total_Estimado" if "global" in q_norm or "valor total" in q_norm else "Valor_Estimado_2027"
+        sub = df_pca[df_pca[col_val] > 0].sort_values(col_val, ascending=is_menor) if is_menor else df_pca.sort_values(col_val, ascending=False)
+        if sub.empty:
+            return "Nenhuma demanda encontrada no PCA 2027 para este critério."
+
+        top1 = sub.iloc[0]
+        it1 = int(top1["Item"]) if pd.notna(top1["Item"]) else "-"
+        linhas = [
+            f"### 📑 {lbl_ord} Contratação do PCA 2027 (GELC)",
+            f"🏆 **1º Lugar:** **Item {it1} — {top1['Objeto_Resumido']}**",
+            f"* **Superintendência:** {top1['Unidade_Superior']} (*Gerência: {top1['Unidade_Demandante']}*)",
+            f"* **Estimado para 2027:** **`{fmt_brl(top1['Valor_Estimado_2027'])}`** | **Valor Total da Contratação:** `{fmt_brl(top1['Valor_Total_Estimado'])}`",
+            f"* **Providência 2027:** `{top1['Providencia_2027']}` | **Modalidade:** `{top1['Modalidade']}` | **UO:** `{top1['Unidade_Orcamentaria']}`\n",
+            f"#### 🔝 Top 10 Demandas do PCA 2027 ({lbl_ord} Valor):",
+            "| # | Item | Objeto Resumido | Superintendência | Gerência | Providência | Estimado 2027 | Valor Total |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        for idx, (_, r) in enumerate(sub.head(10).iterrows(), 1):
+            it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
+            linhas.append(
+                f"| {idx}º | {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Superior']} | {r['Unidade_Demandante']} | {r['Providencia_2027']} | **`{fmt_brl(r['Valor_Estimado_2027'])}`** | `{fmt_brl(r['Valor_Total_Estimado'])}` |"
+            )
+        return "\n".join(linhas)
+
+    # 4. Se menciona Liquidação / SIAFIC / Fornecedor / Credor / Beneficiário
+    if any(w in q_norm for w in ["liquidado", "liquidacao", "siafic", "beneficiario", "credor", "fornecedor", "empresa"]):
+        if any(w in q_norm for w in ["liquidado", "liquidacao", "siafic", "beneficiario", "credor"]):
+            df_liq = kb["df_liq"]
+            por_b = (
+                df_liq.groupby("Beneficiario_Nome", as_index=False)["Valor_Liquidado_Saldo"]
+                .sum()
+                .sort_values("Valor_Liquidado_Saldo", ascending=is_menor)
+            )
+            top1 = por_b.iloc[0]
+            tot_l = float(df_liq["Valor_Liquidado_Saldo"].sum())
+            pct1 = (float(top1["Valor_Liquidado_Saldo"]) / tot_l * 100) if tot_l > 0 else 0.0
+            linhas = [
+                f"### 💳 {lbl_ord} Fornecedor / Beneficiário Liquidado no SIAFIC (2026)",
+                f"🏆 **1º Lugar:** **{top1['Beneficiario_Nome']}**",
+                f"* **Total Liquidado em 2026:** **`{fmt_brl(top1['Valor_Liquidado_Saldo'])}`** (`{pct1:.1f}%` do total liquidado de `{fmt_brl(tot_l)}`)\n",
+                "| # | Beneficiário / Fornecedor | Total Liquidado 2026 | % do Total |",
+                "|---|---|---|---|",
+            ]
+            for idx, (_, r) in enumerate(por_b.head(10).iterrows(), 1):
+                p = (float(r["Valor_Liquidado_Saldo"]) / tot_l * 100) if tot_l > 0 else 0.0
+                linhas.append(f"| {idx}º | **{r['Beneficiario_Nome']}** | **`{fmt_brl(r['Valor_Liquidado_Saldo'])}`** | `{p:.1f}%` |")
+            return "\n".join(linhas)
+
+    # 5. Orçamento 2026 ou Planejamento 2027 (Despesas / Unidades / Custeio / Investimento / Mês)
+    ano_alvo = 2026 if ("2026" in q_norm and "2027" not in q_norm) else 2027
+    df_alvo = kb["df26"].copy() if ano_alvo == 2026 else kb["df27"].copy()
+
+    if unit_key:
+        df_alvo = df_alvo[df_alvo["Unidade"].isin(UNIT_ALIASES[unit_key]["orc"])].copy()
+
+    if "investimento" in q_norm and "custeio" not in q_norm:
+        df_alvo = df_alvo[df_alvo["Grupo de Despesa"].astype(str).str.lower().str.contains("investimento", na=False)].copy()
+        lbl_grupo = " (Apenas Investimento)"
+    elif "custeio" in q_norm and "investimento" not in q_norm:
+        df_alvo = df_alvo[df_alvo["Grupo de Despesa"].astype(str).str.lower().str.contains("custeio", na=False)].copy()
+        lbl_grupo = " (Apenas Custeio)"
+    else:
+        lbl_grupo = ""
+
+    # Verifica se pediu um mês específico (Janeiro a Dezembro)
+    col_metrica = "_val_total"
+    nome_metrica = f"Estimado Total {ano_alvo}"
+    for m_norm, m_orig in MESES_NORM_MAP.items():
+        if re.search(rf"\b{m_norm}\b", q_norm) and f"Estimado {m_orig}" in df_alvo.columns:
+            col_metrica = f"Estimado {m_orig}"
+            nome_metrica = f"Estimado {m_orig}/{ano_alvo}"
+            break
+
+    if col_metrica == "_val_total":
+        if ano_alvo == 2026 and "indicado" in q_norm:
+            col_metrica = "_val_indicado"
+            nome_metrica = "Valor Indicado 2026"
+        elif ano_alvo == 2026 and ("restante" in q_norm or "saldo" in q_norm):
+            col_metrica = "_val_restante"
+            nome_metrica = "Saldo Restante 2026"
+        elif ano_alvo == 2027 and "inicial" in q_norm:
+            col_metrica = "_val_inicial"
+            nome_metrica = "Estimado Inicial 2027"
+        elif "global" in q_norm:
+            col_metrica = "_val_global"
+            nome_metrica = "Valor Global do Contrato"
+
+    if is_menor:
+        df_alvo = df_alvo[df_alvo[col_metrica] > 0].copy()
+
+    if df_alvo.empty:
+        return f"Nenhuma despesa encontrada para {ano_alvo}{lbl_grupo}."
+
+    # Se perguntou "qual unidade tem maior/menor..."
+    if any(p in q_norm for p in ["qual unidade", "quais unidades", "unidade tem", "unidade com", "por unidade"]):
+        por_u = (
+            df_alvo.groupby("Unidade", as_index=False)
+            .agg(Qtd=("Item", "count"), Valor=(col_metrica, "sum"))
+            .sort_values("Valor", ascending=is_menor)
+        )
+        u1 = por_u.iloc[0]
+        tot_g = float(df_alvo[col_metrica].sum())
+        p1 = (float(u1["Valor"]) / tot_g * 100) if tot_g > 0 else 0.0
+        linhas = [
+            f"### 🏢 Unidade com {lbl_ord} {nome_metrica}{lbl_grupo}",
+            f"🏆 **1º Lugar:** **{u1['Unidade']}** com **`{fmt_brl(u1['Valor'])}`** (`{p1:.1f}%` do total de `{fmt_brl(tot_g)}`, em `{int(u1['Qtd'])}` despesas)\n",
+            f"| # | Unidade | Qtd Despesas | {nome_metrica} | % do Total |",
+            "|---|---|---|---|---|",
+        ]
+        for idx, (_, r) in enumerate(por_u.iterrows(), 1):
+            p = (float(r["Valor"]) / tot_g * 100) if tot_g > 0 else 0.0
+            linhas.append(f"| {idx}º | **{r['Unidade']}** | {int(r['Qtd'])} | **`{fmt_brl(r['Valor'])}`** | `{p:.1f}%` |")
+        return "\n".join(linhas)
+
+    sub = df_alvo.sort_values(col_metrica, ascending=is_menor)
+    top1 = sub.iloc[0]
+    it1 = int(top1["Item"]) if pd.notna(top1.get("Item")) and str(top1.get("Item")).replace(".0", "").isdigit() else top1.get("Item", "-")
+    tot_geral = float(df_alvo[col_metrica].sum())
+    pct1 = (float(top1[col_metrica]) / tot_geral * 100) if tot_geral > 0 else 0.0
+
+    linhas = [
+        f"### 🏆 Despesa com {lbl_ord} {nome_metrica}{lbl_grupo}",
+        f"* **1º Lugar Individual:** **Item {it1} — {top1.get('Resumo', top1.get('Objeto', '-'))}** (*Unidade: {top1.get('Unidade', '-')}*)",
+        f"  * **{nome_metrica}:** **`{fmt_brl(top1[col_metrica])}`** (`{pct1:.1f}%` do total de `{fmt_brl(tot_geral)}`)",
+    ]
+    if ano_alvo == 2027:
+        linhas.append(f"  * **Detalhamento 2027:** Inicial: `{fmt_brl(top1['_val_inicial'])}` | Déficit: `{fmt_brl(top1['_val_deficit'])}` | Total: `{fmt_brl(top1['_val_total'])}`")
+    else:
+        linhas.append(f"  * **Detalhamento 2026:** Estimado: `{fmt_brl(top1['_val_total'])}` | Indicado: `{fmt_brl(top1['_val_indicado'])}` | Restante: `{fmt_brl(top1['_val_restante'])}`")
+    linhas.append(f"  * **Contrato:** `{top1.get('Nº do Contrato (se houver)', '-')}` | **Empresa:** `{top1.get('Empresa Contratada', '-')}`\n")
+
+    linhas.append(f"#### 🔝 Top 10 Despesas por {lbl_ord} {nome_metrica}{lbl_grupo}:")
+    if ano_alvo == 2027:
+        linhas.append("| # | Item | Despesa (Resumo) | Unidade | Inicial 2027 | Déficit 2027 | Total 2027 |")
+        linhas.append("|---|---|---|---|---|---|---|")
+        for idx, (_, r) in enumerate(sub.head(10).iterrows(), 1):
+            it_n = int(r["Item"]) if pd.notna(r.get("Item")) and str(r.get("Item")).replace(".0", "").isdigit() else r.get("Item", "-")
+            linhas.append(
+                f"| {idx}º | {it_n} | **{r.get('Resumo', r.get('Objeto', '-'))}** | {r.get('Unidade', '-')} | "
+                f"`{fmt_brl(r['_val_inicial'])}` | `{fmt_brl(r['_val_deficit'])}` | **`{fmt_brl(r['_val_total'])}`** |"
+            )
+    else:
+        linhas.append("| # | Item | Despesa (Resumo) | Unidade | Estimado 2026 | Valor Indicado | Saldo Restante |")
+        linhas.append("|---|---|---|---|---|---|---|")
+        for idx, (_, r) in enumerate(sub.head(10).iterrows(), 1):
+            it_n = int(r["Item"]) if pd.notna(r.get("Item")) and str(r.get("Item")).replace(".0", "").isdigit() else r.get("Item", "-")
+            linhas.append(
+                f"| {idx}º | {it_n} | **{r.get('Resumo', r.get('Objeto', '-'))}** | {r.get('Unidade', '-')} | "
+                f"**`{fmt_brl(r['_val_total'])}`** | `{fmt_brl(r['_val_indicado'])}` | `{fmt_brl(r['_val_restante'])}` |"
+            )
+
+    return "\n".join(linhas)
 
 
 def _build_panorama_geral(kb: dict[str, Any]) -> str:
@@ -232,26 +639,21 @@ def _build_panorama_geral(kb: dict[str, Any]) -> str:
     df_pca = kb["df_pca"]
     df_liq = kb["df_liq"]
 
-    # 2026
     tot26 = float(df26["_val_total"].sum()) if not df26.empty else 0.0
     ind26 = float(df26["_val_indicado"].sum()) if not df26.empty else 0.0
     rest26 = float(df26["_val_restante"].sum()) if not df26.empty else 0.0
     pct26 = (ind26 / tot26 * 100) if tot26 > 0 else 0.0
 
-    # SIAFIC 2026
     liq26 = float(df_liq["Valor_Liquidado_Saldo"].sum()) if not df_liq.empty else 0.0
 
-    # 2027
     ini27 = float(df27["_val_inicial"].sum()) if not df27.empty else 0.0
     def27 = float(df27["_val_deficit"].sum()) if not df27.empty else 0.0
     tot27 = float(df27["_val_total"].sum()) if not df27.empty else 0.0
     cota27 = kb["cota_2027"]
 
-    # Supressões
     sup_econ = float(df_sup["Economia Gerada"].sum()) if not df_sup.empty else 0.0
     sup_teto = float(df_sup["Teto Ajustado 2027"].sum()) if not df_sup.empty else 0.0
 
-    # PCA 2027
     pca_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"] if not df_pca.empty else pd.DataFrame()
     pca_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"] if not df_pca.empty else pd.DataFrame()
     tot_pca_geof = float(pca_geof["Valor_Estimado_2027"].sum()) if not pca_geof.empty else 0.0
@@ -297,7 +699,6 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
     partes = [f"### 🔎 Dossiê 360° — {tipo_id} `{termo}`\n"]
     encontrou = False
 
-    # 1. Orçamento 2026
     df26 = kb["df26"]
     m26 = df26["_search_blob"].str.contains(re.escape(termo.lower()), na=False)
     if m26.any():
@@ -311,7 +712,6 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
                 f"Contrato: `{r.get('Nº do Contrato (se houver)', '-')}` | Empresa: `{r.get('Empresa Contratada', '-')}`"
             )
 
-    # 2. Liquidação SIAFIC 2026
     df_liq = kb["df_liq"]
     if not df_liq.empty:
         mliq = df_liq["_search_blob"].str.contains(re.escape(termo.lower()), na=False)
@@ -326,7 +726,6 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
                 f"* **Beneficiário(s):** {benefs}"
             )
 
-    # 3. Planejamento 2027
     df27 = kb["df27"]
     m27 = df27["_search_blob"].str.contains(re.escape(termo.lower()), na=False)
     if m27.any():
@@ -339,7 +738,6 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
                 f"  * Inicial: `{fmt_brl(r['_val_inicial'])}` | Déficit: `{fmt_brl(r['_val_deficit'])}` | Total 2027: `{fmt_brl(r['_val_total'])}`"
             )
 
-    # 4. PCA 2027
     df_pca = kb["df_pca"]
     if not df_pca.empty:
         mpca = df_pca["_search_blob"].str.contains(re.escape(termo.lower()), na=False)
@@ -367,16 +765,10 @@ def _answer_pca_specific(q_norm: str, kb: dict[str, Any]) -> str:
     if df_pca.empty:
         return "A base do PCA 2027 está vazia no momento."
 
-    # Verifica se o usuário pediu especificamente Tesouro ou Todos, caso contrário destaca ambos e GEOF
     hoje = datetime.now()
     ano_at, mes_at = hoje.year, hoje.month
     ano_px, mes_px = (ano_at + 1, 1) if mes_at == 12 else (ano_at, mes_at + 1)
 
-    s_set = pd.to_datetime(df_pca["Data_Inicio_SETRAC"], errors="coerce")
-    s_con = pd.to_datetime(df_pca["Data_Encaminhamento_Contratos"], errors="coerce")
-    s_dea = pd.to_datetime(df_pca["Deadline_Contratacao"], errors="coerce")
-
-    # Se perguntou sobre riscos, atrasos, vencidos ou mês corrente
     if any(k in q_norm for k in ["risco", "atrasad", "vencid", "mes corrente", "mes atual", "este mes", "prazo", "setrac", "encaminhamento", "deadline", "alerta", "proximo mes"]):
         df_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"].copy() if "tesouro" not in q_norm else df_pca.copy()
         escopo_lbl = "Todas as UOs (GEOF + Tesouro)" if "tesouro" in q_norm or "tod" in q_norm else "UO Padrão: GEOF"
@@ -422,7 +814,6 @@ def _answer_pca_specific(q_norm: str, kb: dict[str, Any]) -> str:
                 )
         return "\n".join(linhas)
 
-    # Visão consolidada do PCA 2027 por Superintendência e Providência
     df_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"]
     df_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"]
 
@@ -612,11 +1003,14 @@ def _answer_unit_360(unit_key: str, kb: dict[str, Any]) -> str:
 
 def _answer_orcamento_2026_2027(q_norm: str, kb: dict[str, Any]) -> str:
     """Responde perguntas sobre comparativo 2026 vs 2027, déficit 2027, cota ou ranking de despesas."""
+    if "deficit" in q_norm:
+        return _answer_deficit_analysis(q_norm, kb)
+
     df26 = kb["df26"]
     df27 = kb["df27"]
 
     so_2026 = "2026" in q_norm and "2027" not in q_norm
-    so_2027 = ("2027" in q_norm or "ploa" in q_norm or "deficit" in q_norm) and "2026" not in q_norm
+    so_2027 = ("2027" in q_norm or "ploa" in q_norm) and "2026" not in q_norm
 
     if so_2026:
         tot26 = float(df26["_val_total"].sum())
@@ -675,7 +1069,6 @@ def _answer_orcamento_2026_2027(q_norm: str, kb: dict[str, Any]) -> str:
             )
         return "\n".join(linhas)
 
-    # Comparativo 2026 vs 2027 por Unidade
     u26 = df26.groupby("Unidade")["_val_total"].sum()
     u27 = df27.groupby("Unidade")["_val_total"].sum()
     unidades = sorted(set(u26.index).union(set(u27.index)))
@@ -710,13 +1103,11 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
     def match_df(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty or "_search_blob" not in df.columns:
             return pd.DataFrame()
-        # Tenta match com todos os tokens relevantes; se vazio, tenta match com pelo menos o token mais específico
         mask_all = pd.Series(True, index=df.index)
         for t in tokens:
             mask_all &= df["_search_blob"].str.contains(re.escape(t), na=False)
         if mask_all.any():
             return df[mask_all]
-        # Fallback: ordenar por número de tokens encontrados
         scores = pd.Series(0, index=df.index)
         for t in tokens:
             scores += df["_search_blob"].str.contains(re.escape(t), na=False).astype(int)
@@ -735,10 +1126,10 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
         return (
             f"Não encontrei registros específicos para **`{q_raw}`** nas planilhas.\n\n"
             "💡 **Dica:** Você pode perguntar por:\n"
+            "* **Rankings e Extremos:** *Qual despesa tem o maior déficit para 2027? Qual o maior corte nas supressões? Qual a maior contratação do PCA?*\n"
             "* **Temas/Objetos:** *vigilância, limpeza, locação de veículos, link de dados, call center, Pix, Infoconv, Microsoft*\n"
             "* **Unidades:** *STI, SGI, Receita Estadual, SFR, SIF, Tesouro, Gabinete*\n"
-            "* **Números:** *Processo SEI, Nº do Contrato (ex: 026/2023)*\n"
-            "* **Dashboards:** *Resumo geral, Riscos do PCA no mês, Supressões 2027, Liquidação SIAFIC, Déficit 2027*"
+            "* **Números:** *Processo SEI, Nº do Contrato (ex: 054/2025)*"
         )
 
     termo_exib = ", ".join(tokens)
@@ -762,7 +1153,7 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
         for _, r in m27.sort_values("_val_total", ascending=False).head(6).iterrows():
             partes.append(
                 f"* **Item {r.get('Item', '-')} — {r.get('Resumo', r.get('Objeto', '-'))}** ({r.get('Unidade', '-')})\n"
-                f"  * Total 2027: `{fmt_brl(r['_val_total'])}` | Contrato: `{r.get('Nº do Contrato (se houver)', '-')}` | Empresa: `{r.get('Empresa Contratada', '-')}`"
+                f"  * Total 2027: `{fmt_brl(r['_val_total'])}` (Inicial: `{fmt_brl(r['_val_inicial'])}` | Déficit: `{fmt_brl(r['_val_deficit'])}`) | Contrato: `{r.get('Nº do Contrato (se houver)', '-')}`"
             )
 
     if not msup.empty:
@@ -805,38 +1196,49 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
 
 
 def consultar_oraculo(pergunta: str) -> str:
-    """Processa qualquer pergunta em linguagem natural cruzando todas as bases do painel."""
+    """Processa qualquer pergunta em linguagem natural cruzando todas as bases do painel (com correção de typos e motor de ranking)."""
     if not pergunta or not pergunta.strip():
         return "Por favor, digite uma pergunta para o **Oráculo**."
 
     kb = load_oraculo_kb()
     q_raw = pergunta.strip()
-    q_norm = norm_text(q_raw)
 
     # 1. Verifica busca exata por Processo SEI ou Número de Contrato
     id_ans = _search_by_identifier(q_raw, kb)
     if id_ans:
         return id_ans
 
-    # 2. Identifica se menciona uma Unidade / Superintendência específica
-    matched_unit = None
-    for u_key, u_info in UNIT_ALIASES.items():
-        for term in u_info["terms"]:
-            if re.search(rf"\b{re.escape(term)}\b", q_norm):
-                matched_unit = u_key
-                break
-        if matched_unit:
-            break
+    # 2. Normaliza e corrige automaticamente erros de digitação ("depesa" -> "despesa", "defict" -> "deficit", etc.)
+    q_norm = normalize_and_fix_typos(q_raw, extra_vocab=kb.get("extra_vocab"))
 
-    # 3. Verifica se é pedido de Panorama Geral / Resumo Geral (sem unidade específica)
+    # 3. Identifica se menciona uma Unidade / Superintendência específica
+    matched_unit = _detect_unit(q_norm)
+
+    # 4. Verifica se é pergunta de Déficit 2027 (ex: "qual depesa tem o maior deficit para 2027 ?", "qual o deficit de 2027?")
+    if "deficit" in q_norm:
+        return _answer_deficit_analysis(q_norm, kb, unit_key=matched_unit)
+
+    # 5. Verifica se é pergunta de Ranking / Extremo ("qual a maior despesa...", "qual o menor...", "quem recebeu mais...", "top 10...")
+    other_specific_tokens = [
+        t for t in re.findall(r"[a-z0-9]{3,}", q_norm)
+        if t not in STOPWORDS_PT
+        and t not in DOMAIN_VOCAB
+        and not any(t in u["terms"] or any(t in term.split() for term in u["terms"]) for u in UNIT_ALIASES.values())
+    ]
+    if not other_specific_tokens:
+        rank_ans = _answer_ranking_or_extreme(q_norm, kb, unit_key=matched_unit)
+        if rank_ans:
+            return rank_ans
+
+    # 6. Verifica se é pedido de Panorama Geral / Resumo Geral (sem unidade específica)
     if not matched_unit and any(p in q_norm for p in ["panorama", "resumo geral", "visao geral", "todos os dashboards", "todas as planilhas", "grandes numeros", "o que voce sabe"]):
         return _build_panorama_geral(kb)
 
-    # Se mencionou uma unidade e pediu visão em todas as planilhas/bases/raio-x
+    # 7. Se mencionou uma unidade e pediu visão em todas as planilhas/bases/raio-x
     if matched_unit and any(p in q_norm for p in ["todas as planilhas", "todas as bases", "raio x", "raio-x", "geral", "resumo", "como esta", "fale sobre"]):
         return _answer_unit_360(matched_unit, kb)
 
-    # Se perguntou especificamente sobre Supressões
+    # 8. Se perguntou especificamente sobre Supressões
     if any(k in q_norm for k in ["supressao", "supressoes", "corte", "cortes", "economia gerada", "teto ajustado"]):
         if matched_unit and UNIT_ALIASES[matched_unit]["sup"]:
             df_sup = kb["df_sup"]
@@ -855,7 +1257,7 @@ def consultar_oraculo(pergunta: str) -> str:
                 return "\n".join(linhas)
         return _answer_supressoes(q_norm, kb)
 
-    # Se perguntou especificamente sobre PCA 2027 / GELC / Cronograma / Prazos
+    # 9. Se perguntou especificamente sobre PCA 2027 / GELC / Cronograma / Prazos
     if any(k in q_norm for k in ["pca", "gelc", "setrac", "deadline", "prorrogac", "nova contratacao", "novas contratacoes", "risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
         if matched_unit and UNIT_ALIASES[matched_unit]["pca"] and not any(k in q_norm for k in ["risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
             df_pca = kb["df_pca"]
@@ -876,36 +1278,20 @@ def consultar_oraculo(pergunta: str) -> str:
                 return "\n".join(linhas)
         return _answer_pca_specific(q_norm, kb)
 
-    # Se perguntou especificamente sobre Liquidação / SIAFIC / SAP BO
+    # 10. Se perguntou especificamente sobre Liquidação / SIAFIC / SAP BO
     if any(k in q_norm for k in ["liquidac", "liquidado", "siafic", "sap bo", "beneficiario", "credor", "fornecedor"]):
         return _answer_liquidacao(q_norm, kb)
 
-    # Se mencionou uma unidade sem filtro de objeto específico
-    other_tokens = [
-        t for t in re.findall(r"[a-z0-9]{3,}", q_norm)
-        if t not in STOPWORDS_PT and not any(t in u["terms"] or any(t in term.split() for term in u["terms"]) for u in UNIT_ALIASES.values())
-    ]
-    if matched_unit and not other_tokens:
+    # 11. Se mencionou uma unidade sem filtro de objeto específico
+    if matched_unit and not other_specific_tokens:
         return _answer_unit_360(matched_unit, kb)
 
-    # Se perguntou sobre comparativo 2026 vs 2027, cota, déficit, maiores despesas
-    if any(k in q_norm for k in ["compar", "deficit", "cota", "maiores despesas", "top", "2026", "2027", "ploa", "execucao"]) and not other_tokens:
+    # 12. Se perguntou sobre comparativo 2026 vs 2027, cota, maiores despesas
+    if any(k in q_norm for k in ["compar", "cota", "2026", "2027", "ploa", "execucao"]) and not other_specific_tokens:
         return _answer_orcamento_2026_2027(q_norm, kb)
 
-    # 4. Busca semântica multi-planilha por palavra-chave / objeto / fornecedor
+    # 13. Busca semântica multi-planilha por palavra-chave / objeto / fornecedor
     return _search_keyword_across_all(q_raw, q_norm, kb)
-
-
-SUGESTOES_RAPIDAS = [
-    ("📊 Panorama Geral", "Me dê um panorama geral consolidado de todos os dashboards"),
-    ("🚨 Riscos PCA no Mês", "Quais processos do PCA 2027 estão com prazo vencido ou limite no mês atual?"),
-    ("💻 Raio-X da STI", "Como está a STI em todas as planilhas (2026, 2027, Supressões e PCA)?"),
-    ("🏢 Raio-X da SGI", "Fale sobre a SGI em todas as bases"),
-    ("✂️ Supressões PLOA", "Qual o resumo das Supressões PLOA 2027 e os maiores cortes?"),
-    ("📜 Liquidação SIAFIC", "Quanto já foi liquidado no SIAFIC em 2026 e quais os maiores fornecedores?"),
-    ("⚖️ 2026 vs 2027", "Compare o orçamento de 2026 com o planejamento 2027 por unidade"),
-    ("📑 Resumo PCA 2027", "Qual o resumo do PCA 2027 por Superintendência?"),
-]
 
 
 def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
@@ -922,40 +1308,22 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
                     "3. **Planejamento / PLOA 2027** *(SharePoint)*\n"
                     "4. **Supressões PLOA 2027** *(SharePoint)*\n"
                     "5. **PCA 2027 — Contratações GELC** *(Google Sheets)*\n\n"
-                    "Clique em um atalho abaixo ou digite qualquer pergunta (por **Unidade**, **Objeto**, **Contrato**, **Processo SEI** ou **Prazo**):"
+                    "Digite qualquer pergunta abaixo (por **Unidade**, **Objeto**, **Rankings**, **Déficit**, **Contrato**, **Processo SEI** ou **Prazo**):"
                 ),
             }
         ]
 
-    # Barra de atalhos inteligentes
-    st.markdown(
-        "<div style='font-size:0.78rem; font-weight:700; color:#047857; text-transform:uppercase; "
-        "letter-spacing:0.05em; margin-bottom:6px;'>⚡ Consultas Rápidas Sugeridas:</div>",
-        unsafe_allow_html=True,
-    )
-
-    cols_sug = st.columns(4)
-    triggered_prompt = None
-    for idx, (label_btn, prompt_txt) in enumerate(SUGESTOES_RAPIDAS):
-        with cols_sug[idx % 4]:
-            if st.button(label_btn, key=f"{key_prefix}_sug_{idx}", use_container_width=True):
-                triggered_prompt = prompt_txt
-
-    st.markdown("<hr style='margin:8px 0 12px 0; border-color:#DCEBE3;'>", unsafe_allow_html=True)
-
-    # Container de mensagens com rolagem
-    chat_container = st.container(height=410 if key_prefix == "modal" else 520)
+    chat_container = st.container(height=470 if key_prefix == "modal" else 560)
     with chat_container:
         for msg in st.session_state["oraculo_messages"]:
             avatar = "🔮" if msg["role"] == "assistant" else "🧑‍💼"
             with st.chat_message(msg["role"], avatar=avatar):
                 st.markdown(msg["content"])
 
-    # Entrada de pergunta + botão limpar
     c_in, c_clear = st.columns([5.5, 1])
     with c_in:
         user_input = st.chat_input(
-            "Pergunte ao Oráculo (ex: 'vigilância', 'STI', 'riscos PCA', 'processo SEI', 'déficit 2027')...",
+            "Pergunte ao Oráculo (ex: 'qual despesa tem maior déficit em 2027?', 'vigilância', 'STI', 'riscos PCA')...",
             key=f"{key_prefix}_chat_input",
         )
     with c_clear:
@@ -963,26 +1331,24 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
             st.session_state["oraculo_messages"] = st.session_state["oraculo_messages"][:1]
             st.rerun(scope="fragment" if key_prefix == "modal" else "app")
 
-    final_query = triggered_prompt or user_input
-    if final_query:
-        st.session_state["oraculo_messages"].append({"role": "user", "content": final_query})
-        resposta = consultar_oraculo(final_query)
+    if user_input:
+        st.session_state["oraculo_messages"].append({"role": "user", "content": user_input})
+        resposta = consultar_oraculo(user_input)
         st.session_state["oraculo_messages"].append({"role": "assistant", "content": resposta})
         st.rerun(scope="fragment" if key_prefix == "modal" else "app")
 
 
-@st.dialog("🔮 Oráculo · Inteligência Orçamentária & Contratações", width="large")
+@st.dialog("🔮 Oráculo · Inteligência Orçamentária", width="large")
 def open_oraculo_dialog() -> None:
     """Modal flutuante do Oráculo acessível de qualquer página sem perder os filtros ativos."""
     render_oraculo_chat_ui(key_prefix="modal")
 
 
 def inject_floating_oraculo() -> None:
-    """Injeta o botão flutuante (canto inferior direito) e o atalho na barra lateral em todas as páginas."""
+    """Injeta o botão flutuante (canto inferior direito) em todas as páginas."""
     st.markdown(
         """
         <style>
-        /* Estilo do botão flutuante fixo no canto inferior direito */
         .st-key-btn_floating_oraculo_fab {
             position: fixed !important;
             bottom: 24px !important;
