@@ -104,9 +104,10 @@ with st.sidebar:
     opts_uni = sorted([u for u in df_pca_raw["Unidade_Demandante"].dropna().unique() if str(u).strip() != ""])
     sel_uni = st.multiselect("Unidade Demandante (Gerência)", opts_uni, key="f_pca_u_uni")
 
-    # 3. Unidade Orçamentária
+    # 3. Unidade Orçamentária (padrão GEOF)
     opts_uo = sorted([u for u in df_pca_raw["Unidade_Orcamentaria"].dropna().unique() if str(u).strip() != ""])
-    sel_uo = st.multiselect("Unidade Orçamentária", opts_uo, key="f_pca_u_uo")
+    default_uo = ["GEOF"] if "GEOF" in opts_uo else []
+    sel_uo = st.multiselect("Unidade Orçamentária", opts_uo, default=default_uo, key="f_pca_u_uo")
 
     # 4. Providência em 2027
     opts_prov = sorted([p for p in df_pca_raw["Providencia_2027"].dropna().unique() if str(p).strip() != ""])
