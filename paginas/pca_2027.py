@@ -66,6 +66,30 @@ df_pca_raw["_Mes_Inicio_SETRAC"] = df_pca_raw["Data_Inicio_SETRAC"].apply(format
 df_pca_raw["_Mes_Encam_Contratos"] = df_pca_raw["Data_Encaminhamento_Contratos"].apply(formatar_mes_ano)
 df_pca_raw["_Mes_Deadline"] = df_pca_raw["Deadline_Contratacao"].apply(formatar_mes_ano)
 
+# Definições de data corrente e próximo mês para filtro de risco
+hoje_ref = datetime.now()
+ano_ref = hoje_ref.year
+mes_ref = hoje_ref.month
+
+if mes_ref == 12:
+    ano_prox, mes_prox = ano_ref + 1, 1
+else:
+    ano_prox, mes_prox = ano_ref, mes_ref + 1
+
+lbl_mes_ref = f"{MESES_PT_ABREV[mes_ref]}/{str(ano_ref)[2:]}"
+lbl_prox_ref = f"{MESES_PT_ABREV[mes_prox]}/{str(ano_prox)[2:]}"
+
+OPCOES_ALERTA_RISCO = [
+    "Todos os Processos",
+    f"🚨 Qualquer Marco no Mês Atual ({lbl_mes_ref})",
+    f"⏳ Início SETRAC no Mês Atual ({lbl_mes_ref})",
+    f"📤 Encam. a Contratos no Mês Atual ({lbl_mes_ref})",
+    f"🏁 Deadline no Mês Atual ({lbl_mes_ref})",
+    "⚠️ Prazos Já Vencidos",
+    "⚡ Atenção Máxima (Vencidos + Mês Atual)",
+    f"📅 Próximo Mês ({lbl_prox_ref})",
+]
+
 
 # ------------------------------------------------------------------ BANNER SUPERIOR
 dt_pca_str = updated_pca.strftime("%d/%m/%Y às %H:%M") if updated_pca else "N/D"
@@ -183,6 +207,49 @@ if busca:
     )
     df_view = df_view[m_busca]
 
+# Filtro de Alerta de Cronograma & Risco (posicionado na barra de ordenação)
+sel_risco = st.session_state.get("f_pca_u_risco", OPCOES_ALERTA_RISCO[0])
+
+if sel_risco and sel_risco != OPCOES_ALERTA_RISCO[0]:
+    s_setrac_dt = pd.to_datetime(df_view["Data_Inicio_SETRAC"], errors="coerce")
+    s_contr_dt = pd.to_datetime(df_view["Data_Encaminhamento_Contratos"], errors="coerce")
+    s_dead_dt = pd.to_datetime(df_view["Deadline_Contratacao"], errors="coerce")
+
+    if "Qualquer Marco no Mês Atual" in sel_risco:
+        m = (
+            ((s_setrac_dt.dt.year == ano_ref) & (s_setrac_dt.dt.month == mes_ref)) |
+            ((s_contr_dt.dt.year == ano_ref) & (s_contr_dt.dt.month == mes_ref)) |
+            ((s_dead_dt.dt.year == ano_ref) & (s_dead_dt.dt.month == mes_ref))
+        )
+        df_view = df_view[m]
+    elif "Início SETRAC no Mês Atual" in sel_risco:
+        m = (s_setrac_dt.dt.year == ano_ref) & (s_setrac_dt.dt.month == mes_ref)
+        df_view = df_view[m]
+    elif "Encam. a Contratos no Mês Atual" in sel_risco:
+        m = (s_contr_dt.dt.year == ano_ref) & (s_contr_dt.dt.month == mes_ref)
+        df_view = df_view[m]
+    elif "Deadline no Mês Atual" in sel_risco:
+        m = (s_dead_dt.dt.year == ano_ref) & (s_dead_dt.dt.month == mes_ref)
+        df_view = df_view[m]
+    elif "Prazos Já Vencidos" in sel_risco:
+        m = (s_setrac_dt < hoje_ref) | (s_contr_dt < hoje_ref) | (s_dead_dt < hoje_ref)
+        df_view = df_view[m]
+    elif "Atenção Máxima" in sel_risco:
+        m_venc = (s_setrac_dt < hoje_ref) | (s_contr_dt < hoje_ref) | (s_dead_dt < hoje_ref)
+        m_atual = (
+            ((s_setrac_dt.dt.year == ano_ref) & (s_setrac_dt.dt.month == mes_ref)) |
+            ((s_contr_dt.dt.year == ano_ref) & (s_contr_dt.dt.month == mes_ref)) |
+            ((s_dead_dt.dt.year == ano_ref) & (s_dead_dt.dt.month == mes_ref))
+        )
+        df_view = df_view[m_venc | m_atual]
+    elif "Próximo Mês" in sel_risco:
+        m = (
+            ((s_setrac_dt.dt.year == ano_prox) & (s_setrac_dt.dt.month == mes_prox)) |
+            ((s_contr_dt.dt.year == ano_prox) & (s_contr_dt.dt.month == mes_prox)) |
+            ((s_dead_dt.dt.year == ano_prox) & (s_dead_dt.dt.month == mes_prox))
+        )
+        df_view = df_view[m]
+
 # ------------------------------------------------------------------ TOTAIS GERAIS
 tot_geral_2027 = float(df_view["Valor_Estimado_2027"].sum())
 tot_geral_contratacao = float(df_view["Valor_Total_Estimado"].sum())
@@ -277,8 +344,8 @@ with c4:
 
 st.write("")
 
-# ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO
-ctrl_col1, ctrl_col2, _ = st.columns([1.8, 1.3, 3])
+# ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO & ALERTA DE RISCO
+ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1.5, 1.3, 2.5])
 
 with ctrl_col1:
     sort_col = st.selectbox(
@@ -294,6 +361,15 @@ with ctrl_col2:
         ["Decrescente (Maior ➔ Menor)", "Crescente (Menor ➔ Maior)"],
         index=0,
         key="sort_dir_pca_u",
+    )
+
+with ctrl_col3:
+    st.selectbox(
+        "🚨 Alerta de Cronograma & Risco:",
+        OPCOES_ALERTA_RISCO,
+        index=0,
+        key="f_pca_u_risco",
+        help="Filtra processos com data limite/risco no mês corrente, atrasados ou para o próximo mês"
     )
 
 # Configurações de colunas da tabela hierárquica
@@ -596,7 +672,10 @@ tabela_completa = (
     f'</div>'
 )
 
-st.html(tabela_completa)
+if df_view.empty:
+    st.info("ℹ️ Nenhuma contratação encontrada para os filtros e critérios de risco selecionados.")
+else:
+    st.html(tabela_completa)
 
 # ------------------------------------------------------------------ CONTROLE DE EXPANSÃO (EMBAIXO DA TABELA)
 st.checkbox("Expandir todas as superintendências", key="expandir_todas_pca_u")
