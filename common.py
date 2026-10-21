@@ -239,6 +239,41 @@ def brl(v: float, short: bool = True) -> str:
     return "R$ " + sign + s.replace(",", "X").replace(".", ",").replace("X", ".")
 
 
+def fmt_brl(v: float | int | None) -> str:
+    """Formata valor monetário no padrão brasileiro ABNT 2 (ex: R$ 1.000,00)."""
+    if v is None or pd.isna(v) or v == "":
+        return "-"
+    try:
+        val = float(v)
+        sign = "-" if val < 0 else ""
+        a = abs(val)
+        s = f"{a:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {sign}{s}"
+    except Exception:
+        return str(v)
+
+
+def fmt_card_mi(v: float | int | None) -> str:
+    """Formata valor abreviado em Mi / Bi com 2 casas decimais para cards (ex: R$ 42,28 Mi)."""
+    if v is None or pd.isna(v) or v == 0:
+        return "R$ 0,00"
+    try:
+        val = float(v)
+        sign = "-" if val < 0 else ""
+        a = abs(val)
+        if a >= 1e9:
+            s = f"{a / 1e9:,.2f} Bi"
+        elif a >= 1e6:
+            s = f"{a / 1e6:,.2f} Mi"
+        elif a >= 1e3:
+            s = f"{a / 1e3:,.2f} mil"
+        else:
+            s = f"{a:,.2f}"
+        return "R$ " + sign + s.replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return str(v)
+
+
 def num(n: float) -> str:
     return f"{n:,.0f}".replace(",", ".")
 
