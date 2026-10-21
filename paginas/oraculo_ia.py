@@ -1,4 +1,4 @@
-"""Página dedicada: Oráculo — Inteligência Orçamentária."""
+"""Página dedicada: Oráculo — Inteligência Analítica."""
 from __future__ import annotations
 
 import streamlit as st
@@ -12,15 +12,15 @@ st.html(
                 box-shadow: 0 4px 16px rgba(6,78,59,0.22);">
       <div>
         <h2 style="margin:0; font-size:1.55rem; font-weight:800; color:#FFFFFF; letter-spacing:-0.02em;">
-          🔮 Oráculo · Inteligência Orçamentária
+          🔮 Oráculo · Inteligência Analítica
         </h2>
         <div style="font-size:0.84rem; color:#A7F3D0; margin-top:3px;">
-          Consulta unificada em linguagem natural.
+          Agente de Inteligência Artificial integrado em tempo real às bases orçamentárias, financeiras e de contratações
         </div>
       </div>
       <div style="text-align:right;">
         <div style="font-size:0.85rem; color:#A7F3D0; font-weight:700;">Secretaria da Economia · GPIN / GELC</div>
-        <div style="font-size:0.75rem; color:#D1FAE5; opacity:0.9; margin-top:2px;">● Motor Analítico Multi-Base Ativo</div>
+        <div style="font-size:0.75rem; color:#D1FAE5; opacity:0.9; margin-top:2px;">● IA Generativa Ativa</div>
       </div>
     </div>"""
 )

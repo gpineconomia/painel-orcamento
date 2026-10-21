@@ -1477,7 +1477,7 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
         st.rerun(scope="fragment" if key_prefix == "modal" else "app")
 
 
-@st.dialog("🔮 Oráculo · Inteligência Orçamentária", width="large")
+@st.dialog("🔮 Oráculo · Inteligência Analítica", width="large")
 def open_oraculo_dialog() -> None:
     """Modal flutuante do Oráculo acessível de qualquer página sem perder os filtros ativos."""
     render_oraculo_chat_ui(key_prefix="modal")
