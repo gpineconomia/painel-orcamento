@@ -35,12 +35,15 @@ FILES_TO_SYNC = [
     "paginas/visao_2026.py",
     "paginas/visao_analitica.py",
     "paginas/liquidacao_contrato.py",
+    "paginas/pca_2027.py",
+    "pca_data.py",
     "liquidado_mensal_data.py",
     "teste_sap_bo.py",
     "sync_github.py",
     "data/planilha_2026_cache.xlsx",
     "data/planilha_cache.xlsx",
     "data/supressoes_2027_cache.xlsx",
+    "data/pca_2027_cache.xlsx",
     "data/liquidado_mensal_sap.csv",
     "atualizar_siafic_07h30.vbs",
     "iniciar_segundo_plano.vbs",
@@ -93,7 +96,14 @@ def refresh_sap_bo() -> bool:
 
 
 def refresh_sharepoint_caches() -> None:
-    """Baixa as planilhas mais recentes do SharePoint da Economia GO para a pasta data/."""
+    """Baixa as planilhas mais recentes do SharePoint e do Google Sheets para a pasta data/."""
+    try:
+        import pca_data
+        pca_data.download_pca_workbook()
+        print(f"[{datetime.now():%H:%M:%S}] Google Sheets atualizado: PCA 2027")
+    except Exception as exc:
+        print(f"[{datetime.now():%H:%M:%S}] Falha ao baixar PCA 2027: {exc}")
+
     for fn, label in [
         (lambda: data_source.load_data(2026), "Orçamento 2026"),
         (lambda: data_source.load_data(2027), "PLOA 2027"),
