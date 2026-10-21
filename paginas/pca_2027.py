@@ -313,6 +313,7 @@ st.markdown("### 📋 Tabela Analítica de Contratações (PCA 2027)")
 
 # Formatação para exibição
 df_table = df_view.copy()
+df_table["Item"] = df_table["Item"].apply(lambda x: str(int(x)) if pd.notna(x) else "-")
 df_table["Estimado 2027"] = df_table["Valor_Estimado_2027"].apply(fmt_brl)
 df_table["Valor Total"] = df_table["Valor_Total_Estimado"].apply(fmt_brl)
 df_table["Deadline SETRAC"] = df_table["Deadline_Contratacao"].apply(
@@ -353,7 +354,7 @@ st.dataframe(
     hide_index=True,
     height=480,
     column_config={
-        "Item": st.column_config.NumberColumn("Nº", format="%d", width="small"),
+        "Item": st.column_config.TextColumn("Nº", width="small"),
         "Processo SEI": st.column_config.TextColumn("Processo SEI", width="medium"),
         "Contrato Vigente": st.column_config.TextColumn("Contrato", width="small"),
         "Objeto": st.column_config.TextColumn("Objeto da Contratação", width="large"),
@@ -396,34 +397,42 @@ with col_down2:
 # ------------------------------------------------------------------ DETALHAMENTO DE ITEM SELECIONADO
 st.markdown("<div style='margin-top: 1.5rem;'></div>", unsafe_allow_html=True)
 with st.expander("🔍 Inspecionar Detalhamento Completo do Objeto de um Item do PCA"):
-    itens_lista = df_view["Item"].dropna().astype(int).tolist()
-    if itens_lista:
-        opts_itens = [
-            f"Item {int(r['Item'])} — {r['Objeto_Resumido']} ({r['Unidade_Demandante']})"
-            for _, r in df_view.iterrows()
-        ]
-        sel_item_str = st.selectbox("Selecione o Item para inspecionar:", opts_itens, key="sel_item_pca")
-        item_id = int(sel_item_str.split(" — ")[0].replace("Item ", ""))
-        row_item = df_view[df_view["Item"] == item_id].iloc[0]
+    if not df_view.empty:
+        opcoes_map = {}
+        for idx_row, r in df_view.iterrows():
+            if pd.notna(r.get("Item")):
+                try:
+                    item_num_str = f"Item {int(r['Item'])}"
+                except Exception:
+                    item_num_str = f"Item {r['Item']}"
+            else:
+                item_num_str = f"Item (L.{idx_row + 1})"
+            label = f"{item_num_str} — {r['Objeto_Resumido']} ({r['Unidade_Demandante']})"
+            opcoes_map[label] = r
 
-        ci1, ci2 = st.columns([2, 1])
-        with ci1:
-            st.markdown(f"#### {row_item['Objeto_Resumido']}")
-            st.markdown(f"**Unidade Demandante:** {row_item['Unidade_Demandante']} *(Superior: {row_item['Unidade_Superior']})*")
-            st.markdown(f"**Detalhamento Completo do Objeto:**\n\n{row_item['Detalhamento_Objeto'] or '(Não detalhado)'}")
+        sel_item_str = st.selectbox("Selecione o Item para inspecionar:", list(opcoes_map.keys()), key="sel_item_pca")
+        if sel_item_str:
+            row_item = opcoes_map[sel_item_str]
 
-        with ci2:
-            st.markdown(
-                f"""<div style="background:#F6FAF8; border:1px solid #DCEBE3; border-radius:12px; padding:16px;">
-                  <div style="font-size:0.8rem; color:#5B7A6C; text-transform:uppercase; font-weight:600;">Resumo da Demanda</div>
-                  <div style="margin-top:8px; font-size:0.9rem;"><strong>Processo SEI:</strong> {row_item['Processo_SEI'] or '-'}</div>
-                  <div style="margin-top:4px; font-size:0.9rem;"><strong>Contrato Vigente:</strong> {row_item['Contrato_Vigente']}</div>
-                  <div style="margin-top:4px; font-size:0.9rem;"><strong>Modalidade:</strong> {row_item['Modalidade']}</div>
-                  <div style="margin-top:4px; font-size:0.9rem;"><strong>Providência 2027:</strong> <span style="font-weight:600; color:#047857;">{row_item['Providencia_2027']}</span></div>
-                  <div style="margin-top:4px; font-size:0.9rem;"><strong>Status:</strong> {row_item['Status_Contratacao']}</div>
-                  <div style="margin-top:4px; font-size:0.9rem;"><strong>Deadline SETRAC:</strong> {row_item['Deadline_Contratacao'].strftime('%d/%m/%Y') if pd.notna(row_item['Deadline_Contratacao']) else '-'}</div>
-                  <div style="margin-top:8px; font-size:1.05rem; font-weight:700; color:#0F2A20;">Estimado 2027: {fmt_brl(row_item['Valor_Estimado_2027'])}</div>
-                  <div style="font-size:0.85rem; color:#5B7A6C;">Total Contratação: {fmt_brl(row_item['Valor_Total_Estimado'])}</div>
-                </div>""",
-                unsafe_allow_html=True,
-            )
+            ci1, ci2 = st.columns([2, 1])
+            with ci1:
+                st.markdown(f"#### {row_item['Objeto_Resumido']}")
+                st.markdown(f"**Unidade Demandante:** {row_item['Unidade_Demandante']} *(Superior: {row_item['Unidade_Superior']})*")
+                st.markdown(f"**Detalhamento Completo do Objeto:**\n\n{row_item['Detalhamento_Objeto'] or '(Não detalhado)'}")
+
+            with ci2:
+                deadline_str = row_item['Deadline_Contratacao'].strftime('%d/%m/%Y') if pd.notna(row_item['Deadline_Contratacao']) else '-'
+                st.markdown(
+                    f"""<div style="background:#F6FAF8; border:1px solid #DCEBE3; border-radius:12px; padding:16px;">
+                      <div style="font-size:0.8rem; color:#5B7A6C; text-transform:uppercase; font-weight:600;">Resumo da Demanda</div>
+                      <div style="margin-top:8px; font-size:0.9rem;"><strong>Processo SEI:** {row_item['Processo_SEI'] or '-'}</div>
+                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Contrato Vigente:** {row_item['Contrato_Vigente']}</div>
+                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Modalidade:** {row_item['Modalidade']}</div>
+                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Providência 2027:** <span style="font-weight:600; color:#047857;">{row_item['Providencia_2027']}</span></div>
+                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Status:** {row_item['Status_Contratacao']}</div>
+                      <div style="margin-top:4px; font-size:0.9rem;"><strong>Deadline SETRAC:** {deadline_str}</div>
+                      <div style="margin-top:8px; font-size:1.05rem; font-weight:700; color:#0F2A20;">Estimado 2027: {fmt_brl(row_item['Valor_Estimado_2027'])}</div>
+                      <div style="font-size:0.85rem; color:#5B7A6C;">Total Contratação: {fmt_brl(row_item['Valor_Total_Estimado'])}</div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
