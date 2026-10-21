@@ -312,6 +312,8 @@ STOPWORDS_PT = {
     "superintendencias", "base", "bases", "cota", "deficit", "estimado", "indicado", "liquidado",
     "saldo", "restante", "geral", "consolidado", "situacao", "gasto", "gastos", "custo", "custos",
     "previsto", "prevista", "planejado", "planejada", "alto", "alta", "baixo", "baixa", "caro", "cara",
+    "teve", "tiveram", "recebeu", "receberam", "ganhou", "pca", "gelc", "siafic", "sap", "setrac",
+    "geof", "possui", "possuem", "sofreu", "sofreram", "apresenta", "apresentam",
 }
 
 
@@ -422,7 +424,8 @@ def _answer_ranking_or_extreme(q_norm: str, kb: dict[str, Any], unit_key: str | 
     has_extreme = any(w in q_norm for w in [
         "maior", "maiores", "mais cara", "mais caro", "mais alto", "mais alta",
         "menor", "menores", "mais barata", "mais barato", "mais baixo", "mais baixa",
-        "top", "ranking", "campeao", "lider", "primeiro", "principal", "principais", "gasta mais", "consome mais"
+        "top", "ranking", "campeao", "lider", "primeiro", "principal", "principais",
+        "gasta mais", "consome mais", "recebeu mais", "receberam mais", "ganhou mais",
     ])
     if not has_extreme:
         return None
@@ -1195,30 +1198,113 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
     return "\n\n".join(partes)
 
 
-def consultar_oraculo(pergunta: str) -> str:
-    """Processa qualquer pergunta em linguagem natural cruzando todas as bases do painel (com correção de typos e motor de ranking)."""
-    if not pergunta or not pergunta.strip():
-        return "Por favor, digite uma pergunta para o **Oráculo**."
+def _build_global_master_digest(kb: dict[str, Any]) -> str:
+    """Constrói um resumo executivo denso e enxuto (~3.5 KB) de todas as 5 planilhas para resposta rápida do LLM."""
+    df26 = kb["df26"]
+    df27 = kb["df27"]
+    df_sup = kb["df_sup"]
+    df_pca = kb["df_pca"]
+    df_liq = kb["df_liq"]
 
-    kb = load_oraculo_kb()
+    partes = ["=== CONTEXTO OFICIAL DAS 5 BASES (SECRETARIA DA ECONOMIA - GO) ==="]
+
+    if not df26.empty:
+        tot26 = float(df26["_val_total"].sum())
+        ind26 = float(df26["_val_indicado"].sum())
+        rest26 = float(df26["_val_restante"].sum())
+        u26_str = "; ".join(
+            f"{r['Unidade']}: Est={fmt_brl(r['_val_total'])}, Ind={fmt_brl(r['_val_indicado'])}"
+            for _, r in df26.groupby("Unidade", as_index=False)[["_val_total", "_val_indicado"]].sum().sort_values("_val_total", ascending=False).iterrows()
+        )
+        top26_str = "\n".join(
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Est.26={fmt_brl(r['_val_total'])} | Ind={fmt_brl(r['_val_indicado'])}"
+            for _, r in df26.sort_values("_val_total", ascending=False).head(10).iterrows()
+        )
+        partes.append(
+            f"[1. EXECUÇÃO 2026] Total={fmt_brl(tot26)} ({len(df26)} itens) | Indicado={fmt_brl(ind26)} | Restante={fmt_brl(rest26)} | Cota={fmt_brl(kb['cota_2026'])}\n"
+            f"Unidades 2026: {u26_str}\nTop 10 Despesas 2026:\n{top26_str}"
+        )
+
+    if not df27.empty:
+        ini27 = float(df27["_val_inicial"].sum())
+        def27 = float(df27["_val_deficit"].sum())
+        tot27 = float(df27["_val_total"].sum())
+        u27_str = "; ".join(
+            f"{r['Unidade']}: Ini={fmt_brl(r['_val_inicial'])}, Déf={fmt_brl(r['_val_deficit'])}, Tot={fmt_brl(r['_val_total'])}"
+            for _, r in df27.groupby("Unidade", as_index=False)[["_val_inicial", "_val_deficit", "_val_total"]].sum().sort_values("_val_total", ascending=False).iterrows()
+        )
+        sub_def = df27[df27["_val_deficit"] > 0].sort_values("_val_deficit", ascending=False)
+        def_str = "\n".join(
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Ini={fmt_brl(r['_val_inicial'])} | DÉFICIT={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
+            for _, r in sub_def.head(15).iterrows()
+        )
+        top27_str = "\n".join(
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Ini={fmt_brl(r['_val_inicial'])} | Déf={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
+            for _, r in df27.sort_values("_val_total", ascending=False).head(10).iterrows()
+        )
+        partes.append(
+            f"\n[2. PLOA 2027] Inicial={fmt_brl(ini27)} | Déficit={fmt_brl(def27)} ({len(sub_def)} itens) | Total={fmt_brl(tot27)} ({len(df27)} itens) | Cota={fmt_brl(kb['cota_2027'])}\n"
+            f"Unidades 2027: {u27_str}\nTop 15 Maiores Déficits 2027:\n{def_str}\nTop 10 Maiores Despesas Totais 2027:\n{top27_str}"
+        )
+
+    if not df_sup.empty:
+        sup_str = "\n".join(
+            f"  - [{r['Unidade']}] {r['Item de Despesa']} | Orç={fmt_brl(r['Orçamento 2027'])} | Corte={fmt_brl(r['Economia Gerada'])} | Teto={fmt_brl(r['Teto Ajustado 2027'])} | Ação: {r['Ação Sugerida']}"
+            for _, r in df_sup.sort_values("Economia Gerada", ascending=False).head(15).iterrows()
+        )
+        partes.append(
+            f"\n[3. SUPRESSÕES PLOA 2027] Orç.Original={fmt_brl(df_sup['Orçamento 2027'].sum())} | Economia(Cortes)={fmt_brl(df_sup['Economia Gerada'].sum())} | Teto Ajustado={fmt_brl(df_sup['Teto Ajustado 2027'].sum())}\n"
+            f"Top 15 Supressões:\n{sup_str}"
+        )
+
+    if not df_pca.empty:
+        df_geof = df_pca[df_pca["Unidade_Orcamentaria"] == "GEOF"]
+        df_tes = df_pca[df_pca["Unidade_Orcamentaria"] == "Tesouro"]
+        pca_sup_str = "; ".join(
+            f"{r['Unidade_Superior']}: {int(r['Qtd'])} itens ({fmt_brl(r['Est'])})"
+            for _, r in df_pca.groupby("Unidade_Superior", as_index=False).agg(Qtd=("Objeto_Resumido", "count"), Est=("Valor_Estimado_2027", "sum")).sort_values("Est", ascending=False).iterrows()
+        )
+        top_pca_str = "\n".join(
+            f"  - Item {r.get('Item')}: {r.get('Objeto_Resumido')} ({r.get('Unidade_Superior')}) | UO={r.get('Unidade_Orcamentaria')} | Prov={r.get('Providencia_2027')} | Est.27={fmt_brl(r['Valor_Estimado_2027'])}"
+            for _, r in df_pca.sort_values("Valor_Estimado_2027", ascending=False).head(12).iterrows()
+        )
+        partes.append(
+            f"\n[4. PCA 2027 (GELC)] Geral={fmt_brl(df_pca['Valor_Estimado_2027'].sum())} ({len(df_pca)} itens) | GEOF={fmt_brl(df_geof['Valor_Estimado_2027'].sum())} ({len(df_geof)} itens) | Tesouro={fmt_brl(df_tes['Valor_Estimado_2027'].sum())} ({len(df_tes)} itens)\n"
+            f"Superintendências PCA: {pca_sup_str}\nTop 12 PCA 2027:\n{top_pca_str}"
+        )
+
+    if not df_liq.empty:
+        tot_liq = float(df_liq["Valor_Liquidado_Saldo"].sum())
+        mes_liq_str = "; ".join(
+            f"Mês {int(r['Mes_Referencia'])}: {fmt_brl(r['Valor_Liquidado_Saldo'])}"
+            for _, r in df_liq.groupby("Mes_Referencia", as_index=False)["Valor_Liquidado_Saldo"].sum().sort_values("Mes_Referencia").iterrows()
+        )
+        top_cred_str = "\n".join(
+            f"  - {r['Beneficiario_Nome']}: {fmt_brl(r['Valor_Liquidado_Saldo'])}"
+            for _, r in df_liq.groupby("Beneficiario_Nome", as_index=False)["Valor_Liquidado_Saldo"].sum().sort_values("Valor_Liquidado_Saldo", ascending=False).head(10).iterrows()
+        )
+        partes.append(
+            f"\n[5. LIQUIDAÇÃO SIAFIC 2026] Total Liquidado={fmt_brl(tot_liq)} ({df_liq['Processo_SEI'].nunique()} processos)\n"
+            f"Por Mês: {mes_liq_str}\nTop 10 Credores:\n{top_cred_str}"
+        )
+
+    return "\n".join(partes)
+
+
+def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
+    """Executa o motor analítico determinístico em Pandas para extrair tabelas e cálculos exatos."""
     q_raw = pergunta.strip()
 
-    # 1. Verifica busca exata por Processo SEI ou Número de Contrato
     id_ans = _search_by_identifier(q_raw, kb)
     if id_ans:
         return id_ans
 
-    # 2. Normaliza e corrige automaticamente erros de digitação ("depesa" -> "despesa", "defict" -> "deficit", etc.)
     q_norm = normalize_and_fix_typos(q_raw, extra_vocab=kb.get("extra_vocab"))
-
-    # 3. Identifica se menciona uma Unidade / Superintendência específica
     matched_unit = _detect_unit(q_norm)
 
-    # 4. Verifica se é pergunta de Déficit 2027 (ex: "qual depesa tem o maior deficit para 2027 ?", "qual o deficit de 2027?")
     if "deficit" in q_norm:
         return _answer_deficit_analysis(q_norm, kb, unit_key=matched_unit)
 
-    # 5. Verifica se é pergunta de Ranking / Extremo ("qual a maior despesa...", "qual o menor...", "quem recebeu mais...", "top 10...")
     other_specific_tokens = [
         t for t in re.findall(r"[a-z0-9]{3,}", q_norm)
         if t not in STOPWORDS_PT
@@ -1230,68 +1316,115 @@ def consultar_oraculo(pergunta: str) -> str:
         if rank_ans:
             return rank_ans
 
-    # 6. Verifica se é pedido de Panorama Geral / Resumo Geral (sem unidade específica)
     if not matched_unit and any(p in q_norm for p in ["panorama", "resumo geral", "visao geral", "todos os dashboards", "todas as planilhas", "grandes numeros", "o que voce sabe"]):
         return _build_panorama_geral(kb)
 
-    # 7. Se mencionou uma unidade e pediu visão em todas as planilhas/bases/raio-x
     if matched_unit and any(p in q_norm for p in ["todas as planilhas", "todas as bases", "raio x", "raio-x", "geral", "resumo", "como esta", "fale sobre"]):
         return _answer_unit_360(matched_unit, kb)
 
-    # 8. Se perguntou especificamente sobre Supressões
     if any(k in q_norm for k in ["supressao", "supressoes", "corte", "cortes", "economia gerada", "teto ajustado"]):
-        if matched_unit and UNIT_ALIASES[matched_unit]["sup"]:
-            df_sup = kb["df_sup"]
-            sub = df_sup[df_sup["Unidade"].isin(UNIT_ALIASES[matched_unit]["sup"])]
-            if not sub.empty:
-                linhas = [
-                    f"### ✂️ Supressões PLOA 2027 — {UNIT_ALIASES[matched_unit]['nome']}",
-                    f"* **Orçamento 2027:** `{fmt_brl(sub['Orçamento 2027'].sum())}` | **Economia Gerada:** `{fmt_brl(sub['Economia Gerada'].sum())}` | **Teto Ajustado:** `{fmt_brl(sub['Teto Ajustado 2027'].sum())}`\n",
-                    "| Item de Despesa | Orçamento 2027 | Economia Gerada | Teto Ajustado | Ação Sugerida |",
-                    "|---|---|---|---|---|",
-                ]
-                for _, r in sub.sort_values("Economia Gerada", ascending=False).iterrows():
-                    linhas.append(
-                        f"| **{r['Item de Despesa']}** | `{fmt_brl(r['Orçamento 2027'])}` | `{fmt_brl(r['Economia Gerada'])}` | `{fmt_brl(r['Teto Ajustado 2027'])}` | {r['Ação Sugerida']} |"
-                    )
-                return "\n".join(linhas)
         return _answer_supressoes(q_norm, kb)
 
-    # 9. Se perguntou especificamente sobre PCA 2027 / GELC / Cronograma / Prazos
     if any(k in q_norm for k in ["pca", "gelc", "setrac", "deadline", "prorrogac", "nova contratacao", "novas contratacoes", "risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
-        if matched_unit and UNIT_ALIASES[matched_unit]["pca"] and not any(k in q_norm for k in ["risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
-            df_pca = kb["df_pca"]
-            sub = df_pca[df_pca["Unidade_Superior"].isin(UNIT_ALIASES[matched_unit]["pca"])]
-            if not sub.empty:
-                linhas = [
-                    f"### 📑 PCA 2027 (GELC) — {UNIT_ALIASES[matched_unit]['nome']}",
-                    f"* **Total de Demandas:** `{len(sub)}` | **Estimado 2027:** `{fmt_brl(sub['Valor_Estimado_2027'].sum())}` | **Valor Total Contratação:** `{fmt_brl(sub['Valor_Total_Estimado'].sum())}`\n",
-                    "| Item | Objeto Resumido | Gerência Demandante | Providência 2027 | Deadline | Estimado 2027 |",
-                    "|---|---|---|---|---|---|",
-                ]
-                for _, r in sub.sort_values("Valor_Estimado_2027", ascending=False).iterrows():
-                    it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
-                    dt_d = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r["Deadline_Contratacao"]) else "-"
-                    linhas.append(
-                        f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Demandante']} | {r['Providencia_2027']} | `{dt_d}` | `{fmt_brl(r['Valor_Estimado_2027'])}` |"
-                    )
-                return "\n".join(linhas)
         return _answer_pca_specific(q_norm, kb)
 
-    # 10. Se perguntou especificamente sobre Liquidação / SIAFIC / SAP BO
     if any(k in q_norm for k in ["liquidac", "liquidado", "siafic", "sap bo", "beneficiario", "credor", "fornecedor"]):
         return _answer_liquidacao(q_norm, kb)
 
-    # 11. Se mencionou uma unidade sem filtro de objeto específico
     if matched_unit and not other_specific_tokens:
         return _answer_unit_360(matched_unit, kb)
 
-    # 12. Se perguntou sobre comparativo 2026 vs 2027, cota, maiores despesas
     if any(k in q_norm for k in ["compar", "cota", "2026", "2027", "ploa", "execucao"]) and not other_specific_tokens:
         return _answer_orcamento_2026_2027(q_norm, kb)
 
-    # 13. Busca semântica multi-planilha por palavra-chave / objeto / fornecedor
     return _search_keyword_across_all(q_raw, q_norm, kb)
+
+
+def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any], historico: list[dict[str, str]] | None = None) -> str | None:
+    """Aciona o modelo de IA Generativa (LLM) com todo o contexto das 5 planilhas + cálculos exatos do Pandas."""
+    import os
+    import requests
+
+    master_digest = _build_global_master_digest(kb)
+    system_prompt = (
+        "Você é o **Oráculo** 🔮, o Assistente de Inteligência Artificial especialista em Orçamento Público, "
+        "Finanças e Contratações da Secretaria de Estado da Economia de Goiás (GPIN / GELC).\n"
+        "DIRETRIZES OBRIGATÓRIAS:\n"
+        "1. Responda sempre em português do Brasil, de forma inteligente, analítica, executiva, clara e direta.\n"
+        "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. Nunca invente valores.\n"
+        "3. Formate todos os valores monetários no padrão brasileiro ABNT 2 (ex: R$ 17.498.729,59) e use espaços normais (nunca use caracteres unicode especiais ou espaços estreitos).\n"
+        "4. Quando o usuário perguntar 'qual o maior/menor', destaque imediatamente o 1º lugar (Item, Nome, Unidade e Valor), mostre também a soma agrupada se houver múltiplos itens de mesmo nome, e apresente uma tabela Markdown organizada com os demais itens.\n"
+        "5. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
+        f"{master_digest}\n\n"
+        f"=== RECORTE ESPECÍFICO / CÁLCULO EXATO PANDAS PARA A PERGUNTA ATUAL ===\n{analise_pandas}"
+    )
+
+    msgs: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
+    if historico:
+        for m in historico[-6:]:
+            if m.get("role") in ("user", "assistant") and m.get("content"):
+                msgs.append({"role": m["role"], "content": str(m["content"])[:2500]})
+    if not msgs or msgs[-1].get("content") != pergunta:
+        msgs.append({"role": "user", "content": pergunta})
+
+    # 1. Tenta OpenAI API se configurada no ambiente
+    openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        try:
+            r = requests.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
+                json={"model": "gpt-4o-mini", "messages": msgs, "temperature": 0.1},
+                timeout=25,
+            )
+            if r.status_code == 200:
+                txt = r.json()["choices"][0]["message"]["content"]
+                return txt.replace("\u202f", " ").replace("\xa0", " ").strip()
+        except Exception:
+            pass
+
+    # 2. Usa endpoint LLM Generativo OpenAI-compatible gratuito (Pollinations OpenAI GPT)
+    import time
+    for model_name in ("openai", "openai-fast", "openai"):
+        try:
+            r = requests.post(
+                "https://text.pollinations.ai/openai",
+                headers={"Content-Type": "application/json"},
+                json={
+                    "model": model_name,
+                    "messages": msgs,
+                    "temperature": 0.1,
+                },
+                timeout=28,
+            )
+            if r.status_code == 200:
+                data = r.json()
+                txt = data["choices"][0]["message"]["content"]
+                if txt and len(txt.strip()) > 20:
+                    return txt.replace("\u202f", " ").replace("\xa0", " ").strip()
+            time.sleep(1.2)
+        except Exception:
+            time.sleep(1.0)
+            continue
+
+    return None
+
+
+def consultar_oraculo(pergunta: str, historico: list[dict[str, str]] | None = None) -> str:
+    """Processa qualquer pergunta combinando Motor Pandas Multi-Base + IA Generativa (LLM)."""
+    if not pergunta or not pergunta.strip():
+        return "Por favor, digite uma pergunta para o **Oráculo**."
+
+    kb = load_oraculo_kb()
+    analise_pandas = _consultar_motor_deterministico(pergunta, kb)
+
+    # Aciona o LLM Generativo com todo o contexto + cálculos do Pandas
+    resposta_ia = _chamar_llm_generativo(pergunta, analise_pandas, kb, historico=historico)
+    if resposta_ia:
+        return resposta_ia
+
+    # Fallback imediato caso sem internet externa
+    return analise_pandas
 
 
 def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
@@ -1333,7 +1466,13 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
 
     if user_input:
         st.session_state["oraculo_messages"].append({"role": "user", "content": user_input})
-        resposta = consultar_oraculo(user_input)
+        with chat_container:
+            with st.chat_message("user", avatar="🧑‍💼"):
+                st.markdown(user_input)
+            with st.chat_message("assistant", avatar="🔮"):
+                with st.spinner("🔮 Oráculo analisando as 5 bases com IA..."):
+                    resposta = consultar_oraculo(user_input, historico=st.session_state["oraculo_messages"][:-1])
+                    st.markdown(resposta)
         st.session_state["oraculo_messages"].append({"role": "assistant", "content": resposta})
         st.rerun(scope="fragment" if key_prefix == "modal" else "app")
 
