@@ -4,6 +4,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import unicodedata
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -23,6 +24,55 @@ PCA_GITHUB_RAW_URL = (
 )
 
 TZ_BRASILIA = timezone(timedelta(hours=-3))
+
+
+def normalizar_chave(s: str) -> str:
+    """Normaliza texto para comparação sem acentos, maiúsculas e sem pontuação."""
+    if not s or str(s).strip() in ["", "-", "nan", "None"]:
+        return ""
+    s_norm = unicodedata.normalize("NFKD", str(s).upper()).encode("ASCII", "ignore").decode("ASCII")
+    return re.sub(r"[^A-Z0-9]", "", s_norm)
+
+
+CANONICAL_SUPERIORES = {
+    normalizar_chave("Gabinete"): "Gabinete",
+    normalizar_chave("Subsecretaria da Receita Estadual"): "Subsecretaria da Receita Estadual",
+    normalizar_chave("Superintendência Central de Contabilidade"): "Superintendência Central de Contabilidade",
+    normalizar_chave("Superintendência de Controle e Auditoria"): "Superintendência de Controle e Auditoria",
+    normalizar_chave("Superintendência de Fiscalização Regionalizada"): "Superintendência de Fiscalização Regionalizada",
+    normalizar_chave("Superintendência de Gestão Integrada"): "Superintendência de Gestão Integrada",
+    normalizar_chave("Superintendência de Informações Fiscais"): "Superintendência de Informações Fiscais",
+    normalizar_chave("Superintendência de Recuperação de Créditos"): "Superintendência de Recuperação de Créditos",
+    normalizar_chave("Superintendência de Tecnologia da Informação"): "Superintendência de Tecnologia da Informação",
+    normalizar_chave("SUPERINTENDÊNCIA DE TECNOLOGIA DA INFORMAÇÃO"): "Superintendência de Tecnologia da Informação",
+    normalizar_chave("Superintendência Financeira"): "Superintendência Financeira",
+}
+
+CANONICAL_DEMANDANTES = {
+    normalizar_chave("Gerência de Engenharia e Arquitetura"): "Gerência de Engenharia e Arquitetura",
+    normalizar_chave("GERÊNCIA DE ENGENHARIA E ARQUITETURA"): "Gerência de Engenharia e Arquitetura",
+    normalizar_chave("Gerência de Suporte Técnico"): "Gerência de Suporte Técnico",
+    normalizar_chave("GERÊNCIA DE SUPORTE TÉCNICO"): "Gerência de Suporte Técnico",
+    normalizar_chave("Gerência da Dívida Pública e Receita Extratributária"): "Gerência da Dívida Pública e Receita Extratributária",
+    normalizar_chave("GERÊNCIA DA DÍVIDA PÚBLICA E RECEIRTA EXTRATRIBUTÁRIA"): "Gerência da Dívida Pública e Receita Extratributária",
+    normalizar_chave("Gerência de Dados e Inteligência Analítica"): "Gerência de Dados e Inteligência Analítica",
+    normalizar_chave("GERÊNCIA DE DADOS E INTELIGÊNCIA ANALÍTICA"): "Gerência de Dados e Inteligência Analítica",
+    normalizar_chave("Gerência de Desenvolvimento de Sistemas"): "Gerência de Desenvolvimento de Sistemas",
+    normalizar_chave("GERÊNCIA DE DESENVOLVIMENTO DE SISTEMAS"): "Gerência de Desenvolvimento de Sistemas",
+    normalizar_chave("Gerência de Acompanhamento de Custos e Avaliação de Resultados"): "Gerência de Acompanhamento de Custos e Avaliação de Resultados",
+    normalizar_chave("GERÊNCIA DE ACOMPANHAMENTO DE CUSTOS E AVALIAÇÃO DE RESULTADOS"): "Gerência de Acompanhamento de Custos e Avaliação de Resultados",
+    normalizar_chave("Gerência de Arrecadação e Fiscalização"): "Gerência de Arrecadação e Fiscalização",
+    normalizar_chave("GERÊNCIA DE ARRECADAÇÃO E FISCALIZAÇÃO"): "Gerência de Arrecadação e Fiscalização",
+    normalizar_chave("Subsecretaria da Receita Estadual"): "Subsecretaria da Receita Estadual",
+    normalizar_chave("SUBSECRETARIA DA RECEITA ESTADUAL"): "Subsecretaria da Receita Estadual",
+    normalizar_chave("Comunicação Setorial"): "Comunicação Setorial",
+    normalizar_chave("COMUNICAÇÃO SETORIAL"): "Comunicação Setorial",
+    normalizar_chave("Aquisições e Contratos da SFR"): "Aquisições e Contratos da SFR",
+    normalizar_chave("AQUISIÇÕES E CONTRATOS DA SFR"): "Aquisições e Contratos da SFR",
+    normalizar_chave("Superintendência de Tecnologia da Informação"): "Superintendência de Tecnologia da Informação",
+    normalizar_chave("Superintendência Financeira"): "Superintendência Financeira",
+    normalizar_chave("Superintendência de Fiscalização Regionalizada"): "Superintendência de Fiscalização Regionalizada",
+}
 
 
 def parse_money(val: object) -> float:
@@ -168,7 +218,10 @@ def load_pca_data(auto_download: bool = True) -> tuple[pd.DataFrame, datetime | 
 
         det_obj = str(row.get(c_det, "")).strip() if c_det and pd.notna(row.get(c_det)) else ""
         u_sup = str(row.get(c_uni_sup, "")).strip() if c_uni_sup and pd.notna(row.get(c_uni_sup)) else "Não informada"
+        u_sup = CANONICAL_SUPERIORES.get(normalizar_chave(u_sup), u_sup)
+
         u_dem = str(row.get(c_uni_dem, "")).strip() if c_uni_dem and pd.notna(row.get(c_uni_dem)) else u_sup
+        u_dem = CANONICAL_DEMANDANTES.get(normalizar_chave(u_dem), u_dem)
 
         contrato_raw = str(row.get(c_tem_contrato, "")).strip() if c_tem_contrato and pd.notna(row.get(c_tem_contrato)) else "Não"
         tem_contrato_bool = bool(contrato_raw and contrato_raw.lower() not in ["não", "nao", "-", "nan", "none", "0"])
