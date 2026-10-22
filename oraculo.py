@@ -88,6 +88,9 @@ TYPO_CORRECTIONS = {
 DOMAIN_VOCAB = [
     "despesa", "despesas", "deficit", "orcamento", "contrato", "contratos",
     "processo", "processos", "supressao", "supressoes", "liquidacao", "liquidado",
+    "liquidacoes", "liquidada", "liquidadas", "sobra", "sobras", "relacao",
+    "sugestao", "sugestoes", "reduzir", "reducao", "diminuir", "diferenca",
+    "comparacao", "comparativo", "disponivel", "disponiveis", "daria", "faria",
     "fornecedor", "fornecedores", "empresa", "empresas", "beneficiario", "credor",
     "unidade", "unidades", "superintendencia", "gerencia", "modalidade",
     "prorrogacao", "prorrogacoes", "contratacao", "contratacoes", "indicado",
@@ -984,14 +987,23 @@ def _answer_supressoes(q_norm: str, kb: dict[str, Any]) -> str:
 
 
 def _answer_liquidacao(q_norm: str, kb: dict[str, Any]) -> str:
-    """Responde perguntas sobre Liquidação Mensal no SIAFIC (SAP BO)."""
+    """Responde perguntas sobre Liquidação Mensal no SIAFIC (SAP BO) e saldos/sobras em relação ao orçamento 2026."""
     df_liq = kb["df_liq"]
     if df_liq.empty:
         return "Os dados de Liquidação Mensal do SIAFIC não estão disponíveis no momento."
 
+    df26 = kb["df26"]
+    tot26 = float(df26["_val_total"].sum()) if not df26.empty else 0.0
+    ind26 = float(df26["_val_indicado"].sum()) if not df26.empty else 0.0
+    cota26 = float(kb.get("cota_2026", 0.0))
+
     tot_liq = float(df_liq["Valor_Liquidado_Saldo"].sum())
     qtd_procs = df_liq["Processo_SEI"].nunique()
     qtd_benef = df_liq["Beneficiario_Nome"].nunique()
+
+    sobra_cota_liq = cota26 - tot_liq
+    sobra_ind_liq = ind26 - tot_liq
+    sobra_est_liq = tot26 - tot_liq
 
     por_mes = (
         df_liq.groupby("Mes_Referencia", as_index=False)["Valor_Liquidado_Saldo"]
@@ -1007,9 +1019,10 @@ def _answer_liquidacao(q_norm: str, kb: dict[str, Any]) -> str:
 
     linhas = [
         "### 📜 Liquidação Mensal no SIAFIC — Exercício 2026 (SAP BO)",
-        f"* **Total Acumulado Liquidado em 2026:** `{fmt_brl(tot_liq)}`",
-        f"* **Processos SEI com Liquidação:** `{qtd_procs}` processos",
-        f"* **Fornecedores / Beneficiários Distintos:** `{qtd_benef}` credores\n",
+        f"* **Total Acumulado Liquidado em 2026:** **{fmt_brl(tot_liq)}** ({qtd_procs} processos SEI | {qtd_benef} credores)",
+        f"* **Cota Orçamentária 2026:** {fmt_brl(cota26)} ➔ **Saldo / Sobra (Cota - Liquidado):** **{fmt_brl(sobra_cota_liq)}**",
+        f"* **Valor Indicado/Empenhado 2026:** {fmt_brl(ind26)} ➔ **Saldo Indicado Não Liquidado (Indicado - Liquidado):** **{fmt_brl(sobra_ind_liq)}**",
+        f"* **Estimado Total 2026:** {fmt_brl(tot26)} ➔ **Diferença (Estimado - Liquidado):** **{fmt_brl(sobra_est_liq)}**\n",
         "#### 📅 Evolução Mensal da Liquidação (2026):",
         "| Mês | Valor Liquidado |",
         "|---|---|",
@@ -1017,13 +1030,13 @@ def _answer_liquidacao(q_norm: str, kb: dict[str, Any]) -> str:
     for _, r in por_mes.iterrows():
         m_num = int(r["Mes_Referencia"])
         m_lbl = MESES_NOMES[m_num - 1] if 1 <= m_num <= 12 else f"Mês {m_num}"
-        linhas.append(f"| **{m_lbl}/2026** | `{fmt_brl(r['Valor_Liquidado_Saldo'])}` |")
+        linhas.append(f"| **{m_lbl}/2026** | {fmt_brl(r['Valor_Liquidado_Saldo'])} |")
 
     linhas.append("\n#### 🏆 Top 10 Beneficiários / Fornecedores por Valor Liquidado em 2026:")
     linhas.append("| Beneficiário (Credor) | Total Liquidado 2026 |")
     linhas.append("|---|---|")
     for _, r in top_benef.iterrows():
-        linhas.append(f"| **{r['Beneficiario_Nome']}** | `{fmt_brl(r['Valor_Liquidado_Saldo'])}` |")
+        linhas.append(f"| **{r['Beneficiario_Nome']}** | {fmt_brl(r['Valor_Liquidado_Saldo'])} |")
 
     return "\n".join(linhas)
 
@@ -1619,23 +1632,36 @@ def _sanitize_markdown_output(text: str) -> str:
     """
     Higieniza a saída Markdown para o Streamlit (`st.markdown`):
     1. Remove `<br>`, `<br/>`, `<br />` e outras tags HTML geradas pelo LLM.
-    2. Protege `R$` fora de blocos de crase (`...`) para impedir que o parser KaTeX/LaTeX
-       do Streamlit interprete dois `R$` na mesma linha como uma fórmula matemática (`$...$`),
-       o que causava fontes estranhas em itálico e sumiço de espaços.
-    3. Remove linhas de tabela truncadas caso o LLM tenha atingido limite de saída.
+    2. Remove crases (`...`) para eliminar a fonte verde monoespaçada (`<code>`) que quebrava números ao meio.
+    3. Converte números com espaços entre milhares (ex: `79 808 000,54`) para o padrão brasileiro com pontos (`79.808.000,54`).
+    4. Escapa todos os cifrões `$` como `\\$` para que o Streamlit renderize `R$` na fonte normal padrão sem jamais ativar o modo matemático LaTeX (`$...$`).
+    5. Remove linhas finais truncadas ou cabeçalhos soltos.
     """
     if not text:
         return ""
 
-    # 1. Normaliza espaços invisíveis e hífens unicode especiais
+    # 1. Normaliza espaços invisíveis, hífens unicode especiais e remove crases (`) que mudavam a fonte para código verde
     s = (
         text.replace("\u202f", " ")
         .replace("\xa0", " ")
         .replace("\u200b", "")
         .replace("\u2011", "-")
+        .replace("`", "")
     )
 
-    # 2. Trata quebras `<br>` e tags HTML linha por linha (em tabelas vira ` • `, fora vira quebra de linha)
+    # 2. Corrige números em que o LLM usou espaço como separador de milhar (ex: "79 808 000,54" -> "79.808.000,54")
+    s = re.sub(
+        r"\b\d{1,3}(?: +\d{3})+(?:,\d{1,2})\b",
+        lambda m: re.sub(r" +", ".", m.group(0)),
+        s,
+    )
+    s = re.sub(
+        r"(R\\?\$\s*)(\d{1,3}(?: +\d{3})+)\b",
+        lambda m: m.group(1) + re.sub(r" +", ".", m.group(2)),
+        s,
+    )
+
+    # 3. Trata quebras `<br>` e tags HTML linha por linha (em tabelas vira ` • `, fora vira quebra de linha)
     cleaned_lines: list[str] = []
     for line in s.splitlines():
         stripped = line.strip()
@@ -1649,7 +1675,7 @@ def _sanitize_markdown_output(text: str) -> str:
 
     s = "\n".join(cleaned_lines)
 
-    # 3. Se a última linha for uma linha de tabela incompleta (truncada no meio sem fechar `|`)
+    # 4. Se a última linha for uma linha de tabela incompleta (truncada no meio sem fechar `|`)
     #    ou um título/subtítulo solto no final sem conteúdo abaixo, remove a linha quebrada
     final_lines = s.rstrip().splitlines()
     while len(final_lines) > 2:
@@ -1666,21 +1692,11 @@ def _sanitize_markdown_output(text: str) -> str:
         break
     s = "\n".join(final_lines)
 
-    # 4. Protege valores `R$ ...` fora de crases (`...`) para NUNCA acionar LaTeX ($...$) no st.markdown
-    segments = re.split(r"(`+[^`]*`+)", s)
-    for idx, seg in enumerate(segments):
-        if not seg.startswith("`"):
-            # Envolve valores monetários `R$ 1.234,56` em crases `` `R$ 1.234,56` ``
-            seg = re.sub(
-                r"R\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)",
-                r"`R$ \1`",
-                seg,
-            )
-            # Se sobrou algum `R$` literal sem número (ex: "(R$)"), coloca em crases sem duplicar o que já foi envolvido
-            seg = re.sub(r"(?<!`)R\$", "`R$`", seg)
-            segments[idx] = seg
+    # 5. Padroniza `R$ ` e escapa todo `$` como `\$` para renderizar na fonte normal sem acionar LaTeX ($...$)
+    s = re.sub(r"R\\*\$\s*", "R$ ", s)
+    s = re.sub(r"\\*\$", r"\\$", s)
 
-    return "".join(segments).strip()
+    return s.strip()
 
 
 def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any], historico: list[dict[str, str]] | None = None) -> str | None:
@@ -1694,11 +1710,12 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
         "Finanças e Contratações da Secretaria de Estado da Economia de Goiás (GPIN / GELC).\n"
         "DIRETRIZES OBRIGATÓRIAS:\n"
         "1. Responda sempre em português do Brasil, de forma inteligente, analítica, executiva, clara e completa (sem cortar frases ou tabelas).\n"
-        "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. NUNCA invente metas financeiras fictícias (ex: 'economizar R$ 1.200.000,00', 'reduzir R$ 800.000,00') nem datas arbitrárias: baseie todas as sugestões nos valores reais da planilha **Supressões PLOA 2027** (`Economia Gerada`, `Teto Ajustado 2027`, `Ação Sugerida`) e nos itens reais de maior déficit da **PLOA 2027** (`Estimado Inicial`, `Estimado Déficit`, `Estimado Total`).\n"
+        "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. NUNCA invente metas financeiras fictícias (ex: 'economizar R$ 1.200.000,00', 'reduzir R$ 800.000,00') nem datas arbitrárias: baseie todas as sugestões nos valores reais da planilha **Supressões PLOA 2027** (Economia Gerada, Teto Ajustado 2027, Ação Sugerida) e nos itens reais de maior déficit da **PLOA 2027** (Estimado Inicial, Estimado Déficit, Estimado Total).\n"
         "3. REGRA DE OURO SOBRE VALORES DE 2027: Para valores orçamentários previstos/planejados para 2027 (Estimado Inicial, Déficit, Estimado Total, Cortes/Supressões), utilize EXCLUSIVAMENTE a base oficial PLOA 2027 (Planejamento 2027) e Supressões PLOA 2027 (os valores de despesas estimadas futuras do PCA 2027 foram desconsiderados). Do PCA 2027 você pode informar os dados de gestão/cronograma (quantidade de demandas, objeto, superintendência/gerência, modalidade, providência 2027, datas) e o 'Valor Contratado Vigente' (Valor_Contratado dos contratos atuais).\n"
         "4. REGRAS DE FORMATAÇÃO MARKDOWN (ESTRITAMENTE OBRIGATÓRIAS):\n"
-        "   - NUNCA utilize tags HTML como `<br>`, `<br/>`, `<p>`, `<div>` dentro ou fora de tabelas.\n"
-        "   - Sempre envolva valores monetários em crases, por exemplo: `R$ 17.498.729,59` (isso evita conflito com LaTeX).\n"
+        "   - NUNCA utilize tags HTML como <br>, <br/>, <p>, <div> dentro ou fora de tabelas.\n"
+        "   - NUNCA utilize crases (`) ao redor de valores monetários, números ou contas matemáticas.\n"
+        "   - Formate todos os valores monetários estritamente no padrão brasileiro com PONTO para separar milhares e VÍRGULA para centavos (ex: R$ 79.808.000,54). NUNCA use espaço entre os milhares (proibido escrever '79 808 000,54').\n"
         "   - Nas tabelas Markdown, mantenha as células curtas e objetivas (máximo de 5 a 6 colunas). Coloque análises detalhadas, justificativas e recomendações estratégicas em listas de tópicos (bullet points) FORA da tabela.\n"
         "5. Quando o usuário perguntar sobre um tema/categoria (ex: obras, reformas, vigilância), 'qual o maior/menor', ou 'sugestão para reduzir o déficit', apresente os números exatos da ANÁLISE PANDAS (mostrando tanto os maiores itens geradores de déficit da PLOA 2027 quanto o Plano Oficial de Supressões PLOA 2027).\n"
         "6. CONTROLE DE EXTENSÃO (PROIBIDO CORTAR O TEXTO): Estruture sua resposta com concisão executiva (entre 1.500 e 2.800 caracteres no total, máximo de 35 linhas) para NUNCA atingir o limite de tokens de saída. Nas tabelas de ranking/supressão, exiba no máximo os Top 10 itens principais e apresente as 'Ações Recomendadas' em 4 a 5 tópicos objetivos e completos, sempre finalizando todas as frases até o ponto final.\n"
@@ -1815,6 +1832,28 @@ def consultar_oraculo(pergunta: str, historico: list[dict[str, str]] | None = No
 
 def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
     """Renderiza a interface conversacional completa do Oráculo (usada tanto no modal quanto na página dedicada)."""
+    # Garante via CSS que nenhum código inline ou KaTeX altere a fonte dos números dentro das mensagens do Oráculo
+    st.markdown(
+        """
+        <style>
+        [data-testid="stChatMessage"] code {
+            font-family: inherit !important;
+            font-size: inherit !important;
+            font-weight: 600 !important;
+            color: inherit !important;
+            background: transparent !important;
+            padding: 0 !important;
+            border: none !important;
+        }
+        [data-testid="stChatMessage"] .katex {
+            font-family: inherit !important;
+            font-size: inherit !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
     if "oraculo_messages" not in st.session_state:
         st.session_state["oraculo_messages"] = [
             {
