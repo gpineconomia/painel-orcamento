@@ -123,11 +123,40 @@ def normalize_and_fix_typos(text: str, extra_vocab: list[str] | None = None) -> 
     return " ".join(fixed_tokens)
 
 
-def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
+def _clean_str_col(s: pd.Series) -> pd.Series:
+    """Remove quebras de linha, espaços non-breaking (\\xa0) e espaços duplicados nas colunas de texto."""
+    return (
+        s.astype("string")
+        .str.replace("_x000D_", " ", regex=False)
+        .str.replace("\xa0", " ", regex=False)
+        .str.replace("\n", " ", regex=False)
+        .str.replace("\r", " ", regex=False)
+        .str.replace(r"\s+", " ", regex=True)
+        .str.strip()
+        .astype(object)
+    )
+
+
+def _compact_text(s: str) -> str:
+    """Remove todos os espaços e caracteres especiais para busca insensível a espaços/hífens (ex: BR FIBRA == BRFIBRA)."""
+    return re.sub(r"[^a-z0-9]", "", norm_text(s))
+
+
+def _clean_budget_df(raw: pd.DataFrame, ano: int, only_active: bool = True) -> pd.DataFrame:
     """Aplica as mesmas regras de limpeza das páginas oficiais de 2026 e 2027."""
     if raw.empty:
         return raw.copy()
     df = raw.copy()
+
+    # Limpa todas as colunas de texto principais para evitar falhas de agrupamento por '\xa0' ou '\n'
+    for col_txt in [
+        "Objeto", "Resumo", "Classificação do Objeto", "Nº do Contrato (se houver)",
+        "Nº Processo (se houver)", "Nº IPOF (se houver)", "Empresa Contratada",
+        "Unidade", "Departamento", "Grupo de Despesa", "Situação", "Situação IPOF", "PROFISCO"
+    ]:
+        if col_txt in df.columns:
+            df[col_txt] = _clean_str_col(df[col_txt])
+
     c_total = f"Estimado Total {ano}"
     if c_total not in df.columns:
         matches = [c for c in df.columns if str(c).startswith("Estimado Total")]
@@ -161,15 +190,16 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
 
     df = df[df[c_total] > 0].copy()
 
-    # Aplica os filtros padrão oficiais dos painéis (Situação = Ativo, PROFISCO = Não, e em 2026 Situação IPOF = Liberado/Programada)
-    if "Situação" in df.columns:
-        df = df[df["Situação"].astype(str).str.strip().isin(["Ativo"])].copy()
-    if ano == 2026 and "Situação IPOF" in df.columns:
-        df = df[df["Situação IPOF"].astype(str).str.strip().isin(["Liberado", "Programada"])].copy()
-    prof_cols = [c for c in df.columns if "profisco" in str(c).lower()]
-    if prof_cols:
-        is_prof_sim = df[prof_cols[0]].astype(str).str.strip().str.lower().isin(["sim", "s", "true"])
-        df = df[~is_prof_sim].copy()
+    if only_active:
+        # Aplica os filtros padrão oficiais dos painéis (Situação = Ativo, PROFISCO = Não, e em 2026 Situação IPOF = Liberado/Programada)
+        if "Situação" in df.columns:
+            df = df[df["Situação"].astype(str).str.strip().isin(["Ativo"])].copy()
+        if ano == 2026 and "Situação IPOF" in df.columns:
+            df = df[df["Situação IPOF"].astype(str).str.strip().isin(["Liberado", "Programada"])].copy()
+        prof_cols = [c for c in df.columns if "profisco" in str(c).lower()]
+        if prof_cols:
+            is_prof_sim = df[prof_cols[0]].astype(str).str.strip().str.lower().isin(["sim", "s", "true"])
+            df = df[~is_prof_sim].copy()
 
     if ano == 2026:
         df["_val_total"] = df[c_total]
@@ -192,6 +222,7 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int) -> pd.DataFrame:
         if c in df.columns
     ]
     df["_search_blob"] = df[search_cols].fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
+    df["_search_blob_compact"] = df["_search_blob"].apply(_compact_text)
     return df
 
 
@@ -204,8 +235,10 @@ def load_oraculo_kb() -> dict[str, Any]:
     df_pca, u_pca = pca_data.load_pca_data()
     df_liq, u_liq = liquidado_mensal_data.load_liquidado_mensal_data()
 
-    df26 = _clean_budget_df(raw26, 2026)
-    df27 = _clean_budget_df(raw27, 2027)
+    df26 = _clean_budget_df(raw26, 2026, only_active=True)
+    df27 = _clean_budget_df(raw27, 2027, only_active=True)
+    df26_all = _clean_budget_df(raw26, 2026, only_active=False)
+    df27_all = _clean_budget_df(raw27, 2027, only_active=False)
 
     if not df_sup.empty:
         df_sup = df_sup.copy()
@@ -213,6 +246,7 @@ def load_oraculo_kb() -> dict[str, Any]:
             df_sup[["Unidade", "Item de Despesa", "Ação Sugerida"]]
             .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
         )
+        df_sup["_search_blob_compact"] = df_sup["_search_blob"].apply(_compact_text)
 
     if not df_pca.empty:
         df_pca = df_pca.copy()
@@ -233,6 +267,7 @@ def load_oraculo_kb() -> dict[str, Any]:
             df_pca[[c for c in pca_cols if c in df_pca.columns]]
             .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
         )
+        df_pca["_search_blob_compact"] = df_pca["_search_blob"].apply(_compact_text)
 
     if not df_liq.empty:
         df_liq = df_liq.copy()
@@ -241,25 +276,35 @@ def load_oraculo_kb() -> dict[str, Any]:
             df_liq_2026[["Processo_SEI", "Beneficiario_Nome", "Natureza_Despesa_Nome", "Natureza_Despesa_Codigo"]]
             .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
         )
+        df_liq_2026["_search_blob_compact"] = df_liq_2026["_search_blob"].apply(_compact_text)
     else:
         df_liq_2026 = pd.DataFrame()
 
-    # Vocabulário dinâmico extraído dos objetos reais das planilhas para correção de typos
+    # Vocabulário dinâmico extraído dos objetos e empresas reais das planilhas para correção de typos
     vocab_objs: set[str] = set()
     for s_col in [
         df26.get("Resumo", pd.Series(dtype=str)),
+        df26.get("Objeto", pd.Series(dtype=str)),
+        df26.get("Empresa Contratada", pd.Series(dtype=str)),
+        df26.get("Classificação do Objeto", pd.Series(dtype=str)),
         df27.get("Resumo", pd.Series(dtype=str)),
+        df27.get("Objeto", pd.Series(dtype=str)),
+        df27.get("Empresa Contratada", pd.Series(dtype=str)),
+        df27.get("Classificação do Objeto", pd.Series(dtype=str)),
         df_sup.get("Item de Despesa", pd.Series(dtype=str)),
         df_pca.get("Objeto_Resumido", pd.Series(dtype=str)),
+        df_liq_2026.get("Beneficiario_Nome", pd.Series(dtype=str)),
     ]:
         for val in s_col.dropna():
-            for w in re.findall(r"[a-z]{4,}", norm_text(val)):
+            for w in re.findall(r"[a-z0-9]{3,}", norm_text(val)):
                 vocab_objs.add(w)
 
     return {
         "df26": df26,
+        "df26_all": df26_all,
         "u26": u26,
         "df27": df27,
+        "df27_all": df27_all,
         "u27": u27,
         "df_sup": df_sup,
         "u_sup": u_sup,
@@ -335,7 +380,16 @@ STOPWORDS_PT = {
     "teremos", "tera", "vao", "vai", "serao", "sera", "alto", "alta", "baixo", "baixa", "caro", "cara",
     "teve", "tiveram", "recebeu", "receberam", "ganhou", "pca", "gelc", "siafic", "sap", "setrac",
     "geof", "possui", "possuem", "sofreu", "sofreram", "apresenta", "apresentam",
+    "numero", "numeros", "nro", "num", "codigo", "codigos", "nome", "nomes", "empresa", "empresas",
+    "fornecedor", "fornecedores", "credor", "credores", "beneficiario", "beneficiarios",
+    "contratada", "contratadas", "contratado", "contratados", "vigente", "vigentes", "atual", "atuais",
+    "ativo", "ativos", "ativa", "ativas", "sei", "ipof", "objeto", "objetos", "detalhe", "detalhes",
+    "quero", "queria", "gostaria", "preciso", "pode", "poderia", "consegue", "sabe", "saber", "dizer",
+    "mostrar", "informe", "informar", "buscar", "busque", "achar", "encontrar", "encontre", "ver",
+    "consultar", "verificar", "calcular", "somar", "some", "favor", "gentileza", "referente", "relativo",
 }
+
+SHORT_SIGNIFICANT_TOKENS = {"ti", "rh", "bi", "ia", "ar", "tv", "pc", "uo"}
 
 
 def _detect_unit(q_norm: str) -> str | None:
@@ -1111,18 +1165,58 @@ def _answer_orcamento_2026_2027(q_norm: str, kb: dict[str, Any]) -> str:
     return "\n".join(linhas)
 
 
+def _extract_search_tokens(q_norm: str) -> list[str]:
+    """Extrai tokens significativos da pergunta, preservando siglas de 2 letras (ex: TI, RH, AR) e removendo stopwords."""
+    raw_toks = re.findall(r"[a-z0-9]{2,}", q_norm)
+    tokens = [
+        t for t in raw_toks
+        if t not in STOPWORDS_PT and (len(t) >= 3 or t in SHORT_SIGNIFICANT_TOKENS)
+    ]
+    return tokens
+
+
+# Mapa de expansão semântica de sinônimos do domínio orçamentário para capturar 100% dos itens relacionados
+TOPIC_SYNONYM_PATTERNS: list[tuple[tuple[str, ...], str]] = [
+    (("veiculo", "veiculos", "frota", "carro", "carros", "caminhonete", "pickup"), r"\b(?:veicul|frota|pickup|motorista)"),
+    (("aluguel", "alugueis", "imovel", "imoveis", "locacao de imovel"), r"\b(?:locacao de imovel|imovel|imoveis)"),
+    (("energia", "eletrica", "luz", "equatorial", "enel", "celg"), r"\b(?:energia eletrica|energia|equatorial|enel|fotovoltaic)"),
+    (("agua", "esgoto", "saneago"), r"\b(?:agua|esgoto|saneago)"),
+    (("limpeza", "conservacao", "higienizacao", "copeiragem", "jardinagem"), r"\b(?:limpeza|conservacao|jardinagem)"),
+    (("vigilancia", "seguranca", "armada", "monitoramento", "alarme", "cftv"), r"\b(?:vigilancia|monitoramento eletronico)"),
+    (("link", "telecom", "telecomunicacoes", "fibra", "internet", "telefonia", "ddg", "0800"), r"\b(?:link de dados|telecomunicac|fibra|telefonia|ddg|0800)"),
+    (("combustivel", "combustiveis", "gasolina", "diesel", "etanol", "abastecimento", "lubrificante"), r"\b(?:combustive|lubrificante|abastecimento)"),
+    (("cafe", "acucar", "copa", "alimentacao", "garrafao"), r"\b(?:cafe|acucar|alimentacao)"),
+    (("diaria", "diarias", "passagem", "passagens", "viagem", "viagens", "deslocamento", "deslocamentos", "hospedagem"), r"\b(?:diaria|deslocamento|passagen|viagen|hospedagen)"),
+    (("correio", "correios", "postagem", "malote", "ect"), r"\b(?:correio|postagen|malote|ect)"),
+    (("treinamento", "treinamentos", "capacitacao", "capacitacoes", "curso", "cursos"), r"\b(?:capacitac|curso|treinamento)"),
+    (("ar condicionado", "climatizacao", "refrigeracao"), r"\b(?:ar condicionado|climatizac)"),
+]
+
+
 def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> str:
-    """Pesquisa semântica por palavras-chave simultaneamente nas 5 bases de dados."""
-    tokens = [t for t in re.findall(r"[a-z0-9]{3,}", q_norm) if t not in STOPWORDS_PT]
+    """Pesquisa semântica por palavras-chave simultaneamente nas 5 bases de dados com desambiguação e busca compacta."""
+    tokens = _extract_search_tokens(q_norm)
     if not tokens:
         return _build_panorama_geral(kb)
 
     asks_obras = any(t in ("obra", "obras", "reforma", "reformas", "engenharia") for t in tokens) and "mao" not in q_norm
+    compact_tokens = [_compact_text(t) for t in tokens if _compact_text(t)]
+    full_compact_query = "".join(compact_tokens)
+
+    # Verifica se algum padrão de sinônimo temático se aplica (apenas quando não há nome específico de empresa/contrato)
+    synonym_regex: str | None = None
+    if len(tokens) <= 2:
+        for trigger_words, pat in TOPIC_SYNONYM_PATTERNS:
+            if any(t in trigger_words for t in tokens) or any(tw in q_norm for tw in trigger_words if " " in tw):
+                synonym_regex = pat
+                break
 
     def match_df(df: pd.DataFrame) -> pd.DataFrame:
         if df.empty or "_search_blob" not in df.columns:
             return pd.DataFrame()
-        # Tratamento especializado quando o usuário pergunta por "obras" ou "reformas" (evitando "Mão de Obra" e "Cobrança")
+        has_compact = "_search_blob_compact" in df.columns
+
+        # 1. Tratamento especializado para "obras" ou "reformas" (evitando colisão com "Mão de Obra" e "Cobrança")
         if asks_obras:
             blob_sem_mao = df["_search_blob"].str.replace("mao de obra", "", regex=False)
             m_ob = blob_sem_mao.str.contains(r"\b(?:obra|obras|reforma|reformas)\b", regex=True, na=False)
@@ -1132,21 +1226,43 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
             if m_ob.any():
                 return df[m_ob]
 
+        # 2. Busca exata por fronteira de palavra OU versão compacta sem espaços (ex: BRFIBRA == BR FIBRA)
         mask_all = pd.Series(True, index=df.index)
-        for t in tokens:
-            mask_all &= df["_search_blob"].str.contains(rf"\b{re.escape(t)}", regex=True, na=False)
+        for t, ct in zip(tokens, compact_tokens):
+            m_word = df["_search_blob"].str.contains(rf"\b{re.escape(t)}", regex=True, na=False)
+            if has_compact and len(ct) >= 4:
+                m_word = m_word | df["_search_blob_compact"].str.contains(re.escape(ct), na=False)
+            mask_all &= m_word
         if mask_all.any():
             return df[mask_all]
 
+        # 3. Se o usuário digitou separado o que na planilha está junto (ex: "br fibra" vs "brfibra")
+        if has_compact and len(full_compact_query) >= 5:
+            m_comp = df["_search_blob_compact"].str.contains(re.escape(full_compact_query), na=False)
+            if m_comp.any():
+                return df[m_comp]
+
+        # 4. Expansão de sinônimos de domínio (ex: "carros" -> Frota Veicular, "luz" -> Energia Elétrica)
+        if synonym_regex:
+            m_syn = df["_search_blob"].str.contains(synonym_regex, regex=True, na=False)
+            if m_syn.any():
+                return df[m_syn]
+
+        # 5. Substring direta para todos os tokens
         mask_sub = pd.Series(True, index=df.index)
         for t in tokens:
             mask_sub &= df["_search_blob"].str.contains(re.escape(t), na=False)
         if mask_sub.any():
             return df[mask_sub]
 
+        # 6. Melhor pontuação por palavra inteira (somente para tokens >= 4 caracteres para evitar falso positivo)
         scores = pd.Series(0, index=df.index)
-        for t in tokens:
-            scores += df["_search_blob"].str.contains(rf"\b{re.escape(t)}", regex=True, na=False).astype(int)
+        for t, ct in zip(tokens, compact_tokens):
+            if len(t) >= 4 or t in SHORT_SIGNIFICANT_TOKENS:
+                m_w = df["_search_blob"].str.contains(rf"\b{re.escape(t)}", regex=True, na=False)
+                if has_compact and len(ct) >= 5:
+                    m_w = m_w | df["_search_blob_compact"].str.contains(re.escape(ct), na=False)
+                scores += m_w.astype(int)
         best_max = scores.max()
         if best_max > 0:
             return df[scores == best_max]
@@ -1158,18 +1274,70 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
     mpca = match_df(kb["df_pca"])
     mliq = match_df(kb["df_liq"])
 
+    # Fallback inteligente: se não encontrou nos ativos, verifica se existe em PROFISCO=Sim, Rascunho ou Inativo
+    aviso_inativo = ""
+    if m26.empty and m27.empty and "df26_all" in kb and "df27_all" in kb:
+        m26_all = match_df(kb["df26_all"])
+        m27_all = match_df(kb["df27_all"])
+        if not m26_all.empty or not m27_all.empty:
+            m26 = m26_all
+            m27 = m27_all
+            aviso_inativo = (
+                "\n> ⚠️ **Nota de Auditoria:** Os itens abaixo constam na planilha com status fora do filtro padrão ativo "
+                "(ex: `PROFISCO = Sim`, `Situação IPOF = Rascunho` ou `Situação = Excluído`).\n"
+            )
+
     if m26.empty and m27.empty and msup.empty and mpca.empty and mliq.empty:
         return (
             f"Não encontrei registros específicos para **`{q_raw}`** nas planilhas.\n\n"
             "💡 **Dica:** Você pode perguntar por:\n"
+            "* **Empresas e Contratos:** *BRFIBRA, Sampa, Office, Microsoft, Equatorial, Saneago, 054/2025*\n"
             "* **Rankings e Extremos:** *Qual despesa tem o maior déficit para 2027? Qual o maior corte nas supressões?*\n"
-            "* **Temas/Objetos:** *obras, reformas, vigilância, limpeza, locação de veículos, link de dados, call center, Pix, Microsoft*\n"
-            "* **Unidades:** *STI, SGI, Receita Estadual, SFR, SIF, Tesouro, Gabinete*\n"
-            "* **Números:** *Processo SEI, Nº do Contrato (ex: 054/2025)*"
+            "* **Temas/Objetos:** *obras, reformas, vigilância, limpeza, locação de veículos, link de dados, call center, Pix*\n"
+            "* **Unidades:** *STI, SGI, Receita Estadual, SFR, SIF, Tesouro, Gabinete*"
         )
 
     termo_exib = ", ".join(tokens)
     partes = [f"### 🔮 Resultados do Oráculo para: `{termo_exib}`"]
+    if aviso_inativo:
+        partes.append(aviso_inativo)
+
+    # Sumário imediato de Contratos, Empresas e Processos SEI encontrados
+    contratos_set: list[str] = []
+    empresas_set: list[str] = []
+    sei_set: list[str] = []
+    for df_m, c_cont, c_emp, c_sei in [
+        (m26, "Nº do Contrato (se houver)", "Empresa Contratada", "Nº Processo (se houver)"),
+        (m27, "Nº do Contrato (se houver)", "Empresa Contratada", "Nº Processo (se houver)"),
+        (mpca, "Contrato_Vigente", None, "Processo_SEI"),
+        (mliq, None, "Beneficiario_Nome", "Processo_SEI"),
+    ]:
+        if not df_m.empty and len(df_m) <= 15:
+            if c_cont and c_cont in df_m.columns:
+                for v in df_m[c_cont].dropna():
+                    s = str(v).strip()
+                    if s and s.lower() not in ("nan", "none", "-", "(sem contrato)") and s not in contratos_set:
+                        contratos_set.append(s)
+            if c_emp and c_emp in df_m.columns:
+                for v in df_m[c_emp].dropna():
+                    s = str(v).strip()
+                    if s and s.lower() not in ("nan", "none", "-") and s not in empresas_set:
+                        empresas_set.append(s)
+            if c_sei and c_sei in df_m.columns:
+                for v in df_m[c_sei].dropna():
+                    for num_s in re.findall(r"\b\d{10,16}\b", str(v)):
+                        if num_s not in sei_set:
+                            sei_set.append(num_s)
+
+    if contratos_set or empresas_set or sei_set:
+        resumo_ids = ["#### 📌 Identificação Rápida (Contratos, Empresas & Processos SEI):"]
+        if contratos_set:
+            resumo_ids.append(f"* **Nº do(s) Contrato(s):** `{', '.join(contratos_set[:10])}` ({len(contratos_set)} identificado(s))")
+        if empresas_set:
+            resumo_ids.append(f"* **Empresa(s) / Credor(es):** {', '.join(f'**{e}**' for e in empresas_set[:6])}")
+        if sei_set:
+            resumo_ids.append(f"* **Processo(s) SEI:** `{', '.join(sei_set[:8])}`")
+        partes.append("\n".join(resumo_ids))
 
     if not m27.empty:
         tot_27 = float(m27["_val_total"].sum())
@@ -1185,31 +1353,46 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
                     f"* 🏗️ **Subtotal exclusivo de Reformas / Obras Prediais ({int(m_ref.sum())} itens, incluindo Reforma do Complexo e DRFs):** **`{fmt_brl(m27[m_ref]['_val_total'].sum())}`**\n"
                     f"* 🏛️ **Total Geral da Classificação 'Obras e Instalações' ({len(m27)} itens):** **`{fmt_brl(tot_27)}`**"
                 )
+        elif "Classificação do Objeto" in m27.columns and m27["Classificação do Objeto"].nunique() > 1:
+            por_cls27 = (
+                m27.groupby("Classificação do Objeto", as_index=False)
+                .agg(Qtd=("Item", "count"), Ini=("_val_inicial", "sum"), Def=("_val_deficit", "sum"), Tot=("_val_total", "sum"))
+                .sort_values("Tot", ascending=False)
+            )
+            sub_cls_lines = ["* **Subtotais por Classificação do Objeto (2027):**"]
+            for _, rc in por_cls27.iterrows():
+                sub_cls_lines.append(
+                    f"  * **{rc['Classificação do Objeto']}** ({int(rc['Qtd'])} itens): **`{fmt_brl(rc['Tot'])}`** (Inicial: `{fmt_brl(rc['Ini'])}` | Déficit: `{fmt_brl(rc['Def'])}`)"
+                )
+            partes.append("\n".join(sub_cls_lines))
+
         linhas_t27 = [
-            "| Item | Despesa (Resumo) | Objeto Detalhado | Classificação | Unidade | Inicial 2027 | Déficit 2027 | Total 2027 |",
-            "|---|---|---|---|---|---|---|---|",
+            "| Item | Despesa (Resumo) | Empresa Contratada | Contrato | Processo SEI | Classificação | Unidade | Inicial 2027 | Déficit 2027 | Total 2027 |",
+            "|---|---|---|---|---|---|---|---|---|---|",
         ]
-        for _, r in m27.sort_values("_val_total", ascending=False).head(25).iterrows():
+        for _, r in m27.sort_values("_val_total", ascending=False).head(30).iterrows():
             it_n = int(r["Item"]) if pd.notna(r.get("Item")) and str(r.get("Item")).replace(".0", "").isdigit() else r.get("Item", "-")
             linhas_t27.append(
-                f"| {it_n} | **{r.get('Resumo', '-')}** | {r.get('Objeto', '-')} | {r.get('Classificação do Objeto', '-')} | "
+                f"| {it_n} | **{r.get('Resumo', '-')}** | {r.get('Empresa Contratada', '-')} | `{r.get('Nº do Contrato (se houver)', '-')}` | "
+                f"`{r.get('Nº Processo (se houver)', '-')}` | {r.get('Classificação do Objeto', '-')} | "
                 f"{r.get('Unidade', '-')} | `{fmt_brl(r['_val_inicial'])}` | `{fmt_brl(r['_val_deficit'])}` | **`{fmt_brl(r['_val_total'])}`** |"
             )
         partes.append("\n".join(linhas_t27))
 
     if not m26.empty:
         partes.append(
-            f"#### 🏢 Orçamento 2026 (Execução) — `{len(m26)}` despesa(s) | **Total Estimado 2026: `{fmt_brl(m26['_val_total'].sum())}`** (Indicado: `{fmt_brl(m26['_val_indicado'].sum())}`)"
+            f"#### 🏢 Orçamento 2026 (Execução) — `{len(m26)}` despesa(s) | **Total Estimado 2026: `{fmt_brl(m26['_val_total'].sum())}`** (Indicado: `{fmt_brl(m26['_val_indicado'].sum())}` | Restante: `{fmt_brl(m26['_val_restante'].sum())}`)"
         )
         linhas_t26 = [
-            "| Item | Despesa (Resumo) | Unidade | Estimado 2026 | Valor Indicado | Contrato |",
-            "|---|---|---|---|---|---|",
+            "| Item | Despesa (Resumo) | Empresa Contratada | Contrato | Processo SEI | Unidade | Estimado 2026 | Valor Indicado | Saldo Restante |",
+            "|---|---|---|---|---|---|---|---|---|",
         ]
-        for _, r in m26.sort_values("_val_total", ascending=False).head(20).iterrows():
+        for _, r in m26.sort_values("_val_total", ascending=False).head(25).iterrows():
             it_n = int(r["Item"]) if pd.notna(r.get("Item")) and str(r.get("Item")).replace(".0", "").isdigit() else r.get("Item", "-")
             linhas_t26.append(
-                f"| {it_n} | **{r.get('Resumo', r.get('Objeto', '-'))}** | {r.get('Unidade', '-')} | "
-                f"**`{fmt_brl(r['_val_total'])}`** | `{fmt_brl(r['_val_indicado'])}` | `{r.get('Nº do Contrato (se houver)', '-')}` |"
+                f"| {it_n} | **{r.get('Resumo', r.get('Objeto', '-'))}** | {r.get('Empresa Contratada', '-')} | "
+                f"`{r.get('Nº do Contrato (se houver)', '-')}` | `{r.get('Nº Processo (se houver)', '-')}` | {r.get('Unidade', '-')} | "
+                f"**`{fmt_brl(r['_val_total'])}`** | `{fmt_brl(r['_val_indicado'])}` | `{fmt_brl(r['_val_restante'])}` |"
             )
         partes.append("\n".join(linhas_t26))
 
@@ -1227,15 +1410,19 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
         partes.append(
             f"#### 📑 PCA 2027 (GELC · Cronograma & Contratações) — `{len(mpca)}` demanda(s) | Valor Contratado Vigente: `{fmt_brl(mpca['Valor_Contratado'].sum())}`"
         )
-        for _, r in mpca.head(15).iterrows():
+        linhas_tpca = [
+            "| Item | Objeto Resumido | Contrato Vigente | Processo SEI | Superintendência / Gerência | Valor Contratado Vigente | Providência 2027 | Deadline | UO |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+        for _, r in mpca.head(20).iterrows():
             it_n = int(r["Item"]) if pd.notna(r["Item"]) else "-"
-            dt_set = r["Data_Inicio_SETRAC"].strftime("%d/%m/%Y") if pd.notna(r.get("Data_Inicio_SETRAC")) else "N/D"
             dt_d = r["Deadline_Contratacao"].strftime("%d/%m/%Y") if pd.notna(r.get("Deadline_Contratacao")) else "N/D"
-            partes.append(
-                f"* **Item {it_n}: {r['Objeto_Resumido']}** ({r['Unidade_Superior']} · {r['Unidade_Demandante']})\n"
-                f"  * Valor Contratado Vigente: `{fmt_brl(r.get('Valor_Contratado', 0.0))}` | Providência: `{r['Providencia_2027']}` | "
-                f"Modalidade: `{r['Modalidade']}` | Início SETRAC: `{dt_set}` | Deadline: `{dt_d}` | UO: `{r['Unidade_Orcamentaria']}`"
+            linhas_tpca.append(
+                f"| {it_n} | **{r['Objeto_Resumido']}** | `{r.get('Contrato_Vigente', '-')}` | `{r.get('Processo_SEI', '-')}` | "
+                f"{r['Unidade_Superior']} · {r['Unidade_Demandante']} | `{fmt_brl(r.get('Valor_Contratado', 0.0))}` | "
+                f"{r['Providencia_2027']} | `{dt_d}` | `{r['Unidade_Orcamentaria']}` |"
             )
+        partes.append("\n".join(linhas_tpca))
 
     if not mliq.empty:
         partes.append(
@@ -1245,16 +1432,16 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
             mliq.groupby(["Beneficiario_Nome", "Processo_SEI"], as_index=False)["Valor_Liquidado_Saldo"]
             .sum()
             .sort_values("Valor_Liquidado_Saldo", ascending=False)
-            .head(8)
+            .head(10)
         )
         for _, r in por_b.iterrows():
-            partes.append(f"* **Credor:** {r['Beneficiario_Nome']} (SEI `{r['Processo_SEI']}`) — Liquidado: `{fmt_brl(r['Valor_Liquidado_Saldo'])}`")
+            partes.append(f"* **Credor:** {r['Beneficiario_Nome']} (SEI `{r['Processo_SEI']}`) — Liquidado em 2026: `{fmt_brl(r['Valor_Liquidado_Saldo'])}`")
 
     return "\n\n".join(partes)
 
 
 def _build_global_master_digest(kb: dict[str, Any]) -> str:
-    """Constrói um resumo executivo denso e enxuto (~3.5 KB) de todas as 5 planilhas para resposta rápida do LLM."""
+    """Constrói um resumo executivo denso e enxuto de todas as 5 planilhas (incluindo todas as Classificações de Objeto) para o LLM."""
     df26 = kb["df26"]
     df27 = kb["df27"]
     df_sup = kb["df_sup"]
@@ -1271,13 +1458,17 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
             f"{r['Unidade']}: Est={fmt_brl(r['_val_total'])}, Ind={fmt_brl(r['_val_indicado'])}"
             for _, r in df26.groupby("Unidade", as_index=False)[["_val_total", "_val_indicado"]].sum().sort_values("_val_total", ascending=False).iterrows()
         )
+        cls26_str = "; ".join(
+            f"{r['Classificação do Objeto']} ({int(r['Qtd'])}): {fmt_brl(r['Tot'])}"
+            for _, r in df26.groupby("Classificação do Objeto", as_index=False).agg(Qtd=("Item", "count"), Tot=("_val_total", "sum")).sort_values("Tot", ascending=False).iterrows()
+        ) if "Classificação do Objeto" in df26.columns else ""
         top26_str = "\n".join(
-            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Est.26={fmt_brl(r['_val_total'])} | Ind={fmt_brl(r['_val_indicado'])}"
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Contrato={r.get('Nº do Contrato (se houver)')} | Empresa={r.get('Empresa Contratada')} | Est.26={fmt_brl(r['_val_total'])} | Ind={fmt_brl(r['_val_indicado'])}"
             for _, r in df26.sort_values("_val_total", ascending=False).head(10).iterrows()
         )
         partes.append(
             f"[1. EXECUÇÃO 2026] Total={fmt_brl(tot26)} ({len(df26)} itens) | Indicado={fmt_brl(ind26)} | Restante={fmt_brl(rest26)} | Cota={fmt_brl(kb['cota_2026'])}\n"
-            f"Unidades 2026: {u26_str}\nTop 10 Despesas 2026:\n{top26_str}"
+            f"Unidades 2026: {u26_str}\nClassificações 2026: {cls26_str}\nTop 10 Despesas 2026:\n{top26_str}"
         )
 
     if not df27.empty:
@@ -1288,18 +1479,22 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
             f"{r['Unidade']}: Ini={fmt_brl(r['_val_inicial'])}, Déf={fmt_brl(r['_val_deficit'])}, Tot={fmt_brl(r['_val_total'])}"
             for _, r in df27.groupby("Unidade", as_index=False)[["_val_inicial", "_val_deficit", "_val_total"]].sum().sort_values("_val_total", ascending=False).iterrows()
         )
+        cls27_str = "; ".join(
+            f"{r['Classificação do Objeto']} ({int(r['Qtd'])}): Ini={fmt_brl(r['Ini'])}, Déf={fmt_brl(r['Def'])}, Tot={fmt_brl(r['Tot'])}"
+            for _, r in df27.groupby("Classificação do Objeto", as_index=False).agg(Qtd=("Item", "count"), Ini=("_val_inicial", "sum"), Def=("_val_deficit", "sum"), Tot=("_val_total", "sum")).sort_values("Tot", ascending=False).iterrows()
+        ) if "Classificação do Objeto" in df27.columns else ""
         sub_def = df27[df27["_val_deficit"] > 0].sort_values("_val_deficit", ascending=False)
         def_str = "\n".join(
-            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Ini={fmt_brl(r['_val_inicial'])} | DÉFICIT={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Contrato={r.get('Nº do Contrato (se houver)')} | Ini={fmt_brl(r['_val_inicial'])} | DÉFICIT={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
             for _, r in sub_def.head(15).iterrows()
         )
         top27_str = "\n".join(
-            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Ini={fmt_brl(r['_val_inicial'])} | Déf={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
+            f"  - Item {r.get('Item')}: {r.get('Resumo')} ({r.get('Unidade')}) | Contrato={r.get('Nº do Contrato (se houver)')} | Ini={fmt_brl(r['_val_inicial'])} | Déf={fmt_brl(r['_val_deficit'])} | Tot={fmt_brl(r['_val_total'])}"
             for _, r in df27.sort_values("_val_total", ascending=False).head(10).iterrows()
         )
         partes.append(
             f"\n[2. PLOA 2027 (BASE OFICIAL ÚNICA PARA VALORES DE DESPESAS PLANEJADAS DE 2027)] Inicial={fmt_brl(ini27)} | Déficit={fmt_brl(def27)} ({len(sub_def)} itens) | Total={fmt_brl(tot27)} ({len(df27)} itens) | Cota={fmt_brl(kb['cota_2027'])}\n"
-            f"Unidades 2027: {u27_str}\nTop 15 Maiores Déficits 2027:\n{def_str}\nTop 10 Maiores Despesas Totais 2027:\n{top27_str}"
+            f"Unidades 2027: {u27_str}\nTodas as Classificações de Objeto 2027: {cls27_str}\nTop 15 Maiores Déficits 2027:\n{def_str}\nTop 10 Maiores Despesas Totais 2027:\n{top27_str}"
         )
 
     if not df_sup.empty:
@@ -1359,15 +1554,18 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
         return _answer_deficit_analysis(q_norm, kb, unit_key=matched_unit)
 
     other_specific_tokens = [
-        t for t in re.findall(r"[a-z0-9]{3,}", q_norm)
-        if t not in STOPWORDS_PT
-        and t not in DOMAIN_VOCAB
+        t for t in _extract_search_tokens(q_norm)
+        if t not in DOMAIN_VOCAB
         and not any(t in u["terms"] or any(t in term.split() for term in u["terms"]) for u in UNIT_ALIASES.values())
     ]
-    if not other_specific_tokens:
-        rank_ans = _answer_ranking_or_extreme(q_norm, kb, unit_key=matched_unit)
-        if rank_ans:
-            return rank_ans
+
+    # Se existem termos específicos de empresa/objeto (ex: "BRFIBRA", "obras", "vigilância"), prioriza a busca multi-base detalhada!
+    if other_specific_tokens:
+        return _search_keyword_across_all(q_raw, q_norm, kb)
+
+    rank_ans = _answer_ranking_or_extreme(q_norm, kb, unit_key=matched_unit)
+    if rank_ans:
+        return rank_ans
 
     if not matched_unit and any(p in q_norm for p in ["panorama", "resumo geral", "visao geral", "todos os dashboards", "todas as planilhas", "grandes numeros", "o que voce sabe"]):
         return _build_panorama_geral(kb)
@@ -1381,13 +1579,13 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
     if any(k in q_norm for k in ["pca", "gelc", "setrac", "deadline", "prorrogac", "nova contratacao", "novas contratacoes", "risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
         return _answer_pca_specific(q_norm, kb)
 
-    if any(k in q_norm for k in ["liquidac", "liquidado", "siafic", "sap bo", "beneficiario", "credor", "fornecedor"]):
+    if any(k in q_norm for k in ["liquidac", "liquidado", "siafic", "sap bo"]):
         return _answer_liquidacao(q_norm, kb)
 
-    if matched_unit and not other_specific_tokens:
+    if matched_unit:
         return _answer_unit_360(matched_unit, kb)
 
-    if any(k in q_norm for k in ["compar", "cota", "2026", "2027", "ploa", "execucao"]) and not other_specific_tokens:
+    if any(k in q_norm for k in ["compar", "cota", "2026", "2027", "ploa", "execucao"]):
         return _answer_orcamento_2026_2027(q_norm, kb)
 
     return _search_keyword_across_all(q_raw, q_norm, kb)
