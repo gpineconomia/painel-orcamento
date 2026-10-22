@@ -1649,13 +1649,22 @@ def _sanitize_markdown_output(text: str) -> str:
 
     s = "\n".join(cleaned_lines)
 
-    # 3. Se a última linha for uma linha de tabela incompleta (truncada no meio sem fechar `|`), remove a linha quebrada
+    # 3. Se a última linha for uma linha de tabela incompleta (truncada no meio sem fechar `|`)
+    #    ou um título/subtítulo solto no final sem conteúdo abaixo, remove a linha quebrada
     final_lines = s.rstrip().splitlines()
-    if len(final_lines) > 2:
+    while len(final_lines) > 2:
         last_l = final_lines[-1].strip()
+        if not last_l:
+            final_lines.pop()
+            continue
         if last_l.startswith("|") and not last_l.endswith("|"):
             final_lines.pop()
-            s = "\n".join(final_lines)
+            continue
+        if re.match(r"^#{1,6}\s+", last_l) or (last_l.endswith(":") and len(last_l) < 80):
+            final_lines.pop()
+            continue
+        break
+    s = "\n".join(final_lines)
 
     # 4. Protege valores `R$ ...` fora de crases (`...`) para NUNCA acionar LaTeX ($...$) no st.markdown
     segments = re.split(r"(`+[^`]*`+)", s)
@@ -1692,16 +1701,17 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
         "   - Sempre envolva valores monetários em crases, por exemplo: `R$ 17.498.729,59` (isso evita conflito com LaTeX).\n"
         "   - Nas tabelas Markdown, mantenha as células curtas e objetivas (máximo de 5 a 6 colunas). Coloque análises detalhadas, justificativas e recomendações estratégicas em listas de tópicos (bullet points) FORA da tabela.\n"
         "5. Quando o usuário perguntar sobre um tema/categoria (ex: obras, reformas, vigilância), 'qual o maior/menor', ou 'sugestão para reduzir o déficit', apresente os números exatos da ANÁLISE PANDAS (mostrando tanto os maiores itens geradores de déficit da PLOA 2027 quanto o Plano Oficial de Supressões PLOA 2027).\n"
-        "6. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
+        "6. CONTROLE DE EXTENSÃO (PROIBIDO CORTAR O TEXTO): Estruture sua resposta com concisão executiva (entre 1.500 e 2.800 caracteres no total, máximo de 35 linhas) para NUNCA atingir o limite de tokens de saída. Nas tabelas de ranking/supressão, exiba no máximo os Top 10 itens principais e apresente as 'Ações Recomendadas' em 4 a 5 tópicos objetivos e completos, sempre finalizando todas as frases até o ponto final.\n"
+        "7. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
         f"{master_digest}\n\n"
         f"=== RECORTE ESPECÍFICO / CÁLCULO EXATO PANDAS PARA A PERGUNTA ATUAL ===\n{analise_pandas}"
     )
 
     msgs: list[dict[str, str]] = [{"role": "system", "content": system_prompt}]
     if historico:
-        for m in historico[-6:]:
+        for m in historico[-4:]:
             if m.get("role") in ("user", "assistant") and m.get("content"):
-                msgs.append({"role": m["role"], "content": str(m["content"])[:2500]})
+                msgs.append({"role": m["role"], "content": str(m["content"])[:1800]})
     if not msgs or msgs[-1].get("content") != pergunta:
         msgs.append({"role": "user", "content": pergunta})
 
@@ -1723,7 +1733,7 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
 
     # 2. Usa endpoint LLM Generativo OpenAI-compatible gratuito (Pollinations OpenAI GPT)
     import time
-    for model_name in ("openai", "openai-fast", "openai"):
+    for model_name in ("openai-fast", "openai"):
         try:
             r = requests.post(
                 "https://text.pollinations.ai/openai",
@@ -1732,18 +1742,55 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
                     "model": model_name,
                     "messages": msgs,
                     "temperature": 0.1,
+                    "reasoning_effort": "low",
                     "max_tokens": 4096,
                 },
                 timeout=32,
             )
             if r.status_code == 200:
                 data = r.json()
-                txt = data["choices"][0]["message"]["content"]
+                choice = data["choices"][0]
+                txt = (choice["message"].get("content") or "").strip()
+                finish_reason = choice.get("finish_reason", "")
+
+                # Se o servidor truncou por limite de tokens (finish_reason == 'length'), solicita continuação imediata!
+                if txt and finish_reason == "length":
+                    try:
+                        cont_msgs = msgs + [
+                            {"role": "assistant", "content": txt},
+                            {
+                                "role": "user",
+                                "content": (
+                                    "Sua resposta anterior foi cortada no final por limite de tokens. "
+                                    "Continue EXATAMENTE da palavra/frase onde parou (sem repetir nada do que já escreveu) "
+                                    "e conclua os tópicos finais em até 8 linhas."
+                                ),
+                            },
+                        ]
+                        r_cont = requests.post(
+                            "https://text.pollinations.ai/openai",
+                            headers={"Content-Type": "application/json"},
+                            json={
+                                "model": model_name,
+                                "messages": cont_msgs,
+                                "temperature": 0.1,
+                                "reasoning_effort": "low",
+                                "max_tokens": 2048,
+                            },
+                            timeout=25,
+                        )
+                        if r_cont.status_code == 200:
+                            txt_cont = (r_cont.json()["choices"][0]["message"].get("content") or "").strip()
+                            if txt_cont:
+                                txt = f"{txt}\n{txt_cont}"
+                    except Exception:
+                        pass
+
                 if txt and len(txt.strip()) > 20:
                     return _sanitize_markdown_output(txt)
-            time.sleep(1.2)
-        except Exception:
             time.sleep(1.0)
+        except Exception:
+            time.sleep(0.8)
             continue
 
     return None
