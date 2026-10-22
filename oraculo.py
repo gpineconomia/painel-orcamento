@@ -491,6 +491,30 @@ def _answer_deficit_analysis(q_norm: str, kb: dict[str, Any], unit_key: str | No
             p_u = (float(r["Def"]) / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
             linhas.append(f"| **{r['Unidade']}** | {int(r['Qtd'])} | **`{fmt_brl(r['Def'])}`** | `{p_u:.1f}%` |")
 
+    # Cruzamento com o Plano Oficial de Supressões PLOA 2027 (para perguntas sobre reduzir/cortar/equacionar o déficit)
+    df_sup = kb.get("df_sup", pd.DataFrame())
+    if not df_sup.empty:
+        tot_sup_orc = float(df_sup["Orçamento 2027"].sum())
+        tot_sup_econ = float(df_sup["Economia Gerada"].sum())
+        tot_sup_teto = float(df_sup["Teto Ajustado 2027"].sum())
+        cobertura_pct = (tot_sup_econ / tot_def_geral * 100) if tot_def_geral > 0 else 0.0
+        deficit_residual = max(0.0, tot_def_geral - tot_sup_econ)
+
+        linhas.extend([
+            "\n#### ✂️ Plano Oficial de Redução / Mitigação do Déficit (Supressões PLOA 2027):",
+            f"* **Déficit Bruto Mapeado (PLOA 2027):** `{fmt_brl(tot_def_geral)}`",
+            f"* **Economia Total Mapeada em Supressões (`{len(df_sup)}` ações oficiais):** **`{fmt_brl(tot_sup_econ)}`** *(equaciona `{cobertura_pct:.1f}%` do déficit total)*",
+            f"* **Déficit Residual após Supressões Mapeadas:** **`{fmt_brl(deficit_residual)}`** (`{100.0 - cobertura_pct:.1f}%` restante a equacionar)",
+            f"* **Orçamento Original dos Itens c/ Supressão:** `{fmt_brl(tot_sup_orc)}` ➔ **Novo Teto Ajustado:** `{fmt_brl(tot_sup_teto)}`\n",
+            "| # | Unidade | Item de Despesa | Orçamento 2027 | Economia Gerada (Redução) | Teto Ajustado 2027 | Ação Sugerida Oficial |",
+            "|---|---|---|---|---|---|---|",
+        ])
+        for idx_s, (_, rs) in enumerate(df_sup.sort_values("Economia Gerada", ascending=False).head(15).iterrows(), 1):
+            linhas.append(
+                f"| {idx_s}º | **{rs['Unidade']}** | **{rs['Item de Despesa']}** | `{fmt_brl(rs['Orçamento 2027'])}` | "
+                f"**`{fmt_brl(rs['Economia Gerada'])}`** | `{fmt_brl(rs['Teto Ajustado 2027'])}` | {rs['Ação Sugerida']} |"
+            )
+
     return "\n".join(linhas)
 
 
@@ -1591,6 +1615,65 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
     return _search_keyword_across_all(q_raw, q_norm, kb)
 
 
+def _sanitize_markdown_output(text: str) -> str:
+    """
+    Higieniza a saída Markdown para o Streamlit (`st.markdown`):
+    1. Remove `<br>`, `<br/>`, `<br />` e outras tags HTML geradas pelo LLM.
+    2. Protege `R$` fora de blocos de crase (`...`) para impedir que o parser KaTeX/LaTeX
+       do Streamlit interprete dois `R$` na mesma linha como uma fórmula matemática (`$...$`),
+       o que causava fontes estranhas em itálico e sumiço de espaços.
+    3. Remove linhas de tabela truncadas caso o LLM tenha atingido limite de saída.
+    """
+    if not text:
+        return ""
+
+    # 1. Normaliza espaços invisíveis e hífens unicode especiais
+    s = (
+        text.replace("\u202f", " ")
+        .replace("\xa0", " ")
+        .replace("\u200b", "")
+        .replace("\u2011", "-")
+    )
+
+    # 2. Trata quebras `<br>` e tags HTML linha por linha (em tabelas vira ` • `, fora vira quebra de linha)
+    cleaned_lines: list[str] = []
+    for line in s.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("|"):
+            line = re.sub(r"(?i)<\s*/?\s*br\s*/?\s*>", " • ", line)
+        else:
+            line = re.sub(r"(?i)<\s*/?\s*br\s*/?\s*>", "\n", line)
+        # Remove outras tags HTML soltas (<sub>, <sup>, <span>, <div>, <p>, etc.)
+        line = re.sub(r"(?i)</?(?:sub|sup|span|div|p|font|small|b|i|u|strong|em)\b[^>]*>", "", line)
+        cleaned_lines.append(line)
+
+    s = "\n".join(cleaned_lines)
+
+    # 3. Se a última linha for uma linha de tabela incompleta (truncada no meio sem fechar `|`), remove a linha quebrada
+    final_lines = s.rstrip().splitlines()
+    if len(final_lines) > 2:
+        last_l = final_lines[-1].strip()
+        if last_l.startswith("|") and not last_l.endswith("|"):
+            final_lines.pop()
+            s = "\n".join(final_lines)
+
+    # 4. Protege valores `R$ ...` fora de crases (`...`) para NUNCA acionar LaTeX ($...$) no st.markdown
+    segments = re.split(r"(`+[^`]*`+)", s)
+    for idx, seg in enumerate(segments):
+        if not seg.startswith("`"):
+            # Envolve valores monetários `R$ 1.234,56` em crases `` `R$ 1.234,56` ``
+            seg = re.sub(
+                r"R\$\s*(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)",
+                r"`R$ \1`",
+                seg,
+            )
+            # Se sobrou algum `R$` literal sem número (ex: "(R$)"), coloca em crases sem duplicar o que já foi envolvido
+            seg = re.sub(r"(?<!`)R\$", "`R$`", seg)
+            segments[idx] = seg
+
+    return "".join(segments).strip()
+
+
 def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any], historico: list[dict[str, str]] | None = None) -> str | None:
     """Aciona o modelo de IA Generativa (LLM) com todo o contexto das 5 planilhas + cálculos exatos do Pandas."""
     import os
@@ -1601,11 +1684,14 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
         "Você é o **Oráculo** 🔮, o Assistente de Inteligência Artificial especialista em Orçamento Público, "
         "Finanças e Contratações da Secretaria de Estado da Economia de Goiás (GPIN / GELC).\n"
         "DIRETRIZES OBRIGATÓRIAS:\n"
-        "1. Responda sempre em português do Brasil, de forma inteligente, analítica, executiva, clara e direta.\n"
-        "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. Nunca invente valores e NUNCA omita itens que constem na tabela do RECORTE ESPECÍFICO / CÁLCULO EXATO PANDAS.\n"
+        "1. Responda sempre em português do Brasil, de forma inteligente, analítica, executiva, clara e completa (sem cortar frases ou tabelas).\n"
+        "2. Utilize EXCLUSIVAMENTE os números reais fornecidos no CONTEXTO OFICIAL e na ANÁLISE PANDAS abaixo. NUNCA invente metas financeiras fictícias (ex: 'economizar R$ 1.200.000,00', 'reduzir R$ 800.000,00') nem datas arbitrárias: baseie todas as sugestões nos valores reais da planilha **Supressões PLOA 2027** (`Economia Gerada`, `Teto Ajustado 2027`, `Ação Sugerida`) e nos itens reais de maior déficit da **PLOA 2027** (`Estimado Inicial`, `Estimado Déficit`, `Estimado Total`).\n"
         "3. REGRA DE OURO SOBRE VALORES DE 2027: Para valores orçamentários previstos/planejados para 2027 (Estimado Inicial, Déficit, Estimado Total, Cortes/Supressões), utilize EXCLUSIVAMENTE a base oficial PLOA 2027 (Planejamento 2027) e Supressões PLOA 2027 (os valores de despesas estimadas futuras do PCA 2027 foram desconsiderados). Do PCA 2027 você pode informar os dados de gestão/cronograma (quantidade de demandas, objeto, superintendência/gerência, modalidade, providência 2027, datas) e o 'Valor Contratado Vigente' (Valor_Contratado dos contratos atuais).\n"
-        "4. Formate todos os valores monetários no padrão brasileiro ABNT 2 (ex: R$ 17.498.729,59) e use espaços normais (nunca use caracteres unicode especiais ou espaços estreitos).\n"
-        "5. Quando o usuário perguntar sobre um tema/categoria (ex: obras, reformas, vigilância) ou 'qual o maior/menor', liste TODOS os itens correspondentes presentes na ANÁLISE PANDAS em uma tabela Markdown completa sem esquecer nenhum item (por exemplo, em obras/reformas de 2027, inclua sempre a Reforma do Complexo e todas as Reformas de DRFs).\n"
+        "4. REGRAS DE FORMATAÇÃO MARKDOWN (ESTRITAMENTE OBRIGATÓRIAS):\n"
+        "   - NUNCA utilize tags HTML como `<br>`, `<br/>`, `<p>`, `<div>` dentro ou fora de tabelas.\n"
+        "   - Sempre envolva valores monetários em crases, por exemplo: `R$ 17.498.729,59` (isso evita conflito com LaTeX).\n"
+        "   - Nas tabelas Markdown, mantenha as células curtas e objetivas (máximo de 5 a 6 colunas). Coloque análises detalhadas, justificativas e recomendações estratégicas em listas de tópicos (bullet points) FORA da tabela.\n"
+        "5. Quando o usuário perguntar sobre um tema/categoria (ex: obras, reformas, vigilância), 'qual o maior/menor', ou 'sugestão para reduzir o déficit', apresente os números exatos da ANÁLISE PANDAS (mostrando tanto os maiores itens geradores de déficit da PLOA 2027 quanto o Plano Oficial de Supressões PLOA 2027).\n"
         "6. Você consegue manter conversa contínua, responder perguntas de acompanhamento ('e o segundo?', 'some esses dois', 'compare com 2026', 'escreva um parecer/resumo executivo'), cruzar informações entre as 5 planilhas e tolerar erros de digitação do usuário.\n\n"
         f"{master_digest}\n\n"
         f"=== RECORTE ESPECÍFICO / CÁLCULO EXATO PANDAS PARA A PERGUNTA ATUAL ===\n{analise_pandas}"
@@ -1626,12 +1712,12 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
             r = requests.post(
                 "https://api.openai.com/v1/chat/completions",
                 headers={"Authorization": f"Bearer {openai_key}", "Content-Type": "application/json"},
-                json={"model": "gpt-4o-mini", "messages": msgs, "temperature": 0.1},
-                timeout=25,
+                json={"model": "gpt-4o-mini", "messages": msgs, "temperature": 0.1, "max_tokens": 4096},
+                timeout=30,
             )
             if r.status_code == 200:
                 txt = r.json()["choices"][0]["message"]["content"]
-                return txt.replace("\u202f", " ").replace("\xa0", " ").strip()
+                return _sanitize_markdown_output(txt)
         except Exception:
             pass
 
@@ -1646,14 +1732,15 @@ def _chamar_llm_generativo(pergunta: str, analise_pandas: str, kb: dict[str, Any
                     "model": model_name,
                     "messages": msgs,
                     "temperature": 0.1,
+                    "max_tokens": 4096,
                 },
-                timeout=28,
+                timeout=32,
             )
             if r.status_code == 200:
                 data = r.json()
                 txt = data["choices"][0]["message"]["content"]
                 if txt and len(txt.strip()) > 20:
-                    return txt.replace("\u202f", " ").replace("\xa0", " ").strip()
+                    return _sanitize_markdown_output(txt)
             time.sleep(1.2)
         except Exception:
             time.sleep(1.0)
@@ -1673,10 +1760,10 @@ def consultar_oraculo(pergunta: str, historico: list[dict[str, str]] | None = No
     # Aciona o LLM Generativo com todo o contexto + cálculos do Pandas
     resposta_ia = _chamar_llm_generativo(pergunta, analise_pandas, kb, historico=historico)
     if resposta_ia:
-        return resposta_ia
+        return _sanitize_markdown_output(resposta_ia)
 
     # Fallback imediato caso sem internet externa
-    return analise_pandas
+    return _sanitize_markdown_output(analise_pandas)
 
 
 def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
@@ -1703,7 +1790,12 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
         for msg in st.session_state["oraculo_messages"]:
             avatar = "🔮" if msg["role"] == "assistant" else "🧑‍💼"
             with st.chat_message(msg["role"], avatar=avatar):
-                st.markdown(msg["content"])
+                content_to_render = (
+                    _sanitize_markdown_output(msg["content"])
+                    if msg["role"] == "assistant"
+                    else msg["content"]
+                )
+                st.markdown(content_to_render)
 
     c_in, c_clear = st.columns([5.5, 1])
     with c_in:
