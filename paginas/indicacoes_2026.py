@@ -179,14 +179,6 @@ pct_saldo_ind = (tot_saldo_ind / tot_aut * 100) if tot_aut > 0 else 0.0
 pct_saldo_emp = (tot_saldo_emp / tot_aut * 100) if tot_aut > 0 else 0.0
 
 # ------------------------------------------------------------------ LINHA 1: TERMÔMETRO (% SOBRE O AUTORIZADO) - ESTILO "DESPESAS POR UNIDADE"
-st.markdown(
-    "<div style='font-size:0.82rem; font-weight:700; color:#0F2A20; text-transform:uppercase; "
-    "letter-spacing:0.06em; margin-bottom:8px;'>"
-    "📊 Termômetro de Execução da Dotação Autorizada (% sobre o Autorizado)"
-    "</div>",
-    unsafe_allow_html=True,
-)
-
 t1, t2, t3, t4 = st.columns(4)
 card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
 
