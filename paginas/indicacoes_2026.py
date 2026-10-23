@@ -24,6 +24,22 @@ def fmt_brl(v: float | int | None, prefix: bool = True) -> str:
         return str(v)
 
 
+def fmt_mi_always(v: float | int | None) -> str:
+    """Formata valor financeiro sempre em R$ XX,XX Mi para os cards."""
+    if v is None or pd.isna(v):
+        return "R$ 0,00 Mi"
+    try:
+        val = float(v)
+        if abs(val) < 0.005:
+            return "R$ 0,00 Mi"
+        sign = "-" if val < 0 else ""
+        a = abs(val)
+        s = f"{a / 1e6:,.2f} Mi".replace(",", "X").replace(".", ",").replace("X", ".")
+        return f"R$ {sign}{s}"
+    except Exception:
+        return str(v)
+
+
 def fmt_pct(v: float | int | None) -> str:
     """Formata percentual no padrão brasileiro (ex: 95,0%)."""
     if v is None or pd.isna(v):
@@ -41,16 +57,6 @@ except Exception as exc:
 if df_seq_all.empty:
     st.warning("Não há dados disponíveis para exibição.")
     st.stop()
-
-# Ajuste de tamanho da fonte dos KPIs para acomodar valores completos (R$ x.xxx.xxx,xx) em linha única
-st.markdown(
-    """
-    <style>
-    .kpi .value { font-size: 1.28rem !important; letter-spacing: -0.02em !important; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # ------------------------------------------------------------------ BANNER SUPERIOR
 dt_sap_str = updated_sap.strftime("%d/%m/%Y às %H:%M") if updated_sap else "N/D"
@@ -80,11 +86,12 @@ with st.sidebar:
             st.cache_data.clear()
             st.rerun()
 
-# Opções de filtros (PROFISCO 17540111 desmarcado por padrão)
+# Opções de filtros (Fonte PROFISCO 17540111 estritamente desmarcada como padrão)
 fontes_disp = sorted(df_seq_all["Fonte_Label"].unique().tolist())
-default_fontes = [f for f in fontes_disp if not f.startswith("17540111")]
-if not default_fontes:
-    default_fontes = fontes_disp
+default_fontes = [
+    f for f in fontes_disp
+    if "17540111" not in str(f) and "profisco" not in str(f).lower()
+]
 
 acoes_disp = sorted(df_seq_all["Acao_Label"].unique().tolist())
 grupos_disp = sorted(df_seq_all["Grupo_Label"].unique().tolist())
@@ -96,6 +103,7 @@ with st.expander("🔍 **Filtros de Dotação & Classificação Orçamentária**
             "Fonte de Recursos",
             options=fontes_disp,
             default=default_fontes,
+            key="f_ind_fontes_sem_profisco",
             help="A fonte 17540111 (Operações de Crédito Externas - PROFISCO) vem desmarcada por padrão.",
         )
     with f_col2:
@@ -103,6 +111,7 @@ with st.expander("🔍 **Filtros de Dotação & Classificação Orçamentária**
             "Ação Orçamentária",
             options=acoes_disp,
             default=[],
+            key="f_ind_acoes",
             placeholder="Todas as Ações...",
         )
     with f_col3:
@@ -110,12 +119,14 @@ with st.expander("🔍 **Filtros de Dotação & Classificação Orçamentária**
             "Grupo de Despesa",
             options=grupos_disp,
             default=[],
+            key="f_ind_grupos",
             placeholder="Todos os Grupos...",
         )
     with f_col4:
         ocultar_zerados = st.checkbox(
             "Apenas c/ Dotação > 0",
             value=True,
+            key="f_ind_ocultar_zerados",
             help="Oculta sequenciais com valor Autorizado (A) igual a 0,00.",
         )
 
@@ -147,7 +158,6 @@ tot_ind_a_emp = tot_ind - tot_emp
 tot_emp_a_liq = tot_emp - tot_liq
 tot_liq_a_pag = tot_liq - tot_pago
 qtd_seqs = len(df_f)
-qtd_ind_ativas = int(df_f["Qtd_Indicacoes"].sum())
 
 pct_ind_aut = (tot_ind / tot_aut * 100) if tot_aut > 0 else 0.0
 pct_emp_aut = (tot_emp / tot_aut * 100) if tot_aut > 0 else 0.0
@@ -159,98 +169,109 @@ pct_pag_liq = (tot_pago / tot_liq * 100) if tot_liq > 0 else 0.0
 pct_saldo_ind = (tot_saldo_ind / tot_aut * 100) if tot_aut > 0 else 0.0
 pct_saldo_emp = (tot_saldo_emp / tot_aut * 100) if tot_aut > 0 else 0.0
 
-# ------------------------------------------------------------------ LINHA 1: 5 CARDS PRINCIPAIS DO FUNIL (PADRÃO BRASILEIRO x.xxx.xxx,xx)
+# ------------------------------------------------------------------ LINHA 1: 5 CARDS PRINCIPAIS DO FUNIL (EM R$ XX,XX Mi)
 c1, c2, c3, c4, c5 = st.columns(5)
 common.kpi(
     c1,
     "Autorizado (A)",
-    fmt_brl(tot_aut),
-    f"{qtd_seqs} sequenciais ativos",
+    fmt_mi_always(tot_aut),
+    f"{fmt_brl(tot_aut)} · {qtd_seqs} sequenciais",
 )
 common.kpi(
     c2,
     "Indicado (I)",
-    fmt_brl(tot_ind),
-    f"{fmt_pct(pct_ind_aut)} do Autorizado · {qtd_ind_ativas} ind.",
+    fmt_mi_always(tot_ind),
+    f"{fmt_brl(tot_ind)}",
 )
 common.kpi(
     c3,
     "Empenhado (E)",
-    fmt_brl(tot_emp),
-    f"{fmt_pct(pct_emp_aut)} de A · {fmt_pct(pct_emp_ind)} de I",
+    fmt_mi_always(tot_emp),
+    f"{fmt_brl(tot_emp)}",
 )
 common.kpi(
     c4,
     "Liquidado (L)",
-    fmt_brl(tot_liq),
-    f"{fmt_pct(pct_liq_aut)} de A · {fmt_pct(pct_liq_emp)} de E",
+    fmt_mi_always(tot_liq),
+    f"{fmt_brl(tot_liq)}",
 )
 common.kpi(
     c5,
     "Pago (P)",
-    fmt_brl(tot_pago),
-    f"{fmt_pct(pct_pag_aut)} de A · {fmt_pct(pct_pag_liq)} de L",
+    fmt_mi_always(tot_pago),
+    f"{fmt_brl(tot_pago)}",
 )
 
 st.markdown("<div style='height:0.65rem'></div>", unsafe_allow_html=True)
 
-# ------------------------------------------------------------------ LINHA 2: 4 CARDS DE SALDOS DISPONÍVEIS E GAPS OPERACIONAIS
+# ------------------------------------------------------------------ LINHA 2: 4 CARDS DE SALDOS DISPONÍVEIS E GAPS (EM R$ XX,XX Mi)
 s1, s2, s3, s4 = st.columns(4)
 common.kpi(
     s1,
     "Saldo Disponível p/ Indicação (A − I)",
-    fmt_brl(tot_saldo_ind),
-    f"{fmt_pct(pct_saldo_ind)} livre para indicar",
+    fmt_mi_always(tot_saldo_ind),
+    f"{fmt_brl(tot_saldo_ind)} ({fmt_pct(pct_saldo_ind)} livre)",
     warn=(tot_saldo_ind < 0),
 )
 common.kpi(
     s2,
     "Saldo Disponível p/ Empenho (A − E)",
-    fmt_brl(tot_saldo_emp),
-    f"{fmt_pct(pct_saldo_emp)} livre para empenhar",
+    fmt_mi_always(tot_saldo_emp),
+    f"{fmt_brl(tot_saldo_emp)} ({fmt_pct(pct_saldo_emp)} livre)",
     warn=(tot_saldo_emp < 0),
 )
 common.kpi(
     s3,
     "Indicado a Empenhar (I − E)",
-    fmt_brl(tot_ind_a_emp),
-    "Indicado aguardando empenho",
+    fmt_mi_always(tot_ind_a_emp),
+    f"{fmt_brl(tot_ind_a_emp)} aguardando empenho",
     warn=(tot_ind_a_emp > 5_000_000),
 )
 common.kpi(
     s4,
     "Empenhado a Liquidar (E − L)",
-    fmt_brl(tot_emp_a_liq),
-    "Saldo em execução contratual",
+    fmt_mi_always(tot_emp_a_liq),
+    f"{fmt_brl(tot_emp_a_liq)} em execução",
 )
 
-st.markdown("<div style='height:0.9rem'></div>", unsafe_allow_html=True)
+st.markdown("<div style='height:0.85rem'></div>", unsafe_allow_html=True)
 
-# ------------------------------------------------------------------ TERMÔMETRO DE EXECUÇÃO (SOMENTE OS PERCENTUAIS)
-w_pago = min(100.0, max(0.0, pct_pag_aut))
-w_liq_extra = min(100.0 - w_pago, max(0.0, pct_liq_aut - pct_pag_aut))
-w_emp_extra = min(100.0 - w_pago - w_liq_extra, max(0.0, pct_emp_aut - pct_liq_aut))
-w_ind_extra = min(100.0 - w_pago - w_liq_extra - w_emp_extra, max(0.0, pct_ind_aut - pct_emp_aut))
-w_livre = max(0.0, 100.0 - w_pago - w_liq_extra - w_emp_extra - w_ind_extra)
-
+# ------------------------------------------------------------------ LINHA 3: TERMÔMETRO EM CARDS DE DESTAQUE DOS PERCENTUAIS
 st.html(
-    f"""<div style="background:#FFFFFF; border:1px solid #E1EEE7; border-radius:16px; padding:16px 22px;
-                box-shadow:0 2px 12px rgba(4,120,87,0.06); margin-bottom:1.2rem;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
-        <span style="font-size:0.84rem; font-weight:700; color:#0F2A20; text-transform:uppercase; letter-spacing:0.06em;">
-          📊 Termômetro de Execução da Dotação Autorizada
-        </span>
-        <span style="font-size:0.88rem; color:#047857; font-weight:700;">
-          Indicado: {pct_ind_aut:.1f}% &nbsp;&nbsp;|&nbsp;&nbsp; Empenhado: {pct_emp_aut:.1f}% &nbsp;&nbsp;|&nbsp;&nbsp;
-          Liquidado: {pct_liq_aut:.1f}% &nbsp;&nbsp;|&nbsp;&nbsp; Pago: {pct_pag_aut:.1f}%
-        </span>
+    f"""<div style="background:#FFFFFF; border:1px solid #DCEBE3; border-radius:16px; padding:16px 20px;
+                box-shadow:0 4px 16px rgba(4,120,87,0.07); margin-bottom:1.2rem;">
+      <div style="font-size:0.82rem; font-weight:700; color:#0F2A20; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">
+        📊 Termômetro de Execução da Dotação Autorizada (% sobre o Autorizado)
       </div>
-      <div style="display:flex; height:24px; border-radius:10px; overflow:hidden; background:#EEF6F2; border:1px solid #DCEBE3;">
-        <div style="width:{w_pago:.2f}%; background:#065F46;" title="Pago: {pct_pag_aut:.1f}%"></div>
-        <div style="width:{w_liq_extra:.2f}%; background:#0D9488;" title="Liquidado: {pct_liq_aut:.1f}%"></div>
-        <div style="width:{w_emp_extra:.2f}%; background:#10B981;" title="Empenhado: {pct_emp_aut:.1f}%"></div>
-        <div style="width:{w_ind_extra:.2f}%; background:#F59E0B;" title="Indicado: {pct_ind_aut:.1f}%"></div>
-        <div style="width:{w_livre:.2f}%; background:#E2E8F0;" title="Disponível: {pct_saldo_ind:.1f}%"></div>
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px;">
+        <div style="background:linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%); border:1px solid #86EFAC; border-left:5px solid #047857; border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#065F46; text-transform:uppercase; letter-spacing:0.05em;">Indicado (I / A)</div>
+          <div style="font-size:1.85rem; font-weight:800; color:#047857; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_ind_aut)}</div>
+          <div style="height:7px; background:#BBF7D0; border-radius:99px; overflow:hidden;">
+            <div style="width:{min(100.0, max(0.0, pct_ind_aut)):.1f}%; height:100%; background:#047857; border-radius:99px;"></div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%); border:1px solid #86EFAC; border-left:5px solid #10B981; border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#065F46; text-transform:uppercase; letter-spacing:0.05em;">Empenhado (E / A)</div>
+          <div style="font-size:1.85rem; font-weight:800; color:#059669; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_emp_aut)}</div>
+          <div style="height:7px; background:#BBF7D0; border-radius:99px; overflow:hidden;">
+            <div style="width:{min(100.0, max(0.0, pct_emp_aut)):.1f}%; height:100%; background:#10B981; border-radius:99px;"></div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#F0FDFA 0%,#CCFBF1 100%); border:1px solid #5EEAD4; border-left:5px solid #0D9488; border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#115E59; text-transform:uppercase; letter-spacing:0.05em;">Liquidado (L / A)</div>
+          <div style="font-size:1.85rem; font-weight:800; color:#0F766E; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_liq_aut)}</div>
+          <div style="height:7px; background:#99F6E4; border-radius:99px; overflow:hidden;">
+            <div style="width:{min(100.0, max(0.0, pct_liq_aut)):.1f}%; height:100%; background:#0D9488; border-radius:99px;"></div>
+          </div>
+        </div>
+        <div style="background:linear-gradient(135deg,#ECFEFF 0%,#CFFAFE 100%); border:1px solid #67E8F9; border-left:5px solid #0891B2; border-radius:12px; padding:12px 16px;">
+          <div style="font-size:0.75rem; font-weight:700; color:#155E75; text-transform:uppercase; letter-spacing:0.05em;">Pago (P / A)</div>
+          <div style="font-size:1.85rem; font-weight:800; color:#0E7490; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_pag_aut)}</div>
+          <div style="height:7px; background:#A5F3FC; border-radius:99px; overflow:hidden;">
+            <div style="width:{min(100.0, max(0.0, pct_pag_aut)):.1f}%; height:100%; background:#0891B2; border-radius:99px;"></div>
+          </div>
+        </div>
       </div>
     </div>"""
 )
@@ -264,9 +285,8 @@ for idx, (_, r) in enumerate(df_f.iterrows()):
     seq_n = int(r["Seq"])
     class_orc = r["Classificacao_Orcamentaria"]
     acao_c = r["Acao_Cod"]
-    acao_desc = indicacoes_data.ACOES_DESCRICAO.get(acao_c, "")
+    acao_desc = indicacoes_data.ACOES_DESCRICAO.get(acao_c, f"Ação {acao_c}")
     grp_lbl = r["Grupo_Label"]
-    qtd_i = int(r["Qtd_Indicacoes"])
 
     v_aut = float(r["Autorizado"])
     v_ind = float(r["Indicado"])
@@ -278,21 +298,17 @@ for idx, (_, r) in enumerate(df_f.iterrows()):
 
     cor_s_ind = "#B91C1C" if v_s_ind < -0.01 else ("#047857" if v_s_ind > 0.01 else "#64748B")
     cor_s_emp = "#B91C1C" if v_s_emp < -0.01 else ("#047857" if v_s_emp > 0.01 else "#64748B")
-    badge_ind = (
-        f'<span style="background:#D1FAE5;color:#065F46;font-size:0.68rem;padding:1px 6px;border-radius:99px;margin-left:6px;font-weight:600;">{qtd_i} ind.</span>'
-        if qtd_i > 0
-        else ""
-    )
 
     rows_html.append(
         f"""<tr style="background:{bg}; border-bottom:1px solid #DCEBE3;">
           <td style="padding:9px 12px; font-weight:700; color:#0F2A20; text-align:center;">{seq_n}</td>
           <td style="padding:9px 12px;">
             <div style="font-weight:600; color:#0F2A20; font-family:'Inter',monospace; font-size:0.84rem;">{class_orc}</div>
-            <div style="font-size:0.72rem; color:#5B7A6C;">Ação {acao_c} ({acao_desc[:48]}{'...' if len(acao_desc) > 48 else ''}) · {grp_lbl}</div>
+            <div style="font-size:0.73rem; color:#334155; margin-top:3px;"><strong>Ação:</strong> {acao_c} - {acao_desc}</div>
+            <div style="font-size:0.73rem; color:#5B7A6C; margin-top:1px;"><strong>Grupo:</strong> {grp_lbl}</div>
           </td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:#0F2A20;">{fmt_brl(v_aut, prefix=False)}</td>
-          <td style="padding:9px 12px; text-align:right; font-weight:700; color:#047857; background:rgba(16,185,129,0.07);">{fmt_brl(v_ind, prefix=False)}{badge_ind}</td>
+          <td style="padding:9px 12px; text-align:right; font-weight:700; color:#047857; background:rgba(16,185,129,0.07);">{fmt_brl(v_ind, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:{cor_s_ind};">{fmt_brl(v_s_ind, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:#0F2A20;">{fmt_brl(v_emp, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:{cor_s_emp};">{fmt_brl(v_s_emp, prefix=False)}</td>
@@ -341,7 +357,7 @@ st.html(table_html)
 # Botão de download CSV da tabela consolidada
 df_export = df_f[[
     "Seq", "Classificacao_Orcamentaria", "Acao_Label", "Grupo_Label", "Fonte_Label",
-    "Autorizado", "Indicado", "Saldo_Indicacao", "Empenhado", "Saldo_Empenho", "Liquidado", "Pago", "Qtd_Indicacoes"
+    "Autorizado", "Indicado", "Saldo_Indicacao", "Empenhado", "Saldo_Empenho", "Liquidado", "Pago"
 ]].copy()
 for c_num in ("Autorizado", "Indicado", "Saldo_Indicacao", "Empenhado", "Saldo_Empenho", "Liquidado", "Pago"):
     df_export[c_num] = df_export[c_num].apply(lambda v: fmt_brl(v, prefix=False))
@@ -358,7 +374,6 @@ df_export = df_export.rename(columns={
     "Saldo_Empenho": "Saldo Disponível p/ Empenho (A-E)",
     "Liquidado": "Liquidado (L)",
     "Pago": "Pago (P)",
-    "Qtd_Indicacoes": "Qtd. Indicações Ativas",
 })
 csv_bytes = df_export.to_csv(index=False, sep=";", encoding="utf-8-sig").encode("utf-8-sig")
 st.download_button(
@@ -386,7 +401,7 @@ with tab_graf:
             "Valor": [tot_aut, tot_ind, tot_emp, tot_liq, tot_pago],
         })
         etapas_df["Texto"] = etapas_df["Valor"].apply(
-            lambda v: f"{fmt_brl(v)} ({(v / tot_aut * 100 if tot_aut else 0):.1f}%)"
+            lambda v: f"{fmt_brl(v)} ({fmt_pct(v / tot_aut * 100 if tot_aut else 0)})"
         )
         fig_funil = px.bar(
             etapas_df,
