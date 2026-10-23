@@ -11,6 +11,7 @@ import pandas as pd
 import streamlit as st
 
 import data_source
+import indicacoes_data
 import liquidado_mensal_data
 import pca_data
 
@@ -91,6 +92,8 @@ DOMAIN_VOCAB = [
     "liquidacoes", "liquidada", "liquidadas", "sobra", "sobras", "relacao",
     "sugestao", "sugestoes", "reduzir", "reducao", "diminuir", "diferenca",
     "comparacao", "comparativo", "disponivel", "disponiveis", "daria", "faria",
+    "sequencial", "sequenciais", "dotacao", "dotacoes", "indicacao", "indicacoes",
+    "autorizado", "autorizada", "empenhado", "empenho", "pago", "paga", "pagos", "ipof",
     "fornecedor", "fornecedores", "empresa", "empresas", "beneficiario", "credor",
     "unidade", "unidades", "superintendencia", "gerencia", "modalidade",
     "prorrogacao", "prorrogacoes", "contratacao", "contratacoes", "indicado",
@@ -283,6 +286,19 @@ def load_oraculo_kb() -> dict[str, Any]:
     else:
         df_liq_2026 = pd.DataFrame()
 
+    try:
+        df_seq, df_ind_det, u_seq_sap, _ = indicacoes_data.load_consolidado_indicacoes_2026()
+    except Exception:
+        df_seq, df_ind_det, u_seq_sap = pd.DataFrame(), pd.DataFrame(), None
+
+    if not df_ind_det.empty:
+        df_ind_det = df_ind_det.copy()
+        df_ind_det["_search_blob"] = (
+            df_ind_det[["Processo", "Contrato", "Objeto", "Resumo", "IPOF", "Observação", "Unidade", "Empresa_Contratada"]]
+            .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
+        )
+        df_ind_det["_search_blob_compact"] = df_ind_det["_search_blob"].apply(_compact_text)
+
     # Vocabulário dinâmico extraído dos objetos e empresas reais das planilhas para correção de typos
     vocab_objs: set[str] = set()
     for s_col in [
@@ -315,6 +331,9 @@ def load_oraculo_kb() -> dict[str, Any]:
         "u_pca": u_pca,
         "df_liq": df_liq_2026,
         "u_liq": u_liq,
+        "df_seq": df_seq,
+        "df_ind_det": df_ind_det,
+        "u_seq": u_seq_sap,
         "cota_2026": 207478837.10,
         "cota_2027": 144089232.46,
         "extra_vocab": sorted(vocab_objs),
@@ -1041,6 +1060,86 @@ def _answer_liquidacao(q_norm: str, kb: dict[str, Any]) -> str:
     return "\n".join(linhas)
 
 
+def _answer_indicacoes_sequencial(q_norm: str, kb: dict[str, Any]) -> str:
+    """Responde perguntas sobre Indicações por Sequencial 2026 (SAP BO ID: 42943444 + Aba Indicações)."""
+    df_seq = kb.get("df_seq", pd.DataFrame())
+    df_ind_det = kb.get("df_ind_det", pd.DataFrame())
+    if df_seq.empty:
+        return "Os dados de Indicações por Sequencial 2026 (SAP BO ID: 42943444) não estão disponíveis no momento."
+
+    # Por padrão utiliza o filtro das Fontes do Tesouro (15000100 e 15010100) com dotação > 0, salvo se pedir PROFISCO/17540111/todas
+    inclui_profisco = any(w in q_norm for w in ["profisco", "17540111", "operacoes de credito", "tod"])
+    if inclui_profisco:
+        sub = df_seq[(df_seq["Autorizado"] > 0) | (df_seq["Indicado"] > 0) | (df_seq["Empenhado"] > 0)].copy()
+        lbl_f = "Todas as Fontes (Tesouro + PROFISCO 17540111)"
+    else:
+        sub = df_seq[
+            df_seq["Fonte_Cod"].isin(["15000100", "15010100"])
+            & ((df_seq["Autorizado"] > 0) | (df_seq["Indicado"] > 0) | (df_seq["Empenhado"] > 0))
+        ].copy()
+        lbl_f = "Fontes Tesouro (15000100 e 15010100)"
+
+    # Verifica se o usuário perguntou por um sequencial específico (ex: "sequencial 55", "seq 20")
+    m_seq = re.search(r"\b(?:sequencial|seq)\s*(\d{1,3})\b", q_norm)
+    if m_seq:
+        seq_alvo = int(m_seq.group(1))
+        row_s = df_seq[df_seq["Seq"] == seq_alvo]
+        if not row_s.empty:
+            r = row_s.iloc[0]
+            linhas_s = [
+                f"### 🎯 Detalhamento do Sequencial {seq_alvo} — Execução & Indicações 2026",
+                f"* **Classificação Orçamentária:** {r['Classificacao_Orcamentaria']}",
+                f"* **Ação Orçamentária:** {r['Acao_Label']} | **Grupo:** {r['Grupo_Label']} | **Fonte:** {r['Fonte_Label']}",
+                f"* **Autorizado (A):** **{fmt_brl(r['Autorizado'])}**",
+                f"* **Indicado (I):** **{fmt_brl(r['Indicado'])}** ({int(r['Qtd_Indicacoes'])} indicações ativas na Planilha 2026)",
+                f"* **Saldo Disponível p/ Indicação (A − I):** **{fmt_brl(r['Saldo_Indicacao'])}**",
+                f"* **Empenhado (E):** **{fmt_brl(r['Empenhado'])}**",
+                f"* **Saldo Disponível p/ Empenho (A − E):** **{fmt_brl(r['Saldo_Empenho'])}**",
+                f"* **Liquidado (L):** **{fmt_brl(r['Liquidado'])}** | **Pago (P):** **{fmt_brl(r['Pago'])}**\n",
+            ]
+            if not df_ind_det.empty:
+                det_s = df_ind_det[(df_ind_det["Seq"] == seq_alvo) & (df_ind_det["Situacao_Clean"].str.lower() == "ativo")].sort_values("Valor_Indicado_2026", ascending=False)
+                if not det_s.empty:
+                    linhas_s.append(f"#### 📋 Top Indicações Ativas vinculadas ao Sequencial {seq_alvo} ({len(det_s)} lançamentos):")
+                    linhas_s.append("| Item | Despesa (Resumo) | Unidade | Contrato | Processo SEI | IPOF | Valor Indicado 2026 |")
+                    linhas_s.append("|---|---|---|---|---|---|---|")
+                    for _, rd in det_s.head(15).iterrows():
+                        linhas_s.append(
+                            f"| {rd['Item Aba Contratos']} | **{rd['Resumo']}** | {rd['Unidade']} | {rd['Contrato']} | {rd['Processo']} | {rd['IPOF']} | **{fmt_brl(rd['Valor_Indicado_2026'])}** |"
+                        )
+            return "\n".join(linhas_s)
+
+    tot_aut = float(sub["Autorizado"].sum())
+    tot_ind = float(sub["Indicado"].sum())
+    tot_s_ind = float(sub["Saldo_Indicacao"].sum())
+    tot_emp = float(sub["Empenhado"].sum())
+    tot_s_emp = float(sub["Saldo_Empenho"].sum())
+    tot_liq = float(sub["Liquidado"].sum())
+    tot_pag = float(sub["Pago"].sum())
+
+    linhas = [
+        f"### 🎯 Indicações e Execução por Sequencial — Orçamento 2026 ({lbl_f})",
+        f"* **Autorizado (A):** **{fmt_brl(tot_aut)}** ({len(sub)} sequenciais ativos)",
+        f"* **Indicado (I — Aba Indicações 2026):** **{fmt_brl(tot_ind)}** ({(tot_ind / tot_aut * 100 if tot_aut else 0):.1f}% do Autorizado)",
+        f"* **Saldo Disponível p/ Indicação (A − I):** **{fmt_brl(tot_s_ind)}**",
+        f"* **Empenhado (E — SIAFIC):** **{fmt_brl(tot_emp)}** ({(tot_emp / tot_aut * 100 if tot_aut else 0):.1f}% do Autorizado)",
+        f"* **Saldo Disponível p/ Empenho (A − E):** **{fmt_brl(tot_s_emp)}**",
+        f"* **Liquidado (L — SIAFIC):** **{fmt_brl(tot_liq)}**",
+        f"* **Pago (P — SIAFIC):** **{fmt_brl(tot_pag)}**\n",
+        "#### 📋 Tabela Consolidada por Sequencial (Dotação 2026):",
+        "| Seq | Classificação Orçamentária | Ação | Autorizado (A) | Indicado (I) | Saldo p/ Indicação (A−I) | Empenhado (E) | Saldo p/ Empenho (A−E) | Liquidado (L) | Pago (P) |",
+        "|---|---|---|---|---|---|---|---|---|---|",
+    ]
+    for _, r in sub.iterrows():
+        linhas.append(
+            f"| **{int(r['Seq'])}** | {r['Classificacao_Orcamentaria']} | {r['Acao_Cod']} | {fmt_brl(r['Autorizado'])} | **{fmt_brl(r['Indicado'])}** | {fmt_brl(r['Saldo_Indicacao'])} | {fmt_brl(r['Empenhado'])} | {fmt_brl(r['Saldo_Empenho'])} | {fmt_brl(r['Liquidado'])} | {fmt_brl(r['Pago'])} |"
+        )
+    linhas.append(
+        f"| **Total** | **{len(sub)} sequenciais** | **-** | **{fmt_brl(tot_aut)}** | **{fmt_brl(tot_ind)}** | **{fmt_brl(tot_s_ind)}** | **{fmt_brl(tot_emp)}** | **{fmt_brl(tot_s_emp)}** | **{fmt_brl(tot_liq)}** | **{fmt_brl(tot_pag)}** |"
+    )
+    return "\n".join(linhas)
+
+
 def _answer_unit_360(unit_key: str, kb: dict[str, Any]) -> str:
     """Gera visão 360º de uma Unidade/Superintendência cruzando 2026, 2027, Supressões e PCA 2027."""
     u_info = UNIT_ALIASES[unit_key]
@@ -1573,6 +1672,24 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
             f"Por Mês: {mes_liq_str}\nTop 10 Credores:\n{top_cred_str}"
         )
 
+    df_seq = kb.get("df_seq", pd.DataFrame())
+    if not df_seq.empty:
+        sub_s = df_seq[
+            df_seq["Fonte_Cod"].isin(["15000100", "15010100"])
+            & ((df_seq["Autorizado"] > 0) | (df_seq["Indicado"] > 0) | (df_seq["Empenhado"] > 0))
+        ]
+        seq_str = "\n".join(
+            f"  - Seq {int(r['Seq'])} ({r['Classificacao_Orcamentaria']} | Ação {r['Acao_Cod']} | {r['Grupo_Label']}): Autorizado={fmt_brl(r['Autorizado'])} | Indicado={fmt_brl(r['Indicado'])} ({int(r['Qtd_Indicacoes'])} ind.) | SaldoInd={fmt_brl(r['Saldo_Indicacao'])} | Empenhado={fmt_brl(r['Empenhado'])} | SaldoEmp={fmt_brl(r['Saldo_Empenho'])} | Liquidado={fmt_brl(r['Liquidado'])} | Pago={fmt_brl(r['Pago'])}"
+            for _, r in sub_s.iterrows()
+        )
+        partes.append(
+            f"\n[6. INDICAÇÕES E EXECUÇÃO POR SEQUENCIAL 2026 (SAP BO ID: 42943444 + ABA INDICAÇÕES)] "
+            f"Total Autorizado(A)={fmt_brl(sub_s['Autorizado'].sum())} | Indicado(I)={fmt_brl(sub_s['Indicado'].sum())} | "
+            f"Saldo p/ Indicação(A-I)={fmt_brl(sub_s['Saldo_Indicacao'].sum())} | Empenhado(E)={fmt_brl(sub_s['Empenhado'].sum())} | "
+            f"Saldo p/ Empenho(A-E)={fmt_brl(sub_s['Saldo_Empenho'].sum())} | Liquidado(L)={fmt_brl(sub_s['Liquidado'].sum())} | Pago(P)={fmt_brl(sub_s['Pago'].sum())}\n"
+            f"Detalhamento dos 13 Sequenciais Ativos (Tesouro):\n{seq_str}"
+        )
+
     return "\n".join(partes)
 
 
@@ -1589,6 +1706,9 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
 
     if "deficit" in q_norm:
         return _answer_deficit_analysis(q_norm, kb, unit_key=matched_unit)
+
+    if any(k in q_norm for k in ["sequencial", "sequenciais", "dotacao", "dotacoes", "indicacao", "indicacoes", "empenhado", "empenho", "pago", "autorizado"]):
+        return _answer_indicacoes_sequencial(q_norm, kb)
 
     other_specific_tokens = [
         t for t in _extract_search_tokens(q_norm)
@@ -1860,13 +1980,14 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
                 "role": "assistant",
                 "content": (
                     "Olá! Eu sou o **Oráculo** 🔮, a inteligência analítica da Secretaria da Economia.\n\n"
-                    "Conecto em tempo real as **5 bases oficiais do painel**:\n"
+                    "Conecto em tempo real as **6 bases oficiais do painel**:\n"
                     "1. **Execução Orçamentária 2026** *(SharePoint)*\n"
-                    "2. **Liquidação Mensal por Contrato / SIAFIC** *(SAP BO)*\n"
-                    "3. **Planejamento / PLOA 2027** *(SharePoint)*\n"
-                    "4. **Supressões PLOA 2027** *(SharePoint)*\n"
-                    "5. **PCA 2027 — Contratações GELC** *(Google Sheets)*\n\n"
-                    "Digite qualquer pergunta abaixo (por **Unidade**, **Objeto**, **Rankings**, **Déficit**, **Contrato**, **Processo SEI** ou **Prazo**):"
+                    "2. **Liquidação Mensal por Contrato / SIAFIC** *(SAP BO — ID: 32115483)*\n"
+                    "3. **Indicações e Execução por Sequencial 2026** *(SAP BO — ID: 42943444 + Aba Indicações)*\n"
+                    "4. **Planejamento / PLOA 2027** *(SharePoint)*\n"
+                    "5. **Supressões PLOA 2027** *(SharePoint)*\n"
+                    "6. **PCA 2027 — Contratações GELC** *(Google Sheets)*\n\n"
+                    "Digite qualquer pergunta abaixo (por **Unidade**, **Objeto**, **Sequencial**, **Rankings**, **Déficit**, **Contrato**, **Processo SEI** ou **Prazo**):"
                 ),
             }
         ]
