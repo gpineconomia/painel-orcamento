@@ -249,31 +249,26 @@ common.kpi(
     c1,
     "Autorizado (A)",
     fmt_mi_always(tot_aut),
-    f"{fmt_brl(tot_aut)} · {qtd_seqs} sequenciais",
 )
 common.kpi(
     c2,
     "Indicado (I)",
     fmt_mi_always(tot_ind),
-    f"{fmt_brl(tot_ind)}",
 )
 common.kpi(
     c3,
     "Empenhado (E)",
     fmt_mi_always(tot_emp),
-    f"{fmt_brl(tot_emp)}",
 )
 common.kpi(
     c4,
     "Liquidado (L)",
     fmt_mi_always(tot_liq),
-    f"{fmt_brl(tot_liq)}",
 )
 common.kpi(
     c5,
     "Pago (P)",
     fmt_mi_always(tot_pago),
-    f"{fmt_brl(tot_pago)}",
 )
 
 st.markdown("<div style='height:0.65rem'></div>", unsafe_allow_html=True)
@@ -284,28 +279,24 @@ common.kpi(
     s1,
     "Saldo Disponível p/ Indicação (A − I)",
     fmt_mi_always(tot_saldo_ind),
-    f"{fmt_brl(tot_saldo_ind)} ({fmt_pct(pct_saldo_ind)} livre)",
     warn=(tot_saldo_ind < 0),
 )
 common.kpi(
     s2,
     "Saldo Disponível p/ Empenho (A − E)",
     fmt_mi_always(tot_saldo_emp),
-    f"{fmt_brl(tot_saldo_emp)} ({fmt_pct(pct_saldo_emp)} livre)",
     warn=(tot_saldo_emp < 0),
 )
 common.kpi(
     s3,
     "Indicado a Empenhar (I − E)",
     fmt_mi_always(tot_ind_a_emp),
-    f"{fmt_brl(tot_ind_a_emp)} aguardando empenho",
     warn=(tot_ind_a_emp > 5_000_000),
 )
 common.kpi(
     s4,
     "Empenhado a Liquidar (E − L)",
     fmt_mi_always(tot_emp_a_liq),
-    f"{fmt_brl(tot_emp_a_liq)} em execução",
 )
 
 st.markdown("<div style='height:1.1rem'></div>", unsafe_allow_html=True)
