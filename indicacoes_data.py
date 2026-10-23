@@ -182,12 +182,14 @@ def load_sap_sequencial_data(auto_download_if_missing: bool = True) -> tuple[pd.
 
 
 def load_aba_indicacoes_2026() -> tuple[pd.DataFrame, datetime | None]:
-    """Lê a aba 'Indicacoes' da planilha 2026 e enriquece com Unidade e Fornecedor da aba 'Contratos'."""
+    """Lê a aba 'Indicacoes' da planilha 2026 (atualizando antes do SharePoint/GitHub) e enriquece com a aba 'Contratos'."""
     cache_file = data_source.CACHE_FILE_2026
-    if not cache_file.exists():
-        data_source.load_data(ano=2026)
-    elif data_source._AUTH is None:
-        data_source.fetch_from_github_cloud(cache_file.name, cache_file)
+    df_contratos = pd.DataFrame()
+    try:
+        df_contratos, _, _ = data_source.load_data(ano=2026)
+    except Exception:
+        if data_source._AUTH is None:
+            data_source.fetch_from_github_cloud(cache_file.name, cache_file)
 
     if not cache_file.exists():
         return pd.DataFrame(), None
@@ -231,9 +233,8 @@ def load_aba_indicacoes_2026() -> tuple[pd.DataFrame, datetime | None]:
     df_ind["Fonte_Cod"] = df_ind.get("Fonte", pd.Series(dtype=str)).fillna("").astype(str).str.replace(r"\.0$", "", regex=True).str.strip()
     df_ind["Data_Indicacao"] = pd.to_datetime(df_ind.get("Data"), errors="coerce")
 
-    # Enriquece com Unidade e Empresa Contratada a partir da aba Contratos usando 'Item Aba Contratos'
+    # Enriquece com Unidade e Empresa Contratada a partir da aba Contratos já carregada
     try:
-        df_contratos, _, _ = data_source.load_data(ano=2026)
         if not df_contratos.empty and "Item" in df_contratos.columns:
             mapa_uni: dict[str, str] = {}
             mapa_emp: dict[str, str] = {}

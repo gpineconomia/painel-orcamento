@@ -132,8 +132,14 @@ with st.sidebar:
 
     st.divider()
     if st.button("🔄 Atualizar Dados", use_container_width=True):
-        with st.spinner("Sincronizando SIAFIC e GPIN..."):
-            indicacoes_data.download_declarado_empenhado_seq_csv()
+        with st.spinner("Sincronizando SIAFIC e Planilha 2026 (SharePoint)..."):
+            try:
+                import sync_github
+                sync_github.refresh_sharepoint_caches()
+                indicacoes_data.download_declarado_empenhado_seq_csv()
+                sync_github.sync_to_github(refresh_sp=False)
+            except Exception:
+                indicacoes_data.download_declarado_empenhado_seq_csv()
             st.cache_data.clear()
             st.rerun()
 
@@ -511,8 +517,8 @@ with tab_det:
             )
         with d_col4:
             busca_det = st.text_input(
-                "Buscar por Processo SEI, Contrato, Objeto, Resumo ou IPOF",
-                placeholder="Ex: 041/2025, Vigilância, 2025170100527...",
+                "Buscar por Item, Processo SEI, Contrato, Objeto, Resumo ou IPOF",
+                placeholder="Ex: 428, 041/2025, Vigilância, 2025170100527...",
             )
 
         df_det = df_ind_all.copy()
@@ -525,7 +531,7 @@ with tab_det:
             seqs_nums = [int(s.replace("Seq ", "")) for s in sel_seq_det]
             df_det = df_det[df_det["Seq"].isin(seqs_nums)].copy()
         else:
-            if sel_acoes or sel_grupos:
+            if sel_acoes or sel_grupos or sel_seqs:
                 df_det = df_det[df_det["Seq"].isin(seqs_na_tabela)].copy()
 
         if sel_uni_det:
@@ -533,23 +539,34 @@ with tab_det:
 
         if busca_det.strip():
             termo_b = busca_det.strip().lower()
+            mask_item_exato = df_det["Item Aba Contratos"].astype(str).str.strip().str.lower() == termo_b
             mask_b = (
-                df_det["Processo"].astype(str).str.lower().str.contains(termo_b, na=False)
+                mask_item_exato
+                | df_det["Item Aba Contratos"].astype(str).str.lower().str.contains(termo_b, na=False)
+                | df_det["Processo"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["Contrato"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["Objeto"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["Resumo"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["IPOF"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["Observação"].astype(str).str.lower().str.contains(termo_b, na=False)
                 | df_det["Empresa_Contratada"].astype(str).str.lower().str.contains(termo_b, na=False)
+                | df_det["Unidade"].astype(str).str.lower().str.contains(termo_b, na=False)
             )
             df_det = df_det[mask_b].copy()
+            df_det["_match_item_exato"] = (df_det["Item Aba Contratos"].astype(str).str.strip().str.lower() == termo_b).astype(int)
+        else:
+            df_det["_match_item_exato"] = 0
 
         soma_det = float(df_det["Valor_Indicado_2026"].sum())
         st.caption(
             f"Exibindo **{len(df_det)}** lançamento(s) de indicação · Soma do Valor Indicado no filtro: **{fmt_brl(soma_det)}**"
         )
 
-        df_det_sorted = df_det.sort_values(["Seq", "Valor_Indicado_2026"], ascending=[True, False]).copy()
+        df_det["_item_num"] = pd.to_numeric(df_det["Item Aba Contratos"], errors="coerce").fillna(0)
+        df_det_sorted = df_det.sort_values(
+            ["_match_item_exato", "Data_Indicacao", "_item_num", "Valor_Indicado_2026"],
+            ascending=[False, False, False, False],
+        ).copy()
         df_det_view = pd.DataFrame({
             "Seq": df_det_sorted["Seq"].astype(int),
             "Item": df_det_sorted["Item Aba Contratos"],

@@ -543,6 +543,8 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
                      ("Situação IPOF", ctx.C_IPOF), ("Situação", ctx.C_SIT)]:
         if c:
             df[c] = df[c].astype("string").str.replace("_x000D_", " ").str.replace("\xa0", " ").str.strip()
+            if label == "Situação IPOF":
+                df[c] = df[c].replace({"Libberado": "Liberado"})
             df[c] = df[c].fillna("(Sem contrato)" if label == "Contrato" else NI)
             if label == "Contrato":
                 df[c] = df[c].replace(["nan", "None", "", "<NA>"], "(Sem contrato)")
@@ -572,10 +574,10 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
                     pass
             st.rerun()
 
-        busca = st.text_input("🔎 Buscar (objeto, resumo, contrato, SEI, IPOF, empresa)", key=f"b_{ano}")
+        busca = st.text_input("🔎 Buscar (item, objeto, resumo, contrato, SEI, IPOF, empresa)", key=f"b_{ano}")
         if busca:
             mask = pd.Series(False, index=df.index)
-            cols_busca = (ctx.C_OBJ, ctx.C_RES, ctx.C_EMP, ctx.C_NUM, ctx.C_PROC, ctx.C_N_IPOF)
+            cols_busca = (ctx.C_ITEM, ctx.C_OBJ, ctx.C_RES, ctx.C_EMP, ctx.C_NUM, ctx.C_PROC, ctx.C_N_IPOF)
             for c in cols_busca:
                 if c:
                     mask |= df[c].astype(str).str.contains(busca, case=False, na=False, regex=False)
