@@ -238,9 +238,9 @@ if __name__ == "__main__":
     no_sp = "--no-sp" in sys.argv
 
     if "--loop" in sys.argv:
-        interval_min = int(os.getenv("SYNC_MINUTES", "1"))
-        print(f"[{datetime.now():%H:%M:%S}] Iniciando sincronização contínua a cada {interval_min} minuto(s)...")
-        print(f"  - Planilhas SharePoint: verificadas a cada {interval_min} minuto(s) (envia ao GitHub apenas se houver alteração)")
+        interval_min = int(os.getenv("SYNC_MINUTES", "60"))
+        print(f"[{datetime.now():%H:%M:%S}] Iniciando sincronização contínua a cada {interval_min} minutos...")
+        print(f"  - Planilhas SharePoint: a cada ciclo ({interval_min} minutos)")
         print("  - Relatório SIAFIC (SAP BO): 1x ao dia às 07:30")
         while True:
             try:
