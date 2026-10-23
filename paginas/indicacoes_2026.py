@@ -77,16 +77,7 @@ st.html(
     </div>"""
 )
 
-# ------------------------------------------------------------------ BARRA LATERAL & FILTROS NO TOPO
-with st.sidebar:
-    st.markdown("## ⚙️ Controle · Indicações 2026")
-    if st.button("🔄 Atualizar Dados", use_container_width=True):
-        with st.spinner("Sincronizando SIAFIC e GPIN..."):
-            indicacoes_data.download_declarado_empenhado_seq_csv()
-            st.cache_data.clear()
-            st.rerun()
-
-# Opções de filtros (Fonte PROFISCO 17540111 estritamente desmarcada como padrão)
+# ------------------------------------------------------------------ FILTROS NA BARRA LATERAL
 fontes_disp = sorted(df_seq_all["Fonte_Label"].unique().tolist())
 default_fontes = [
     f for f in fontes_disp
@@ -95,40 +86,56 @@ default_fontes = [
 
 acoes_disp = sorted(df_seq_all["Acao_Label"].unique().tolist())
 grupos_disp = sorted(df_seq_all["Grupo_Label"].unique().tolist())
+seqs_disp = [str(int(s)) for s in sorted(df_seq_all["Seq"].unique().tolist())]
 
-with st.expander("🔍 **Filtros de Dotação & Classificação Orçamentária** *(Fonte, Ação, Grupo e Sequencial)*", expanded=True):
-    f_col1, f_col2, f_col3, f_col4 = st.columns([1.4, 1.5, 1.0, 1.0])
-    with f_col1:
-        sel_fontes = st.multiselect(
-            "Fonte de Recursos",
-            options=fontes_disp,
-            default=default_fontes,
-            key="f_ind_fontes_sem_profisco",
-            help="A fonte 17540111 (Operações de Crédito Externas - PROFISCO) vem desmarcada por padrão.",
-        )
-    with f_col2:
-        sel_acoes = st.multiselect(
-            "Ação Orçamentária",
-            options=acoes_disp,
-            default=[],
-            key="f_ind_acoes",
-            placeholder="Todas as Ações...",
-        )
-    with f_col3:
-        sel_grupos = st.multiselect(
-            "Grupo de Despesa",
-            options=grupos_disp,
-            default=[],
-            key="f_ind_grupos",
-            placeholder="Todos os Grupos...",
-        )
-    with f_col4:
-        ocultar_zerados = st.checkbox(
-            "Apenas c/ Dotação > 0",
-            value=True,
-            key="f_ind_ocultar_zerados",
-            help="Oculta sequenciais com valor Autorizado (A) igual a 0,00.",
-        )
+with st.sidebar:
+    st.header("Filtros de Dotação")
+
+    sel_fontes = st.multiselect(
+        "Fonte de Recursos",
+        options=fontes_disp,
+        default=default_fontes,
+        key="f_ind_fontes_sem_profisco",
+        help="A fonte 17540111 (Operações de Crédito Externas - PROFISCO) vem desmarcada por padrão.",
+    )
+
+    sel_acoes = st.multiselect(
+        "Ação Orçamentária",
+        options=acoes_disp,
+        default=[],
+        key="f_ind_acoes",
+        placeholder="Todas as Ações...",
+    )
+
+    sel_grupos = st.multiselect(
+        "Grupo de Despesa",
+        options=grupos_disp,
+        default=[],
+        key="f_ind_grupos",
+        placeholder="Todos os Grupos...",
+    )
+
+    sel_seqs = st.multiselect(
+        "Nº do Sequencial",
+        options=seqs_disp,
+        default=[],
+        key="f_ind_seqs",
+        placeholder="Todos os Sequenciais...",
+    )
+
+    ocultar_zerados = st.checkbox(
+        "Apenas c/ Dotação > 0",
+        value=True,
+        key="f_ind_ocultar_zerados",
+        help="Oculta sequenciais com valor Autorizado (A) igual a 0,00.",
+    )
+
+    st.divider()
+    if st.button("🔄 Atualizar Dados", use_container_width=True):
+        with st.spinner("Sincronizando SIAFIC e GPIN..."):
+            indicacoes_data.download_declarado_empenhado_seq_csv()
+            st.cache_data.clear()
+            st.rerun()
 
 # Aplica filtros no DataFrame por Sequencial
 df_f = df_seq_all.copy()
@@ -138,6 +145,8 @@ if sel_acoes:
     df_f = df_f[df_f["Acao_Label"].isin(sel_acoes)].copy()
 if sel_grupos:
     df_f = df_f[df_f["Grupo_Label"].isin(sel_grupos)].copy()
+if sel_seqs:
+    df_f = df_f[df_f["Seq"].astype(int).astype(str).isin(sel_seqs)].copy()
 if ocultar_zerados:
     df_f = df_f[(df_f["Autorizado"] > 0) | (df_f["Indicado"] > 0) | (df_f["Empenhado"] > 0)].copy()
 
