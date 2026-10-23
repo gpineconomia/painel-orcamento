@@ -131,12 +131,9 @@ st.html(
         <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
           📜 Liquidação Mensal por Contrato · Execução 2026
         </h2>
-        <div style="font-size:0.8rem; color:#A7F3D0; margin-top:4px;">
-          Filtros de base aplicados: Situação ≠ Excluído &nbsp;|&nbsp; PROFISCO ≠ Sim
-        </div>
       </div>
       <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
-        <strong>Fonte Oficial SIAFIC:</strong> ConsultaLiquidadoMensal (ID: 32115483)<br>
+        <strong>Fonte Oficial:</strong> SIAFIC e GPIN<br>
         <span style="font-size:0.75rem; color:#D1FAE5;">Sincronizado em: {dt_sap_str}</span>
       </div>
     </div>"""
