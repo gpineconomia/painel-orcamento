@@ -44,7 +44,11 @@ class SapBoClient:
         }
 
         print(f"Tentando login no SAP BO ({self.cms}) com o usuário '{username}'...")
-        resp = self.session.post(url, json=payload, headers=headers, timeout=20)
+        try:
+            resp = self.session.post(url, json=payload, headers=headers, timeout=20)
+        except Exception as exc:
+            print(f"Não foi possível conectar ao servidor SAP BO: {exc}")
+            return False
         
         if resp.status_code == 200:
             token = resp.headers.get("X-SAP-LogonToken")

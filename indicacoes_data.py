@@ -69,12 +69,30 @@ def _parse_ptbr_float(v: object) -> float:
 
 
 def download_declarado_empenhado_seq_csv(timeout: int = 60) -> bool:
-    """Faz login no SAP BO e baixa o CSV da aba '2026' (Report 107) do relatório ID 42943444."""
+    """Faz login no SAP BO (Windows/Intranet) ou baixa do GitHub (Streamlit Cloud) o CSV do relatório ID 42943444."""
+    if os.name != "nt":
+        try:
+            import time
+            import requests
+            url = f"https://raw.githubusercontent.com/gpineconomia/painel-orcamento/main/data/declarado_empenhado_seq_sap.csv?_t={int(time.time())}"
+            resp = requests.get(url, timeout=15, headers={"Cache-Control": "no-cache"})
+            if resp.status_code == 200 and len(resp.content) > 200:
+                CSV_SEQ_PATH.parent.mkdir(parents=True, exist_ok=True)
+                CSV_SEQ_PATH.write_bytes(resp.content)
+                return True
+        except Exception:
+            pass
+        return False
+
     user = os.getenv("SAP_BO_USER", "joao-pbv")
     pwd = os.getenv("SAP_BO_PASS", "3J9h8w3d$")
 
     client = teste_sap_bo.SapBoClient()
-    if not client.login(user, pwd):
+    try:
+        if not client.login(user, pwd):
+            return False
+    except Exception as e_login:
+        print(f"Aviso ao conectar ao SAP BO: {e_login}")
         return False
 
     try:

@@ -132,14 +132,23 @@ with st.sidebar:
 
     st.divider()
     if st.button("🔄 Atualizar Dados", use_container_width=True):
-        with st.spinner("Sincronizando SIAFIC e Planilha 2026 (SharePoint)..."):
+        with st.spinner("Sincronizando SIAFIC e Planilha 2026..."):
             try:
-                import sync_github
-                sync_github.refresh_sharepoint_caches()
-                indicacoes_data.download_declarado_empenhado_seq_csv()
-                sync_github.sync_to_github(refresh_sp=False)
+                import os as _os
+                if _os.name == "nt":
+                    import sync_github
+                    sync_github.refresh_sharepoint_caches()
+                    indicacoes_data.download_declarado_empenhado_seq_csv()
+                    sync_github.sync_to_github(refresh_sp=False)
+                else:
+                    import data_source
+                    data_source.fetch_from_github_cloud(
+                        data_source.CACHE_FILE_2026.name,
+                        data_source.CACHE_FILE_2026,
+                    )
+                    indicacoes_data.download_declarado_empenhado_seq_csv()
             except Exception:
-                indicacoes_data.download_declarado_empenhado_seq_csv()
+                pass
             st.cache_data.clear()
             st.rerun()
 
