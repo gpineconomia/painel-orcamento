@@ -169,7 +169,81 @@ pct_pag_liq = (tot_pago / tot_liq * 100) if tot_liq > 0 else 0.0
 pct_saldo_ind = (tot_saldo_ind / tot_aut * 100) if tot_aut > 0 else 0.0
 pct_saldo_emp = (tot_saldo_emp / tot_aut * 100) if tot_aut > 0 else 0.0
 
-# ------------------------------------------------------------------ LINHA 1: 5 CARDS PRINCIPAIS DO FUNIL (EM R$ XX,XX Mi)
+# ------------------------------------------------------------------ LINHA 1: TERMÔMETRO (% SOBRE O AUTORIZADO) - ESTILO "DESPESAS POR UNIDADE"
+st.markdown(
+    "<div style='font-size:0.82rem; font-weight:700; color:#0F2A20; text-transform:uppercase; "
+    "letter-spacing:0.06em; margin-bottom:8px;'>"
+    "📊 Termômetro de Execução da Dotação Autorizada (% sobre o Autorizado)"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+t1, t2, t3, t4 = st.columns(4)
+card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+
+with t1:
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #064E3B 0%, #022C22 100%);
+                    box-shadow: 0 6px 18px rgba(6,78,59,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
+                    border: 1.5px solid rgba(52,211,153,0.45); {card_base_style}">
+          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {fmt_pct(pct_ind_aut)}
+          </div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#6EE7B7; margin-top:8px; font-weight:700;">
+            Indicado (I / A)
+          </div>
+        </div>"""
+    )
+
+with t2:
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
+                    box-shadow: 0 4px 14px rgba(49,46,129,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
+          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {fmt_pct(pct_emp_aut)}
+          </div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#C7D2FE; margin-top:8px; font-weight:700;">
+            Empenhado (E / A)
+          </div>
+        </div>"""
+    )
+
+with t3:
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0E7490 0%, #155E75 100%);
+                    box-shadow: 0 4px 14px rgba(14,116,144,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
+          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {fmt_pct(pct_liq_aut)}
+          </div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#A5F3FC; margin-top:8px; font-weight:700;">
+            Liquidado (L / A)
+          </div>
+        </div>"""
+    )
+
+with t4:
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+                    box-shadow: 0 4px 14px rgba(37,99,235,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
+          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            {fmt_pct(pct_pag_aut)}
+          </div>
+          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
+                      color:#BFDBFE; margin-top:8px; font-weight:700;">
+            Pago (P / A)
+          </div>
+        </div>"""
+    )
+
+st.markdown("<div style='height:0.75rem'></div>", unsafe_allow_html=True)
+
+# ------------------------------------------------------------------ LINHA 2: 5 CARDS PRINCIPAIS DO FUNIL (EM R$ XX,XX Mi)
 c1, c2, c3, c4, c5 = st.columns(5)
 common.kpi(
     c1,
@@ -204,7 +278,7 @@ common.kpi(
 
 st.markdown("<div style='height:0.65rem'></div>", unsafe_allow_html=True)
 
-# ------------------------------------------------------------------ LINHA 2: 4 CARDS DE SALDOS DISPONÍVEIS E GAPS (EM R$ XX,XX Mi)
+# ------------------------------------------------------------------ LINHA 3: 4 CARDS DE SALDOS DISPONÍVEIS E GAPS (EM R$ XX,XX Mi)
 s1, s2, s3, s4 = st.columns(4)
 common.kpi(
     s1,
@@ -234,47 +308,7 @@ common.kpi(
     f"{fmt_brl(tot_emp_a_liq)} em execução",
 )
 
-st.markdown("<div style='height:0.85rem'></div>", unsafe_allow_html=True)
-
-# ------------------------------------------------------------------ LINHA 3: TERMÔMETRO EM CARDS DE DESTAQUE DOS PERCENTUAIS
-st.html(
-    f"""<div style="background:#FFFFFF; border:1px solid #DCEBE3; border-radius:16px; padding:16px 20px;
-                box-shadow:0 4px 16px rgba(4,120,87,0.07); margin-bottom:1.2rem;">
-      <div style="font-size:0.82rem; font-weight:700; color:#0F2A20; text-transform:uppercase; letter-spacing:0.06em; margin-bottom:12px;">
-        📊 Termômetro de Execução da Dotação Autorizada (% sobre o Autorizado)
-      </div>
-      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:14px;">
-        <div style="background:linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%); border:1px solid #86EFAC; border-left:5px solid #047857; border-radius:12px; padding:12px 16px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#065F46; text-transform:uppercase; letter-spacing:0.05em;">Indicado (I / A)</div>
-          <div style="font-size:1.85rem; font-weight:800; color:#047857; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_ind_aut)}</div>
-          <div style="height:7px; background:#BBF7D0; border-radius:99px; overflow:hidden;">
-            <div style="width:{min(100.0, max(0.0, pct_ind_aut)):.1f}%; height:100%; background:#047857; border-radius:99px;"></div>
-          </div>
-        </div>
-        <div style="background:linear-gradient(135deg,#F0FDF4 0%,#DCFCE7 100%); border:1px solid #86EFAC; border-left:5px solid #10B981; border-radius:12px; padding:12px 16px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#065F46; text-transform:uppercase; letter-spacing:0.05em;">Empenhado (E / A)</div>
-          <div style="font-size:1.85rem; font-weight:800; color:#059669; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_emp_aut)}</div>
-          <div style="height:7px; background:#BBF7D0; border-radius:99px; overflow:hidden;">
-            <div style="width:{min(100.0, max(0.0, pct_emp_aut)):.1f}%; height:100%; background:#10B981; border-radius:99px;"></div>
-          </div>
-        </div>
-        <div style="background:linear-gradient(135deg,#F0FDFA 0%,#CCFBF1 100%); border:1px solid #5EEAD4; border-left:5px solid #0D9488; border-radius:12px; padding:12px 16px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#115E59; text-transform:uppercase; letter-spacing:0.05em;">Liquidado (L / A)</div>
-          <div style="font-size:1.85rem; font-weight:800; color:#0F766E; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_liq_aut)}</div>
-          <div style="height:7px; background:#99F6E4; border-radius:99px; overflow:hidden;">
-            <div style="width:{min(100.0, max(0.0, pct_liq_aut)):.1f}%; height:100%; background:#0D9488; border-radius:99px;"></div>
-          </div>
-        </div>
-        <div style="background:linear-gradient(135deg,#ECFEFF 0%,#CFFAFE 100%); border:1px solid #67E8F9; border-left:5px solid #0891B2; border-radius:12px; padding:12px 16px;">
-          <div style="font-size:0.75rem; font-weight:700; color:#155E75; text-transform:uppercase; letter-spacing:0.05em;">Pago (P / A)</div>
-          <div style="font-size:1.85rem; font-weight:800; color:#0E7490; margin:2px 0 6px 0; letter-spacing:-0.02em;">{fmt_pct(pct_pag_aut)}</div>
-          <div style="height:7px; background:#A5F3FC; border-radius:99px; overflow:hidden;">
-            <div style="width:{min(100.0, max(0.0, pct_pag_aut)):.1f}%; height:100%; background:#0891B2; border-radius:99px;"></div>
-          </div>
-        </div>
-      </div>
-    </div>"""
-)
+st.markdown("<div style='height:1.1rem'></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------ TABELA PRINCIPAL POR SEQUENCIAL
 st.markdown("### 📋 Quadro de Execução Orçamentária por Sequencial (Dotação)")
