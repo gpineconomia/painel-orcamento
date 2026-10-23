@@ -35,11 +35,13 @@ FILES_TO_SYNC = [
     "paginas/visao_2026.py",
     "paginas/visao_analitica.py",
     "paginas/liquidacao_contrato.py",
+    "paginas/indicacoes_2026.py",
     "paginas/pca_2027.py",
     "paginas/oraculo_ia.py",
     "oraculo.py",
     "pca_data.py",
     "liquidado_mensal_data.py",
+    "indicacoes_data.py",
     "teste_sap_bo.py",
     "sync_github.py",
     "data/planilha_2026_cache.xlsx",
@@ -47,6 +49,7 @@ FILES_TO_SYNC = [
     "data/supressoes_2027_cache.xlsx",
     "data/pca_2027_cache.xlsx",
     "data/liquidado_mensal_sap.csv",
+    "data/declarado_empenhado_seq_sap.csv",
     "atualizar_siafic_07h30.vbs",
     "iniciar_segundo_plano.vbs",
 ]
@@ -81,13 +84,15 @@ def refresh_sap_bo() -> bool:
     """Extrai os relatórios oficiais do SIAFIC (SAP BO) para a pasta data/."""
     try:
         import liquidado_mensal_data
+        import indicacoes_data
 
-        print(f"[{datetime.now():%H:%M:%S}] Iniciando extração do SIAFIC (SAP BO - ConsultaLiquidadoMensal ID: 32115483)...")
-        ok = liquidado_mensal_data.download_liquidado_mensal_csv()
-        if ok:
+        print(f"[{datetime.now():%H:%M:%S}] Iniciando extração do SIAFIC (SAP BO - IDs: 32115483 e 42943444)...")
+        ok1 = liquidado_mensal_data.download_liquidado_mensal_csv()
+        ok2 = indicacoes_data.download_declarado_empenhado_seq_csv()
+        if ok1 or ok2:
             last_sync_file = BASE_DIR / "data" / ".last_sap_sync.txt"
             last_sync_file.write_text(datetime.now().isoformat(), encoding="utf-8")
-            print(f"[{datetime.now():%H:%M:%S}] SIAFIC atualizado com sucesso.")
+            print(f"[{datetime.now():%H:%M:%S}] SIAFIC atualizado com sucesso (LiquidadoMensal={ok1}, PorSequencial={ok2}).")
             return True
         else:
             print(f"[{datetime.now():%H:%M:%S}] Falha na extração do SIAFIC.")
