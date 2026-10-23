@@ -342,7 +342,7 @@ for idx, (_, r) in enumerate(df_f.iterrows()):
             <div style="font-size:0.73rem; color:#5B7A6C; margin-top:1px;"><strong>Grupo:</strong> {grp_lbl}</div>
           </td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:#0F2A20;">{fmt_brl(v_aut, prefix=False)}</td>
-          <td style="padding:9px 12px; text-align:right; font-weight:700; color:#047857; background:rgba(16,185,129,0.07);">{fmt_brl(v_ind, prefix=False)}</td>
+          <td style="padding:9px 12px; text-align:right; font-weight:600; color:#0F2A20;">{fmt_brl(v_ind, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:{cor_s_ind};">{fmt_brl(v_s_ind, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:#0F2A20;">{fmt_brl(v_emp, prefix=False)}</td>
           <td style="padding:9px 12px; text-align:right; font-weight:600; color:{cor_s_emp};">{fmt_brl(v_s_emp, prefix=False)}</td>
@@ -360,7 +360,7 @@ table_html = f"""
         <th style="padding:12px 12px; text-align:center; font-weight:700; width:52px;">Seq</th>
         <th style="padding:12px 12px; text-align:left; font-weight:700;">Classificação Orçamentária</th>
         <th style="padding:12px 12px; text-align:right; font-weight:700;">Autorizado (A)</th>
-        <th style="padding:12px 12px; text-align:right; font-weight:700; background:rgba(255,255,255,0.12);">Indicado (I)</th>
+        <th style="padding:12px 12px; text-align:right; font-weight:700;">Indicado (I)</th>
         <th style="padding:12px 12px; text-align:right; font-weight:700;">Saldo Disponível p/<br>Indicação (A−I)</th>
         <th style="padding:12px 12px; text-align:right; font-weight:700;">Empenhado (E)</th>
         <th style="padding:12px 12px; text-align:right; font-weight:700;">Saldo Disponível p/<br>Empenho (A−E)</th>
@@ -375,7 +375,7 @@ table_html = f"""
       <tr style="background:#065F46; color:#FFFFFF; font-weight:700; font-size:0.89rem;">
         <td style="padding:12px 12px; text-align:center;" colspan="2">Total ({qtd_seqs} sequenciais)</td>
         <td style="padding:12px 12px; text-align:right;">{fmt_brl(tot_aut, prefix=False)}</td>
-        <td style="padding:12px 12px; text-align:right; background:rgba(255,255,255,0.14); color:#A7F3D0;">{fmt_brl(tot_ind, prefix=False)}</td>
+        <td style="padding:12px 12px; text-align:right;">{fmt_brl(tot_ind, prefix=False)}</td>
         <td style="padding:12px 12px; text-align:right;">{fmt_brl(tot_saldo_ind, prefix=False)}</td>
         <td style="padding:12px 12px; text-align:right;">{fmt_brl(tot_emp, prefix=False)}</td>
         <td style="padding:12px 12px; text-align:right;">{fmt_brl(tot_saldo_emp, prefix=False)}</td>
