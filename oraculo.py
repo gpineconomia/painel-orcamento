@@ -14,6 +14,7 @@ import data_source
 import indicacoes_data
 import liquidado_mensal_data
 import pca_data
+import contratacoes_data
 
 
 def fmt_brl(v: float | int | None) -> str:
@@ -103,6 +104,7 @@ DOMAIN_VOCAB = [
     "limpeza", "veiculos", "tecnologia", "receita", "gestao", "integrada",
     "tesouro", "deadline", "setrac", "vencido", "vencidos", "atrasado", "atrasados",
     "maior", "maiores", "menor", "menores", "economias", "economia", "corte", "cortes",
+    "prioridade", "prioridades", "sislog", "atencao", "responsavel", "responsaveis",
 ]
 
 
@@ -234,7 +236,7 @@ def _clean_budget_df(raw: pd.DataFrame, ano: int, only_active: bool = True) -> p
 
 @st.cache_data(ttl=300, show_spinner=False)
 def load_oraculo_kb() -> dict[str, Any]:
-    """Carrega e indexa todas as 5 bases de dados do painel para consulta instantânea."""
+    """Carrega e indexa todas as 7 bases de dados do painel para consulta instantânea."""
     raw26, u26, _ = data_source.load_data(2026)
     raw27, u27, _ = data_source.load_data(2027)
     df_sup, u_sup, _ = data_source.load_supressoes_2027()
@@ -299,6 +301,24 @@ def load_oraculo_kb() -> dict[str, Any]:
         )
         df_ind_det["_search_blob_compact"] = df_ind_det["_search_blob"].apply(_compact_text)
 
+    try:
+        df_contrat, u_contrat = contratacoes_data.load_contratacoes_2026()
+    except Exception:
+        df_contrat, u_contrat = pd.DataFrame(), None
+
+    if not df_contrat.empty:
+        df_contrat = df_contrat.copy()
+        contrat_cols = [
+            "Objeto", "Unidade Demandante", "Tipo", "Status da Contratação",
+            "Ponto de Atenção", "Número SEI", "Número da Contratação SISLOG",
+            "Responsável", "Necessitará de Parecer Jurídico", "Prevista para 2026?", "Prioridade"
+        ]
+        df_contrat["_search_blob"] = (
+            df_contrat[[c for c in contrat_cols if c in df_contrat.columns]]
+            .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
+        )
+        df_contrat["_search_blob_compact"] = df_contrat["_search_blob"].apply(_compact_text)
+
     # Vocabulário dinâmico extraído dos objetos e empresas reais das planilhas para correção de typos
     vocab_objs: set[str] = set()
     for s_col in [
@@ -313,6 +333,8 @@ def load_oraculo_kb() -> dict[str, Any]:
         df_sup.get("Item de Despesa", pd.Series(dtype=str)),
         df_pca.get("Objeto_Resumido", pd.Series(dtype=str)),
         df_liq_2026.get("Beneficiario_Nome", pd.Series(dtype=str)),
+        df_contrat.get("Objeto", pd.Series(dtype=str)),
+        df_contrat.get("Ponto de Atenção", pd.Series(dtype=str)),
     ]:
         for val in s_col.dropna():
             for w in re.findall(r"[a-z0-9]{3,}", norm_text(val)):
@@ -334,6 +356,8 @@ def load_oraculo_kb() -> dict[str, Any]:
         "df_seq": df_seq,
         "df_ind_det": df_ind_det,
         "u_seq": u_seq_sap,
+        "df_contrat": df_contrat,
+        "u_contrat": u_contrat,
         "cota_2026": 207478837.10,
         "cota_2027": 144089232.46,
         "extra_vocab": sorted(vocab_objs),
@@ -346,6 +370,7 @@ UNIT_ALIASES = {
         "orc": ["Tecnologia da Informação"],
         "sup": ["STI"],
         "pca": ["Superintendência de Tecnologia da Informação"],
+        "contrat": ["STI"],
         "terms": ["sti", "tecnologia da informacao", "suporte tecnico", "sistemas", "infraestrutura", "dados e inteligencia", "cibernetica"],
     },
     "sgi": {
@@ -353,6 +378,7 @@ UNIT_ALIASES = {
         "orc": ["Gestão Integrada", "Receita/Gestão Integrada"],
         "sup": ["SGI"],
         "pca": ["Superintendência de Gestão Integrada"],
+        "contrat": ["SGI"],
         "terms": ["sgi", "gestao integrada", "engenharia", "arquitetura", "apoio administrativo", "logistica", "gestao e desenvolvimento de pessoas", "secretaria geral", "licitacoes", "gelc", "setrac"],
     },
     "receita": {
@@ -365,6 +391,7 @@ UNIT_ALIASES = {
             "Superintendência de Informações Fiscais",
             "Superintendência de Recuperação de Créditos",
         ],
+        "contrat": ["RECEITA", "SFR"],
         "terms": ["sre", "receita estadual", "subsecretaria da receita", "fiscalizacao regionalizada", "sfr", "informacoes fiscais", "sif", "recuperacao de creditos", "src", "arrecadacao"],
     },
     "tesouro": {
@@ -372,6 +399,7 @@ UNIT_ALIASES = {
         "orc": ["Tesouro"],
         "sup": [],
         "pca": ["Superintendência Financeira", "Superintendência Central de Contabilidade"],
+        "contrat": [],
         "terms": ["sufin", "superintendencia financeira", "contabilidade", "divida publica", "tesouro estadual"],
     },
     "gabinete": {
@@ -379,6 +407,7 @@ UNIT_ALIASES = {
         "orc": ["Gabinete", "Corregedoria Fiscal", "Planejamento", "Orçamento", "Outros"],
         "sup": [],
         "pca": ["Gabinete", "Superintendência de Controle e Auditoria"],
+        "contrat": [],
         "terms": ["gabinete", "corregedoria", "controle e auditoria", "comunicacao setorial", "gpin"],
     },
 }
@@ -406,6 +435,7 @@ STOPWORDS_PT = {
     "fornecedor", "fornecedores", "credor", "credores", "beneficiario", "beneficiarios",
     "contratada", "contratadas", "contratado", "contratados", "vigente", "vigentes", "atual", "atuais",
     "ativo", "ativos", "ativa", "ativas", "sei", "ipof", "objeto", "objetos", "detalhe", "detalhes",
+    "prioridade", "prioridades", "atencao",
     "quero", "queria", "gostaria", "preciso", "pode", "poderia", "consegue", "sabe", "saber", "dizer",
     "mostrar", "informe", "informar", "buscar", "busque", "achar", "encontrar", "encontre", "ver",
     "consultar", "verificar", "calcular", "somar", "some", "favor", "gentileza", "referente", "relativo",
@@ -743,12 +773,13 @@ def _answer_ranking_or_extreme(q_norm: str, kb: dict[str, Any], unit_key: str | 
 
 
 def _build_panorama_geral(kb: dict[str, Any]) -> str:
-    """Gera um panorama executivo completo consolidando todas as 5 bases de dados."""
+    """Gera um panorama executivo completo consolidando todas as 7 bases de dados oficiais."""
     df26 = kb["df26"]
     df27 = kb["df27"]
     df_sup = kb["df_sup"]
     df_pca = kb["df_pca"]
     df_liq = kb["df_liq"]
+    df_contrat = kb.get("df_contrat", pd.DataFrame())
 
     tot26 = float(df26["_val_total"].sum()) if not df26.empty else 0.0
     ind26 = float(df26["_val_indicado"].sum()) if not df26.empty else 0.0
@@ -773,6 +804,17 @@ def _build_panorama_geral(kb: dict[str, Any]) -> str:
     val_contr_tes = float(pca_tes["Valor_Contratado"].sum()) if not pca_tes.empty else 0.0
     val_contr_all = float(df_pca["Valor_Contratado"].sum()) if not df_pca.empty else 0.0
 
+    contrat_sec = ""
+    if not df_contrat.empty:
+        qtd_c = len(df_contrat)
+        p_alta = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta").sum())
+        p_med = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower().isin(["média", "media"])).sum())
+        p_bx = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "baixa").sum())
+        contrat_sec = f"""\n\n#### 5️⃣ Acompanhamento das Contratações 2026 (GELC)
+* **Total de Demandas Registradas:** `{qtd_c}` processos licitatórios
+* **Distribuição por Prioridade:** ⚡ `{p_alta}` Alta | 🟡 `{p_med}` Média | 🟢 `{p_bx}` Baixa
+* **Acompanhamento Operacional:** SISLOG, Processos SEI, Status da Contratação, Responsável e Pontos de Atenção"""
+
     return f"""### 🔮 Panorama Executivo Consolidado (Todas as Bases)
 
 #### 1️⃣ Execução Orçamentária 2026 & SIAFIC
@@ -795,19 +837,34 @@ def _build_panorama_geral(kb: dict[str, Any]) -> str:
 #### 4️⃣ Plano de Contratações Anual — PCA 2027 (GELC)
 * **Total Geral de Demandas Mapeadas:** `{len(df_pca)}` demandas (`{int(m_novas.sum())}` novas contratações e `{int(m_prorr.sum())}` prorrogações) | **Valor Contratado Vigente:** `{fmt_brl(val_contr_all)}`
 * **Unidade Orçamentária GEOF (Padrão):** `{len(pca_geof)}` demandas (Valor Contratado Vigente: `{fmt_brl(val_contr_geof)}`)
-* **Unidade Orçamentária Tesouro:** `{len(pca_tes)}` demandas (Valor Contratado Vigente: `{fmt_brl(val_contr_tes)}`)"""
+* **Unidade Orçamentária Tesouro:** `{len(pca_tes)}` demandas (Valor Contratado Vigente: `{fmt_brl(val_contr_tes)}`){contrat_sec}"""
 
 
 def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
-    """Busca exata por número de Processo SEI, número de Contrato (XX/AAAA) ou IPOF."""
+    """Busca exata por número de Processo SEI, número de Contrato (XX/AAAA) ou Contratação SISLOG."""
     sei_matches = re.findall(r"\b\d{10,16}\b", q_raw)
     contract_matches = re.findall(r"\b\d{1,4}/20\d{2}\b", q_raw)
 
-    if not sei_matches and not contract_matches:
+    df_contrat = kb.get("df_contrat", pd.DataFrame())
+    sislog_matches: list[str] = []
+    if not df_contrat.empty and "Número da Contratação SISLOG" in df_contrat.columns:
+        sislogs_validos = set(df_contrat["Número da Contratação SISLOG"].dropna().astype(str).str.strip())
+        for cand in re.findall(r"\b\d{5,8}\b", q_raw):
+            if cand in sislogs_validos:
+                sislog_matches.append(cand)
+
+    if not sei_matches and not contract_matches and not sislog_matches:
         return None
 
-    termo = sei_matches[0] if sei_matches else contract_matches[0]
-    tipo_id = "Processo SEI" if sei_matches else "Contrato"
+    if sei_matches:
+        termo = sei_matches[0]
+        tipo_id = "Processo SEI"
+    elif contract_matches:
+        termo = contract_matches[0]
+        tipo_id = "Contrato"
+    else:
+        termo = sislog_matches[0]
+        tipo_id = "Contratação SISLOG"
 
     partes = [f"### 🔎 Dossiê 360° — {tipo_id} `{termo}`\n"]
     encontrou = False
@@ -868,8 +925,31 @@ def _search_by_identifier(q_raw: str, kb: dict[str, Any]) -> str | None:
                     f"  * Início SETRAC: `{dt_set}` | Encam. Contratos: `{dt_enc}` | Deadline: `{dt_dead}` | UO: `{r.get('Unidade_Orcamentaria', '-')}`"
                 )
 
+    if not df_contrat.empty:
+        m_contrat = df_contrat["_search_blob"].str.contains(re.escape(termo.lower()), na=False)
+        if m_contrat.any():
+            encontrou = True
+            sub_c = df_contrat[m_contrat]
+            partes.append(f"#### 📋 Contratações 2026 (GELC) — {len(sub_c)} demanda(s)")
+            for _, r in sub_c.head(8).iterrows():
+                prio = r.get("Prioridade", "-")
+                sis = r.get("Número da Contratação SISLOG", "-")
+                sei = r.get("Número SEI", "-")
+                stt = r.get("Status da Contratação", "-")
+                resp = r.get("Responsável")
+                resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+                pta = r.get("Ponto de Atenção", "-")
+                pta_txt = str(pta).strip() if pd.notna(pta) and str(pta).strip().lower() not in ["nan", "none", "-"] else None
+                partes.append(
+                    f"* **{r.get('Objeto', '-')}** ({r.get('Unidade Demandante', '-')})\n"
+                    f"  * Prioridade: **{prio}** | Status: `{stt}` | Tipo: `{r.get('Tipo', '-')}`\n"
+                    f"  * SISLOG: `{sis}` | SEI: `{sei}` | Responsável: `{resp_txt}`"
+                )
+                if pta_txt:
+                    partes.append(f"  * ⚠️ **Ponto de Atenção:** {pta_txt}")
+
     if not encontrou:
-        return f"Não encontrei nenhum registro com o {tipo_id} **`{termo}`** nas bases de 2026, SIAFIC, PLOA 2027, Supressões ou PCA 2027."
+        return f"Não encontrei nenhum registro com o {tipo_id} **`{termo}`** nas 7 bases oficiais do painel."
 
     return "\n\n".join(partes)
 
@@ -1140,18 +1220,158 @@ def _answer_indicacoes_sequencial(q_norm: str, kb: dict[str, Any]) -> str:
     return "\n".join(linhas)
 
 
+def _answer_contratacoes_2026(q_norm: str, kb: dict[str, Any]) -> str:
+    """Responde consultas especializadas sobre o Acompanhamento das Contratações 2026 (GELC)."""
+    df_contrat = kb.get("df_contrat", pd.DataFrame())
+    if df_contrat.empty:
+        return "A base de Acompanhamento das Contratações 2026 está vazia ou indisponível no momento."
+
+    tot = len(df_contrat)
+    p_alta = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta").sum())
+    p_med = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower().isin(["média", "media"])).sum())
+    p_bx = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "baixa").sum())
+
+    # 1. Filtro por Prioridade Alta
+    if "alta" in q_norm:
+        sub = df_contrat[df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta"]
+        linhas = [
+            f"### ⚡ Contratações 2026 — Prioridade ALTA ({len(sub)} processos)",
+            "Demandas com nível máximo de criticidade mapeadas pela GELC:\n",
+            "| SISLOG | Objeto | Unidade Demandante | Processo SEI | Status | Responsável | Ponto de Atenção |",
+            "|---|---|---|---|---|---|---|",
+        ]
+        for _, r in sub.iterrows():
+            sis = r.get("Número da Contratação SISLOG", "-")
+            obj = r.get("Objeto", "-")
+            uni = r.get("Unidade Demandante", "-")
+            sei = r.get("Número SEI", "-")
+            stt = r.get("Status da Contratação", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            pta = r.get("Ponto de Atenção", "-")
+            pta_txt = str(pta).strip() if pd.notna(pta) and str(pta).strip().lower() not in ["nan", "none", "-"] else "-"
+            linhas.append(f"| `{sis}` | **{obj}** | {uni} | `{sei}` | {stt} | {resp_txt} | {pta_txt} |")
+        return "\n".join(linhas)
+
+    # 2. Filtro por Prioridade Média
+    if any(k in q_norm for k in ["media", "medias"]):
+        sub = df_contrat[df_contrat["Prioridade"].astype(str).str.strip().str.lower().isin(["média", "media"])]
+        linhas = [
+            f"### 🟡 Contratações 2026 — Prioridade MÉDIA ({len(sub)} processos)",
+            "Demandas com criticidade intermediária no cronograma da GELC:\n",
+            "| SISLOG | Objeto | Unidade Demandante | Processo SEI | Status | Responsável |",
+            "|---|---|---|---|---|---|",
+        ]
+        for _, r in sub.iterrows():
+            sis = r.get("Número da Contratação SISLOG", "-")
+            obj = r.get("Objeto", "-")
+            uni = r.get("Unidade Demandante", "-")
+            sei = r.get("Número SEI", "-")
+            stt = r.get("Status da Contratação", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            linhas.append(f"| `{sis}` | **{obj}** | {uni} | `{sei}` | {stt} | {resp_txt} |")
+        return "\n".join(linhas)
+
+    # 3. Filtro por Prioridade Baixa
+    if any(k in q_norm for k in ["baixa", "baixas"]):
+        sub = df_contrat[df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "baixa"]
+        linhas = [
+            f"### 🟢 Contratações 2026 — Prioridade BAIXA ({len(sub)} processos)",
+            "Demandas com menor criticidade no cronograma:\n",
+            "| SISLOG | Objeto | Unidade Demandante | Processo SEI | Status | Responsável |",
+            "|---|---|---|---|---|---|",
+        ]
+        for _, r in sub.iterrows():
+            sis = r.get("Número da Contratação SISLOG", "-")
+            obj = r.get("Objeto", "-")
+            uni = r.get("Unidade Demandante", "-")
+            sei = r.get("Número SEI", "-")
+            stt = r.get("Status da Contratação", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            linhas.append(f"| `{sis}` | **{obj}** | {uni} | `{sei}` | {stt} | {resp_txt} |")
+        return "\n".join(linhas)
+
+    # 4. Filtro por Pontos de Atenção / Gargalos
+    if any(k in q_norm for k in ["ponto de atencao", "pontos de atencao", "atencao", "alerta", "gargalo"]):
+        sub = df_contrat[
+            df_contrat["Ponto de Atenção"].notna()
+            & (df_contrat["Ponto de Atenção"].astype(str).str.strip() != "")
+            & (~df_contrat["Ponto de Atenção"].astype(str).str.strip().str.lower().isin(["-", "nenhum", "nan"]))
+        ].copy()
+        linhas = [
+            f"### ⚠️ Pontos de Atenção — Contratações 2026 (GELC)",
+            f"Foram identificados **{len(sub)}** apontamentos e pontos de atenção ativos nos processos licitatórios:\n",
+        ]
+        for _, r in sub.iterrows():
+            prio = r.get("Prioridade", "-")
+            obj = r.get("Objeto", "-")
+            sis = r.get("Número da Contratação SISLOG", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            pta = r.get("Ponto de Atenção", "-")
+            linhas.append(
+                f"* 📌 **{obj}** (Prioridade: **{prio}** | SISLOG: `{sis}` | Resp: {resp_txt})\n"
+                f"  * ⚠️ *{pta}*"
+            )
+        return "\n".join(linhas)
+
+    # 5. Filtro por Responsáveis
+    if any(k in q_norm for k in ["responsavel", "responsaveis", "agente"]):
+        resp_series = df_contrat["Responsável"].replace("nan", np.nan).fillna("A definir")
+        por_resp = (
+            df_contrat.groupby(resp_series, as_index=False)
+            .agg(Qtd=("Objeto", "count"))
+            .sort_values("Qtd", ascending=False)
+        )
+        linhas = [
+            "### 👥 Distribuição das Contratações 2026 por Responsável (GELC)",
+            "| Responsável | Quantidade de Processos |",
+            "|---|---|",
+        ]
+        for _, r in por_resp.iterrows():
+            linhas.append(f"| **{r['Responsável']}** | `{r['Qtd']}` demanda(s) |")
+        return "\n".join(linhas)
+
+    # 6. Resumo Geral das Contratações 2026
+    top_altas = df_contrat[df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta"].head(5)
+    linhas = [
+        f"### 📋 Acompanhamento das Contratações 2026 — GELC",
+        f"* **Total Geral de Demandas:** `{tot}` processos licitatórios registrados no SharePoint da GELC",
+        f"* **Distribuição por Prioridade:** ⚡ **Alta:** `{p_alta}` | 🟡 **Média:** `{p_med}` | 🟢 **Baixa:** `{p_bx}`",
+        f"* **Fase Preparatória:** `{int((df_contrat['Status da Contratação'] == 'Fase Preparatória').sum())}` processos em instrução inicial\n",
+        "#### ⚡ Principais Processos de Prioridade Alta:",
+        "| SISLOG | Objeto | Unidade Demandante | Processo SEI | Status | Responsável |",
+        "|---|---|---|---|---|---|",
+    ]
+    for _, r in top_altas.iterrows():
+        sis = r.get("Número da Contratação SISLOG", "-")
+        obj = r.get("Objeto", "-")
+        uni = r.get("Unidade Demandante", "-")
+        sei = r.get("Número SEI", "-")
+        stt = r.get("Status da Contratação", "-")
+        resp = r.get("Responsável")
+        resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+        linhas.append(f"| `{sis}` | **{obj}** | {uni} | `{sei}` | {stt} | {resp_txt} |")
+    linhas.append("\n💡 *Para detalhar, pergunte por: 'contratações alta prioridade', 'pontos de atenção' ou consulte por um SISLOG/Processo SEI.*")
+    return "\n".join(linhas)
+
+
 def _answer_unit_360(unit_key: str, kb: dict[str, Any]) -> str:
-    """Gera visão 360º de uma Unidade/Superintendência cruzando 2026, 2027, Supressões e PCA 2027."""
+    """Gera visão 360º de uma Unidade/Superintendência cruzando 2026, 2027, Supressões, PCA 2027 e Contratações 2026."""
     u_info = UNIT_ALIASES[unit_key]
     df26 = kb["df26"]
     df27 = kb["df27"]
     df_sup = kb["df_sup"]
     df_pca = kb["df_pca"]
+    df_contrat = kb.get("df_contrat", pd.DataFrame())
 
     sub26 = df26[df26["Unidade"].isin(u_info["orc"])] if not df26.empty else pd.DataFrame()
     sub27 = df27[df27["Unidade"].isin(u_info["orc"])] if not df27.empty else pd.DataFrame()
     sub_sup = df_sup[df_sup["Unidade"].isin(u_info["sup"])] if not df_sup.empty and u_info["sup"] else pd.DataFrame()
     sub_pca = df_pca[df_pca["Unidade_Superior"].isin(u_info["pca"])] if not df_pca.empty and u_info["pca"] else pd.DataFrame()
+    sub_contrat = df_contrat[df_contrat["Unidade Demandante"].isin(u_info.get("contrat", []))] if not df_contrat.empty and u_info.get("contrat") else pd.DataFrame()
 
     tot26 = float(sub26["_val_total"].sum()) if not sub26.empty else 0.0
     ind26 = float(sub26["_val_indicado"].sum()) if not sub26.empty else 0.0
@@ -1196,6 +1416,27 @@ def _answer_unit_360(unit_key: str, kb: dict[str, Any]) -> str:
             linhas.append(
                 f"| {it_n} | **{r['Objeto_Resumido']}** | {r['Unidade_Demandante']} | {r['Providencia_2027']} | `{fmt_brl(r.get('Valor_Contratado', 0.0))}` | `{dt_d}` |"
             )
+
+    if not sub_contrat.empty:
+        p_alta = int((sub_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta").sum())
+        p_med = int((sub_contrat["Prioridade"].astype(str).str.strip().str.lower().isin(["média", "media"])).sum())
+        p_bx = int((sub_contrat["Prioridade"].astype(str).str.strip().str.lower() == "baixa").sum())
+        linhas.append(f"\n#### 5️⃣ Contratações 2026 — GELC (`{', '.join(u_info.get('contrat', []))}`)")
+        linhas.append(
+            f"* **Total de Demandas em Andamento:** `{len(sub_contrat)}` processos | "
+            f"**Prioridades:** ⚡ `{p_alta}` Alta | 🟡 `{p_med}` Média | 🟢 `{p_bx}` Baixa"
+        )
+        linhas.append("| SISLOG | Objeto | Processo SEI | Prioridade | Status | Responsável |")
+        linhas.append("|---|---|---|---|---|---|")
+        for _, r in sub_contrat.head(8).iterrows():
+            sis = r.get("Número da Contratação SISLOG", "-")
+            obj = r.get("Objeto", "-")
+            sei = r.get("Número SEI", "-")
+            prio = r.get("Prioridade", "-")
+            stt = r.get("Status da Contratação", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            linhas.append(f"| `{sis}` | **{obj}** | `{sei}` | {prio} | {stt} | {resp_txt} |")
 
     if not sub27.empty:
         top27 = sub27.sort_values("_val_total", ascending=False).head(5)
@@ -1330,7 +1571,7 @@ TOPIC_SYNONYM_PATTERNS: list[tuple[tuple[str, ...], str]] = [
 
 
 def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> str:
-    """Pesquisa semântica por palavras-chave simultaneamente nas 5 bases de dados com desambiguação e busca compacta."""
+    """Pesquisa semântica por palavras-chave simultaneamente nas 7 bases de dados oficiais com desambiguação e busca compacta."""
     tokens = _extract_search_tokens(q_norm)
     if not tokens:
         return _build_panorama_geral(kb)
@@ -1409,6 +1650,7 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
     msup = match_df(kb["df_sup"])
     mpca = match_df(kb["df_pca"])
     mliq = match_df(kb["df_liq"])
+    mcontrat = match_df(kb.get("df_contrat", pd.DataFrame()))
 
     # Fallback inteligente: se não encontrou nos ativos, verifica se existe em PROFISCO=Sim, Rascunho ou Inativo
     aviso_inativo = ""
@@ -1423,11 +1665,12 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
                 "(ex: `PROFISCO = Sim`, `Situação IPOF = Rascunho` ou `Situação = Excluído`).\n"
             )
 
-    if m26.empty and m27.empty and msup.empty and mpca.empty and mliq.empty:
+    if m26.empty and m27.empty and msup.empty and mpca.empty and mliq.empty and mcontrat.empty:
         return (
             f"Não encontrei registros específicos para **`{q_raw}`** nas planilhas.\n\n"
             "💡 **Dica:** Você pode perguntar por:\n"
             "* **Empresas e Contratos:** *BRFIBRA, Sampa, Office, Microsoft, Equatorial, Saneago, 054/2025*\n"
+            "* **Contratações 2026 (GELC):** *contratações alta prioridade, pontos de atenção, SISLOG 118621, motoristas*\n"
             "* **Rankings e Extremos:** *Qual despesa tem o maior déficit para 2027? Qual o maior corte nas supressões?*\n"
             "* **Temas/Objetos:** *obras, reformas, vigilância, limpeza, locação de veículos, link de dados, call center, Pix*\n"
             "* **Unidades:** *STI, SGI, Receita Estadual, SFR, SIF, Tesouro, Gabinete*"
@@ -1447,6 +1690,7 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
         (m27, "Nº do Contrato (se houver)", "Empresa Contratada", "Nº Processo (se houver)"),
         (mpca, "Contrato_Vigente", None, "Processo_SEI"),
         (mliq, None, "Beneficiario_Nome", "Processo_SEI"),
+        (mcontrat, None, None, "Número SEI"),
     ]:
         if not df_m.empty and len(df_m) <= 15:
             if c_cont and c_cont in df_m.columns:
@@ -1573,18 +1817,43 @@ def _search_keyword_across_all(q_raw: str, q_norm: str, kb: dict[str, Any]) -> s
         for _, r in por_b.iterrows():
             partes.append(f"* **Credor:** {r['Beneficiario_Nome']} (SEI `{r['Processo_SEI']}`) — Liquidado em 2026: `{fmt_brl(r['Valor_Liquidado_Saldo'])}`")
 
+    if not mcontrat.empty:
+        partes.append(
+            f"#### 📋 Acompanhamento de Contratações 2026 (GELC) — `{len(mcontrat)}` demanda(s)"
+        )
+        linhas_tc = [
+            "| SISLOG | Objeto | Unidade Demandante | Processo SEI | Prioridade | Status | Responsável | Ponto de Atenção |",
+            "|---|---|---|---|---|---|---|---|",
+        ]
+        for _, r in mcontrat.head(20).iterrows():
+            sis = r.get("Número da Contratação SISLOG", "-")
+            obj = r.get("Objeto", "-")
+            uni = r.get("Unidade Demandante", "-")
+            sei = r.get("Número SEI", "-")
+            prio = r.get("Prioridade", "-")
+            stt = r.get("Status da Contratação", "-")
+            resp = r.get("Responsável")
+            resp_txt = resp if pd.notna(resp) and str(resp).strip() and str(resp).lower() != "nan" else "A definir"
+            pta = r.get("Ponto de Atenção", "-")
+            pta_txt = str(pta).strip() if pd.notna(pta) and str(pta).strip().lower() not in ["nan", "none", "-"] else "-"
+            linhas_tc.append(
+                f"| `{sis}` | **{obj}** | {uni} | `{sei}` | {prio} | {stt} | {resp_txt} | {pta_txt} |"
+            )
+        partes.append("\n".join(linhas_tc))
+
     return "\n\n".join(partes)
 
 
 def _build_global_master_digest(kb: dict[str, Any]) -> str:
-    """Constrói um resumo executivo denso e enxuto de todas as 5 planilhas (incluindo todas as Classificações de Objeto) para o LLM."""
+    """Constrói um resumo executivo denso e enxuto de todas as 7 bases oficiais para o LLM."""
     df26 = kb["df26"]
     df27 = kb["df27"]
     df_sup = kb["df_sup"]
     df_pca = kb["df_pca"]
     df_liq = kb["df_liq"]
+    df_contrat = kb.get("df_contrat", pd.DataFrame())
 
-    partes = ["=== CONTEXTO OFICIAL DAS 5 BASES (SECRETARIA DA ECONOMIA - GO) ==="]
+    partes = ["=== CONTEXTO OFICIAL DAS 7 BASES (SECRETARIA DA ECONOMIA - GO) ==="]
 
     if not df26.empty:
         tot26 = float(df26["_val_total"].sum())
@@ -1690,6 +1959,21 @@ def _build_global_master_digest(kb: dict[str, Any]) -> str:
             f"Detalhamento dos 13 Sequenciais Ativos (Tesouro):\n{seq_str}"
         )
 
+    if not df_contrat.empty:
+        qtd_tot = len(df_contrat)
+        p_alta = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta").sum())
+        p_med = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower().isin(["média", "media"])).sum())
+        p_bx = int((df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "baixa").sum())
+        altas = df_contrat[df_contrat["Prioridade"].astype(str).str.strip().str.lower() == "alta"]
+        top_altas_str = "\n".join(
+            f"  - [ALTA] {r.get('Objeto')} ({r.get('Unidade Demandante')}) | SISLOG={r.get('Número da Contratação SISLOG')} | SEI={r.get('Número SEI')} | Status={r.get('Status da Contratação')} | Resp={r.get('Responsável')}" + (f" | Ponto de Atenção: {r.get('Ponto de Atenção')}" if pd.notna(r.get('Ponto de Atenção')) and str(r.get('Ponto de Atenção')).strip() not in ["-", "nan", "none", ""] else "")
+            for _, r in altas.head(10).iterrows()
+        )
+        partes.append(
+            f"\n[7. ACOMPANHAMENTO DAS CONTRATAÇÕES 2026 (GELC)] Total={qtd_tot} demandas | Alta={p_alta} | Média={p_med} | Baixa={p_bx}\n"
+            f"Principais Demandas de Prioridade Alta:\n{top_altas_str}"
+        )
+
     return "\n".join(partes)
 
 
@@ -1709,6 +1993,13 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
 
     if any(k in q_norm for k in ["sequencial", "sequenciais", "dotacao", "dotacoes", "indicacao", "indicacoes", "empenhado", "empenho", "pago", "autorizado"]):
         return _answer_indicacoes_sequencial(q_norm, kb)
+
+    if any(k in q_norm for k in [
+        "prioridade", "prioridades", "ponto de atencao", "pontos de atencao",
+        "sislog", "contratacao 2026", "contratacoes 2026",
+        "acompanhamento de contratac", "acompanhamento das contratac", "gelc 2026"
+    ]):
+        return _answer_contratacoes_2026(q_norm, kb)
 
     other_specific_tokens = [
         t for t in _extract_search_tokens(q_norm)
@@ -1733,8 +2024,11 @@ def _consultar_motor_deterministico(pergunta: str, kb: dict[str, Any]) -> str:
     if any(k in q_norm for k in ["supressao", "supressoes", "corte", "cortes", "economia gerada", "teto ajustado"]):
         return _answer_supressoes(q_norm, kb)
 
-    if any(k in q_norm for k in ["pca", "gelc", "setrac", "deadline", "prorrogac", "nova contratacao", "novas contratacoes", "risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
+    if any(k in q_norm for k in ["pca", "setrac", "deadline", "prorrogac", "nova contratacao", "novas contratacoes", "risco", "vencid", "atrasad", "mes corrente", "mes atual"]):
         return _answer_pca_specific(q_norm, kb)
+
+    if any(k in q_norm for k in ["contratac", "gelc"]) and "2027" not in q_norm and "pca" not in q_norm:
+        return _answer_contratacoes_2026(q_norm, kb)
 
     if any(k in q_norm for k in ["liquidac", "liquidado", "siafic", "sap bo"]):
         return _answer_liquidacao(q_norm, kb)
@@ -1980,14 +2274,15 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
                 "role": "assistant",
                 "content": (
                     "Olá! Eu sou o **Oráculo** 🔮, a inteligência analítica da Secretaria da Economia.\n\n"
-                    "Conecto em tempo real as **6 bases oficiais do painel**:\n"
+                    "Conecto em tempo real as **7 bases oficiais do painel**:\n"
                     "1. **Execução Orçamentária 2026** *(SharePoint)*\n"
                     "2. **Liquidação Mensal por Contrato / SIAFIC** *(SAP BO — ID: 32115483)*\n"
                     "3. **Indicações e Execução por Sequencial 2026** *(SAP BO — ID: 42943444 + Aba Indicações)*\n"
-                    "4. **Planejamento / PLOA 2027** *(SharePoint)*\n"
-                    "5. **Supressões PLOA 2027** *(SharePoint)*\n"
-                    "6. **PCA 2027 — Contratações GELC** *(Google Sheets)*\n\n"
-                    "Digite qualquer pergunta abaixo (por **Unidade**, **Objeto**, **Sequencial**, **Rankings**, **Déficit**, **Contrato**, **Processo SEI** ou **Prazo**):"
+                    "4. **Acompanhamento das Contratações 2026** *(GELC / SharePoint)*\n"
+                    "5. **Planejamento / PLOA 2027** *(SharePoint)*\n"
+                    "6. **Supressões PLOA 2027** *(SharePoint)*\n"
+                    "7. **PCA 2027 — Contratações GELC** *(Google Sheets)*\n\n"
+                    "Digite qualquer pergunta abaixo (por **Unidade**, **Objeto**, **Prioridade**, **Sequencial**, **Rankings**, **Déficit**, **Contrato**, **Processo SEI**, **SISLOG** ou **Prazo**):"
                 ),
             }
         ]
@@ -2007,7 +2302,7 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
     c_in, c_clear = st.columns([5.5, 1])
     with c_in:
         user_input = st.chat_input(
-            "Pergunte ao Oráculo (ex: 'qual despesa tem maior déficit em 2027?', 'vigilância', 'STI', 'riscos PCA')...",
+            "Pergunte ao Oráculo (ex: 'quais contratações de alta prioridade?', 'maior déficit 2027', 'vigilância', 'riscos PCA')...",
             key=f"{key_prefix}_chat_input",
         )
     with c_clear:
@@ -2021,7 +2316,7 @@ def render_oraculo_chat_ui(key_prefix: str = "modal") -> None:
             with st.chat_message("user", avatar="🧑‍💼"):
                 st.markdown(user_input)
             with st.chat_message("assistant", avatar="🔮"):
-                with st.spinner("🔮 Oráculo analisando as 5 bases com IA..."):
+                with st.spinner("🔮 Oráculo analisando as 7 bases com IA..."):
                     resposta = consultar_oraculo(user_input, historico=st.session_state["oraculo_messages"][:-1])
                     st.markdown(resposta)
         st.session_state["oraculo_messages"].append({"role": "assistant", "content": resposta})
