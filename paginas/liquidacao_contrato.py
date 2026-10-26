@@ -298,6 +298,56 @@ for _, row_sap in df_sap_2026.iterrows():
         row_dict["Valor_Liquidado_Saldo"] = v_part
         c_dict["Lancamentos_SIAFIC"].append(row_dict)
 
+# 2.2 Incorpora liquidações do SIAFIC que não possuem contrato formal na planilha
+# (ex: Suprimento de Fundos / Adiantamentos da Secretaria ou despesas diretas)
+for row_sob in sobras_sap_rows:
+    p = str(row_sob.get("Processo_SEI", "")).strip() or "Sem Processo"
+    b = str(row_sob.get("Beneficiario_Nome", "")).strip() or "SIAFIC Direto"
+    nat = str(row_sob.get("Natureza_Despesa_Nome", "")).strip()
+    v = safe_float(row_sob.get("Valor_Liquidado_Saldo", 0))
+    m_cod = str(row_sob.get("Periodo_AnoMes", "")).strip()
+    m_nome = map_cod_to_nome.get(m_cod)
+    gnd_cod = str(row_sob.get("Grupo_Despesa_Codigo", "3")).strip()
+    gnd_label = "Investimento" if gnd_cod == "4" else "Custeio"
+
+    if "4005656" in p:
+        chave_sobra = f"(SIAFIC) Suprimento de Fundos (Proc. {p})"
+        obj_sobra = "Suprimento de Fundos / Adiantamentos (Despesas Miúdas)"
+    else:
+        chave_sobra = f"(SIAFIC Direto) {b} - Proc. {p}"
+        obj_sobra = f"Despesa Direta SIAFIC - {nat}" if nat else "Despesa Direta SIAFIC"
+
+    if chave_sobra not in contratos_agrupados:
+        contratos_agrupados[chave_sobra] = {
+            "Contrato": chave_sobra,
+            "Tem_Contrato_Formal": False,
+            "Itens": {"SIAFIC"},
+            "Processos_SEI": {p},
+            "Objetos": {obj_sobra},
+            "Fornecedores": {b},
+            "Unidades": {"1701 - GABINETE DO SECRETÁRIO"},
+            "Grupos_Despesa": {gnd_label},
+            "Classificacoes": {"SIAFIC Direto"},
+            "Estimado_Total": 0.0,
+            "Estimado_Meses": {m: 0.0 for m in meses_nomes},
+            "Total_Liquidado_SIAFIC": 0.0,
+            "Liquidado_Meses": {m: 0.0 for m in meses_nomes},
+            "Beneficiarios_SIAFIC": set(),
+            "Naturezas_SIAFIC": set(),
+            "Lancamentos_SIAFIC": [],
+        }
+    c_dict = contratos_agrupados[chave_sobra]
+    c_dict["Total_Liquidado_SIAFIC"] += v
+    if m_nome in c_dict["Liquidado_Meses"]:
+        c_dict["Liquidado_Meses"][m_nome] += v
+    if b:
+        c_dict["Beneficiarios_SIAFIC"].add(b)
+    if nat:
+        c_dict["Naturezas_SIAFIC"].add(nat)
+    row_dict = row_sob.copy()
+    row_dict["Valor_Liquidado_Saldo"] = v
+    c_dict["Lancamentos_SIAFIC"].append(row_dict)
+
 # 3. Montagem das linhas consolidadas por contrato
 linhas_consolidadas = []
 
@@ -400,7 +450,7 @@ with st.sidebar:
     # 5. Tipo de Item
     tipo_contrato = st.radio(
         "Tipo de Item:",
-        ["Apenas Contratos Formalizados", "Todos os Itens", "Sem Contrato Formalizado"],
+        ["Todos os Itens", "Apenas Contratos Formalizados", "Sem Contrato Formalizado"],
         key="f_liq_tipo"
     )
     
@@ -435,6 +485,10 @@ if sel_uni:
     df_view = df_view[df_view["Unidade"].apply(lambda u: any(x in str(u) for x in sel_uni))]
 if sel_gnd:
     df_view = df_view[df_view["Grupo_Despesa"].apply(lambda g: any(x in str(g) for x in sel_gnd))]
+
+# Base para os cards KPI (Regra: considera o TOTAL do SIAFIC independente de estar vinculado a contrato formal ou não)
+df_cards = df_view.copy()
+
 if sel_status:
     df_view = df_view[df_view["Status_Execucao"].isin(sel_status)]
 if tipo_contrato == "Apenas Contratos Formalizados":
@@ -475,16 +529,16 @@ idx_fim_prop = max(1, mes_atual - 2)
 nome_fim_prop = meses_nomes[idx_fim_prop - 1]
 meses_prop_lista = meses_nomes[:idx_fim_prop]
 
-total_estimado_geral = df_view["Estimado_Total_2026"].sum()
-total_liquidado_geral = df_view["Total_Liquidado_SIAFIC"].sum()
+total_estimado_geral = df_cards["Estimado_Total_2026"].sum()
+total_liquidado_geral = df_cards["Total_Liquidado_SIAFIC"].sum()
 saldo_restante_geral = total_estimado_geral - total_liquidado_geral
 pct_geral = (total_liquidado_geral / total_estimado_geral * 100) if total_estimado_geral > 0 else 0.0
 
-total_est_prop_geral = sum(df_view[f"Estimado_{m}"].sum() for m in meses_prop_lista)
-total_liq_prop_geral = sum(df_view[f"Liquidado_{m}"].sum() for m in meses_prop_lista)
+total_est_prop_geral = sum(df_cards[f"Estimado_{m}"].sum() for m in meses_prop_lista)
+total_liq_prop_geral = sum(df_cards[f"Liquidado_{m}"].sum() for m in meses_prop_lista)
 pct_prop_geral = (total_liq_prop_geral / total_est_prop_geral * 100) if total_est_prop_geral > 0 else (100.0 if total_liq_prop_geral > 0 else 0.0)
 
-contratos_com_liq_count = (df_view["Total_Liquidado_SIAFIC"] > 0).sum()
+contratos_com_liq_count = (df_cards["Total_Liquidado_SIAFIC"] > 0).sum()
 
 k1, k2, k3, k4, k5 = st.columns(5)
 
@@ -492,16 +546,17 @@ with k1:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Estimado 2026</div>'
         f'<div class="value">{fmt_card_mi(total_estimado_geral)}</div>'
-        f'<div class="sub">{num(len(df_view))} contratos/despesas</div></div>',
+        f'<div class="sub">{num(len(df_cards))} contratos e despesas</div></div>',
         unsafe_allow_html=True
     )
 with k2:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Liquidado (SIAFIC)</div>'
         f'<div class="value">{fmt_card_mi(total_liquidado_geral)}</div>'
-        f'<div class="sub">{num(contratos_com_liq_count)} contratos com liquidação</div></div>',
+        f'<div class="sub">{num(contratos_com_liq_count)} despesas c/ liquidação (SIAFIC Total)</div></div>',
         unsafe_allow_html=True
     )
+
 with k3:
     st.markdown(
         f'<div class="kpi"><div class="label">Saldo a Liquidar</div>'
