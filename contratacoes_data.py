@@ -353,12 +353,128 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
 
     st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
-    # Sub-abas
-    sub_graf, sub_atencao, sub_tab = st.tabs([
+    # Sub-abas: A primeira é a nova aba de Resumo por Prioridades (da maior para a menor)
+    sub_resumo, sub_graf, sub_atencao, sub_tab = st.tabs([
+        f"⚡ Resumo por Prioridades ({total_filtrados})",
         "📊 Gráficos Analíticos",
         f"⚠️ Pontos de Atenção ({pontos_atencao_count})",
-        f"📑 Tabela Detalhada ({total_filtrados})",
+        f"📑 Tabela Completa ({total_filtrados})",
     ])
+
+    # -------------------------------------------------------------- ABA 1: RESUMO POR PRIORIDADES (INICIAL)
+    with sub_resumo:
+        # Mini painel de resumo rápido das prioridades
+        prio_counts = df_f["Prioridade"].value_counts()
+        c_alta = prio_counts.get("Alta", 0)
+        c_media = prio_counts.get("Média", 0)
+        c_baixa = prio_counts.get("Baixa", 0)
+        c_nao_inf = prio_counts.get("Não informada", 0)
+
+        st.markdown(
+            f"""
+            <div style="display:flex; gap:12px; margin-bottom:14px; flex-wrap:wrap;">
+                <div style="background:#FEF2F2; border:1px solid #FCA5A5; border-radius:8px; padding:8px 16px; font-size:0.88rem; color:#991B1B; font-weight:500;">
+                    🔴 <b>Alta Prioridade:</b> <span style="font-size:1.15rem; font-weight:700;">{c_alta}</span> demandas
+                </div>
+                <div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; padding:8px 16px; font-size:0.88rem; color:#92400E; font-weight:500;">
+                    🟡 <b>Média Prioridade:</b> <span style="font-size:1.15rem; font-weight:700;">{c_media}</span> demandas
+                </div>
+                <div style="background:#F0FDF4; border:1px solid #86EFAC; border-radius:8px; padding:8px 16px; font-size:0.88rem; color:#166534; font-weight:500;">
+                    🟢 <b>Baixa Prioridade:</b> <span style="font-size:1.15rem; font-weight:700;">{c_baixa}</span> demandas
+                </div>
+                {f'<div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 16px; font-size:0.88rem; color:#475569; font-weight:500;">⚪ <b>Não informada:</b> <span style="font-size:1.15rem; font-weight:700;">{c_nao_inf}</span></div>' if c_nao_inf > 0 else ''}
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        # Ordenar da MAIOR para a MENOR prioridade
+        prio_rank = {"Alta": 1, "Média": 2, "Baixa": 3, "Não informada": 4}
+        df_sorted = df_f.copy()
+        df_sorted["_rank"] = df_sorted["Prioridade"].map(lambda p: prio_rank.get(p, 99))
+        df_sorted = df_sorted.sort_values(by=["_rank", "Unidade Demandante", "Objeto"]).reset_index(drop=True)
+
+        if df_sorted.empty:
+            st.info("Nenhuma demanda encontrada para os filtros selecionados.")
+        else:
+            for idx, row in df_sorted.iterrows():
+                prio = row["Prioridade"]
+                if prio == "Alta":
+                    borda_cor = "#EF4444"
+                    bg_chip = "#FEF2F2"
+                    txt_chip = "#DC2626"
+                    border_chip = "#FCA5A5"
+                elif prio == "Média":
+                    borda_cor = "#F59E0B"
+                    bg_chip = "#FFFBEB"
+                    txt_chip = "#D97706"
+                    border_chip = "#FCD34D"
+                elif prio == "Baixa":
+                    borda_cor = "#10B981"
+                    bg_chip = "#F0FDF4"
+                    txt_chip = "#16A34A"
+                    border_chip = "#86EFAC"
+                else:
+                    borda_cor = "#94A3B8"
+                    bg_chip = "#F8FAFC"
+                    txt_chip = "#64748B"
+                    border_chip = "#CBD5E1"
+
+                atencao = row["Ponto de Atenção"]
+                atencao_html = ""
+                if atencao and atencao != "-":
+                    atencao_html = f"""
+                    <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 6px; padding: 6px 12px; margin: 8px 0; color: #92400E; font-size: 0.88rem;">
+                        <b>⚠️ Ponto de Atenção:</b> {atencao}
+                    </div>
+                    """
+
+                sei = row["Número SEI"] if row["Número SEI"] else "Não informado"
+                sislog = row["Número da Contratação SISLOG"]
+                resp = row["Responsável"]
+                tipo = row["Tipo"]
+                status = row["Status da Contratação"]
+                unid = row["Unidade Demandante"]
+                parecer = row["Necessitará de Parecer Jurídico"]
+                prev_2026 = row["Prevista para 2026?"]
+
+                st.markdown(
+                    f"""
+                    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 6px solid {borda_cor}; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span style="background: {bg_chip}; color: {txt_chip}; border: 1px solid {border_chip}; padding: 3px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase;">
+                                    ● {prio}
+                                </span>
+                                <span style="background: #F1F5F9; color: #334155; padding: 3px 9px; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
+                                    🏢 {unid}
+                                </span>
+                                <span style="background: #F8FAFC; color: #64748B; border: 1px solid #E2E8F0; padding: 3px 9px; border-radius: 6px; font-size: 0.82rem;">
+                                    📑 {tipo}
+                                </span>
+                            </div>
+                            <span style="background: #EFF6FF; color: #1D4ED8; border: 1px solid #DBEAFE; padding: 3px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
+                                🔄 {status}
+                            </span>
+                        </div>
+
+                        <div style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 6px 0 8px 0; line-height: 1.4;">
+                            📦 {row['Objeto']}
+                        </div>
+
+                        {atencao_html}
+
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: #64748B; padding-top: 8px; border-top: 1px solid #F1F5F9; margin-top: 6px;">
+                            <span>📋 <b>SEI:</b> <code style="color: #0F172A; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-family: monospace;">{sei}</code></span>
+                            <span>🔢 <b>SISLOG:</b> <b style="color: #334155;">{sislog}</b></span>
+                            <span>👤 <b>Responsável:</b> <b style="color: #334155;">{resp}</b></span>
+                            <span>⚖️ <b>Parecer Jurídico:</b> <b style="color: #334155;">{parecer}</b></span>
+                            <span>📅 <b>Prev. 2026:</b> <b style="color: {'#16A34A' if prev_2026 == 'Sim' else '#DC2626'};">{prev_2026}</b></span>
+                        </div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
 
     with sub_graf:
         g1, g2 = st.columns(2)
