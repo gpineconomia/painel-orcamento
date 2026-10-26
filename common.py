@@ -20,7 +20,7 @@ _DEFAULT_PASS_HASH = "b28032027e5c0341beef3ea3b80ebbd29f2f34da9c548aacaf5e9fcd6e
 cfg_2026 = get_settings(2026)
 cfg_2027 = get_settings(2027)
 cfg = cfg_2026
-REFRESH_SECONDS = cfg["refresh_minutes"] * 60
+REFRESH_SECONDS = min(cfg["refresh_minutes"] * 60, 300)  # Auto-refresh a cada 5 minutos no máximo
 MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
          "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 PALETTE = ["#047857", "#10B981", "#6EE7B7", "#0D9488", "#84CC16", "#065F46",
