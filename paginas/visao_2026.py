@@ -140,8 +140,8 @@ with c5:
 st.write("")
 
 # ------------------------------------------------------------------ ABAS ANALÍTICAS
-tab_geral, tab_onde, tab_quando, tab_qual, tab_dados = st.tabs(
-    ["📊 Visão geral", "📍 Onde", "📅 Quando", "✅ Andamento e qualidade", "📋 Dados"]
+tab_geral, tab_onde, tab_quando, tab_qual, tab_dados, tab_contrat = st.tabs(
+    ["📊 Visão geral", "📍 Onde", "📅 Quando", "✅ Andamento e qualidade", "📋 Dados", "🤝 Contratações"]
 )
 
 # ------------------------------------------------------------------ 1. Visão geral
@@ -434,3 +434,8 @@ with tab_dados:
         "text/csv",
         key="btn_dl_csv_2026",
     )
+
+# ------------------------------------------------------------------ 6. Contratações (Kelly Alexandria)
+with tab_contrat:
+    import contratacoes_data
+    contratacoes_data.render_contratacoes_dashboard(key_prefix="tab_visao_")
