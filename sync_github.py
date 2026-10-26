@@ -36,18 +36,21 @@ FILES_TO_SYNC = [
     "paginas/visao_analitica.py",
     "paginas/liquidacao_contrato.py",
     "paginas/indicacoes_2026.py",
+    "paginas/contratacoes_2026.py",
     "paginas/pca_2027.py",
     "paginas/oraculo_ia.py",
     "oraculo.py",
     "pca_data.py",
     "liquidado_mensal_data.py",
     "indicacoes_data.py",
+    "contratacoes_data.py",
     "teste_sap_bo.py",
     "sync_github.py",
     "data/planilha_2026_cache.xlsx",
     "data/planilha_cache.xlsx",
     "data/supressoes_2027_cache.xlsx",
     "data/pca_2027_cache.xlsx",
+    "data/contratacoes_2026_cache.xlsx",
     "data/liquidado_mensal_sap.csv",
     "data/declarado_empenhado_seq_sap.csv",
     "atualizar_siafic_07h30.vbs",
@@ -104,6 +107,13 @@ def refresh_sap_bo() -> bool:
 
 def refresh_sharepoint_caches() -> None:
     """Baixa as planilhas mais recentes do SharePoint e do Google Sheets para a pasta data/."""
+    try:
+        import contratacoes_data
+        contratacoes_data.download_contratacoes_workbook()
+        print(f"[{datetime.now():%H:%M:%S}] SharePoint atualizado: Contratações 2026 (Kelly Alexandria)")
+    except Exception as exc:
+        print(f"[{datetime.now():%H:%M:%S}] Falha ao baixar Contratações 2026: {exc}")
+
     try:
         import pca_data
         pca_data.download_pca_workbook()

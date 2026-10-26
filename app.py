@@ -20,6 +20,7 @@ pages = {
         st.Page("paginas/visao_2026.py", title="Visão Analítica", icon="📊"),
         st.Page("paginas/liquidacao_contrato.py", title="Liquidação por Contrato", icon="📜"),
         st.Page("paginas/indicacoes_2026.py", title="Indicações", icon="🎯"),
+        st.Page("paginas/contratacoes_2026.py", title="Acompanhamento de Contratações", icon="📋"),
     ],
     "Orçamento 2027 (Planejamento)": [
         st.Page("paginas/despesas_unidade.py", title="Despesas por Unidade", icon="🏢"),
