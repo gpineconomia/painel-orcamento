@@ -427,11 +427,10 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
 
     st.markdown("<div style='margin-bottom: 1.2rem;'></div>", unsafe_allow_html=True)
 
-    # Sub-abas: A primeira é a nova aba de Resumo por Prioridades (da maior para a menor)
-    sub_resumo, sub_graf, sub_atencao, sub_tab = st.tabs([
+    # Sub-abas: A primeira é a aba de Resumo por Prioridades (da maior para a menor)
+    sub_resumo, sub_graf, sub_tab = st.tabs([
         "⚡ Resumo por Prioridades",
         "📊 Gráficos Analíticos",
-        "⚠️ Pontos de Atenção",
         "📑 Tabela Completa",
     ])
 
@@ -509,14 +508,6 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
             )
             fig_u.update_layout(height=360, margin=dict(l=10, r=10, t=40, b=10))
             st.plotly_chart(fig_u, use_container_width=True, key=f"{key_prefix}f_unid")
-
-    with sub_atencao:
-        df_alertas = df_f[df_f["Ponto de Atenção"] != "-"].copy()
-        if df_alertas.empty:
-            st.info("Nenhum processo com ponto de atenção registrado para os filtros selecionados.")
-        else:
-            for _, row in df_alertas.iterrows():
-                st.html(_card_html(row))
 
     with sub_tab:
         cols_order = [
