@@ -213,6 +213,80 @@ def clear_contratacoes_cache() -> None:
         pass
 
 
+def _card_html(row: pd.Series | dict) -> str:
+    """Gera o HTML estruturado e seguro para os cartões de demanda, evitando problemas de indentação do Markdown."""
+    prio = str(row.get("Prioridade", "Não informada")).strip()
+    if prio == "Alta":
+        borda_cor = "#EF4444"
+        bg_chip = "#FEF2F2"
+        txt_chip = "#DC2626"
+        border_chip = "#FCA5A5"
+    elif prio == "Média":
+        borda_cor = "#F59E0B"
+        bg_chip = "#FFFBEB"
+        txt_chip = "#D97706"
+        border_chip = "#FCD34D"
+    elif prio == "Baixa":
+        borda_cor = "#10B981"
+        bg_chip = "#F0FDF4"
+        txt_chip = "#16A34A"
+        border_chip = "#86EFAC"
+    else:
+        borda_cor = "#94A3B8"
+        bg_chip = "#F8FAFC"
+        txt_chip = "#64748B"
+        border_chip = "#CBD5E1"
+
+    atencao = str(row.get("Ponto de Atenção", "-")).strip()
+    atencao_html = ""
+    if atencao and atencao != "-" and atencao.lower() != "nan":
+        atencao_html = (
+            f'<div style="background:#FFFBEB; border:1px solid #FDE68A; border-left:4px solid #F59E0B; '
+            f'border-radius:6px; padding:6px 12px; margin:8px 0; color:#92400E; font-size:0.88rem;">'
+            f'<b>⚠️ Ponto de Atenção:</b> {atencao}</div>'
+        )
+
+    sei = str(row.get("Número SEI", "-")).strip()
+    if not sei or sei.lower() == "nan":
+        sei = "-"
+    sislog = str(row.get("Número da Contratação SISLOG", "-")).strip()
+    if not sislog or sislog.lower() == "nan":
+        sislog = "-"
+    resp = str(row.get("Responsável", "-")).strip()
+    if not resp or resp.lower() in ["nan", "none"]:
+        resp = "A definir"
+    tipo = str(row.get("Tipo", "-")).strip()
+    status = str(row.get("Status da Contratação", "-")).strip()
+    unid = str(row.get("Unidade Demandante", "-")).strip()
+    parecer = str(row.get("Necessitará de Parecer Jurídico", "-")).strip()
+    prev_2026 = str(row.get("Prevista para 2026?", "-")).strip()
+    prev_color = "#16A34A" if prev_2026 == "Sim" else ("#DC2626" if prev_2026 == "Não" else "#64748B")
+    obj = str(row.get("Objeto", "-")).strip()
+
+    return (
+        f'<div style="background:#FFFFFF; border:1px solid #E2E8F0; border-left:6px solid {borda_cor}; '
+        f'border-radius:10px; padding:14px 18px; margin-bottom:12px; box-shadow:0 1px 4px rgba(0,0,0,0.04);">'
+        f'<div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:6px; flex-wrap:wrap;">'
+        f'<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">'
+        f'<span style="background:{bg_chip}; color:{txt_chip}; border:1px solid {border_chip}; padding:3px 10px; border-radius:6px; font-size:0.82rem; font-weight:700; text-transform:uppercase;">● {prio}</span>'
+        f'<span style="background:#F1F5F9; color:#334155; padding:3px 9px; border-radius:6px; font-size:0.82rem; font-weight:600;">🏢 {unid}</span>'
+        f'<span style="background:#F8FAFC; color:#64748B; border:1px solid #E2E8F0; padding:3px 9px; border-radius:6px; font-size:0.82rem;">📑 {tipo}</span>'
+        f'</div>'
+        f'<span style="background:#EFF6FF; color:#1D4ED8; border:1px solid #DBEAFE; padding:3px 10px; border-radius:6px; font-size:0.82rem; font-weight:600;">🔄 {status}</span>'
+        f'</div>'
+        f'<div style="font-size:1.05rem; font-weight:700; color:#0F172A; margin:6px 0 8px 0; line-height:1.4;">📦 {obj}</div>'
+        f'{atencao_html}'
+        f'<div style="display:flex; gap:16px; flex-wrap:wrap; font-size:0.82rem; color:#64748B; padding-top:8px; border-top:1px solid #F1F5F9; margin-top:6px;">'
+        f'<span>📋 <b>SEI:</b> <code style="color:#0F172A; background:#F1F5F9; padding:2px 6px; border-radius:4px; font-family:monospace;">{sei}</code></span>'
+        f'<span>🔢 <b>SISLOG:</b> <b style="color:#334155;">{sislog}</b></span>'
+        f'<span>👤 <b>Responsável:</b> <b style="color:#334155;">{resp}</b></span>'
+        f'<span>⚖️ <b>Parecer Jurídico:</b> <b style="color:#334155;">{parecer}</b></span>'
+        f'<span>📅 <b>Prev. 2026:</b> <b style="color:{prev_color};">{prev_2026}</b></span>'
+        f'</div>'
+        f'</div>'
+    )
+
+
 def render_contratacoes_dashboard(key_prefix: str = "") -> None:
     """Renderiza a visualização completa do painel de contratações 2026."""
     try:
@@ -401,83 +475,7 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
             st.info("Nenhuma demanda encontrada para os filtros selecionados.")
         else:
             for idx, row in df_sorted.iterrows():
-                prio = row["Prioridade"]
-                if prio == "Alta":
-                    borda_cor = "#EF4444"
-                    bg_chip = "#FEF2F2"
-                    txt_chip = "#DC2626"
-                    border_chip = "#FCA5A5"
-                elif prio == "Média":
-                    borda_cor = "#F59E0B"
-                    bg_chip = "#FFFBEB"
-                    txt_chip = "#D97706"
-                    border_chip = "#FCD34D"
-                elif prio == "Baixa":
-                    borda_cor = "#10B981"
-                    bg_chip = "#F0FDF4"
-                    txt_chip = "#16A34A"
-                    border_chip = "#86EFAC"
-                else:
-                    borda_cor = "#94A3B8"
-                    bg_chip = "#F8FAFC"
-                    txt_chip = "#64748B"
-                    border_chip = "#CBD5E1"
-
-                atencao = row["Ponto de Atenção"]
-                atencao_html = ""
-                if atencao and atencao != "-":
-                    atencao_html = f"""
-                    <div style="background: #FFFBEB; border: 1px solid #FDE68A; border-left: 4px solid #F59E0B; border-radius: 6px; padding: 6px 12px; margin: 8px 0; color: #92400E; font-size: 0.88rem;">
-                        <b>⚠️ Ponto de Atenção:</b> {atencao}
-                    </div>
-                    """
-
-                sei = row["Número SEI"] if row["Número SEI"] else "Não informado"
-                sislog = row["Número da Contratação SISLOG"]
-                resp = row["Responsável"]
-                tipo = row["Tipo"]
-                status = row["Status da Contratação"]
-                unid = row["Unidade Demandante"]
-                parecer = row["Necessitará de Parecer Jurídico"]
-                prev_2026 = row["Prevista para 2026?"]
-
-                st.markdown(
-                    f"""
-                    <div style="background: #FFFFFF; border: 1px solid #E2E8F0; border-left: 6px solid {borda_cor}; border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.04);">
-                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 6px; flex-wrap: wrap;">
-                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                                <span style="background: {bg_chip}; color: {txt_chip}; border: 1px solid {border_chip}; padding: 3px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 700; text-transform: uppercase;">
-                                    ● {prio}
-                                </span>
-                                <span style="background: #F1F5F9; color: #334155; padding: 3px 9px; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
-                                    🏢 {unid}
-                                </span>
-                                <span style="background: #F8FAFC; color: #64748B; border: 1px solid #E2E8F0; padding: 3px 9px; border-radius: 6px; font-size: 0.82rem;">
-                                    📑 {tipo}
-                                </span>
-                            </div>
-                            <span style="background: #EFF6FF; color: #1D4ED8; border: 1px solid #DBEAFE; padding: 3px 10px; border-radius: 6px; font-size: 0.82rem; font-weight: 600;">
-                                🔄 {status}
-                            </span>
-                        </div>
-
-                        <div style="font-size: 1.05rem; font-weight: 700; color: #0F172A; margin: 6px 0 8px 0; line-height: 1.4;">
-                            📦 {row['Objeto']}
-                        </div>
-
-                        {atencao_html}
-
-                        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 0.82rem; color: #64748B; padding-top: 8px; border-top: 1px solid #F1F5F9; margin-top: 6px;">
-                            <span>📋 <b>SEI:</b> <code style="color: #0F172A; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; font-family: monospace;">{sei}</code></span>
-                            <span>🔢 <b>SISLOG:</b> <b style="color: #334155;">{sislog}</b></span>
-                            <span>👤 <b>Responsável:</b> <b style="color: #334155;">{resp}</b></span>
-                            <span>⚖️ <b>Parecer Jurídico:</b> <b style="color: #334155;">{parecer}</b></span>
-                            <span>📅 <b>Prev. 2026:</b> <b style="color: {'#16A34A' if prev_2026 == 'Sim' else '#DC2626'};">{prev_2026}</b></span>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                st.html(_card_html(row))
 
     with sub_graf:
         g1, g2 = st.columns(2)
@@ -521,30 +519,7 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
             st.info("Nenhum processo com ponto de atenção registrado para os filtros selecionados.")
         else:
             for _, row in df_alertas.iterrows():
-                prio = row["Prioridade"]
-                prio_color = "#EF4444" if prio == "Alta" else ("#F59E0B" if prio == "Média" else "#10B981")
-                st.markdown(
-                    f"""
-                    <div style="background:white; border-radius:8px; border:1px solid #E2E8F0; border-left:5px solid {prio_color}; padding:0.9rem 1.1rem; margin-bottom:0.7rem; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-weight:600; font-size:1rem; color:#1E293B;">📦 {row['Objeto']}</span>
-                            <span style="background:{prio_color}15; color:{prio_color}; border:1px solid {prio_color}40; padding:0.15rem 0.5rem; border-radius:6px; font-size:0.75rem; font-weight:600;">{prio}</span>
-                        </div>
-                        <div style="background:#FEF3C7; border:1px solid #FDE68A; border-radius:6px; padding:0.4rem 0.7rem; margin:0.4rem 0; color:#92400E; font-size:0.9rem;">
-                            <b>⚠️ Ponto de Atenção:</b> {row['Ponto de Atenção']}
-                        </div>
-                        <div style="display:flex; gap:1.2rem; flex-wrap:wrap; font-size:0.8rem; color:#64748B;">
-                            <span>🏢 <b>Unidade:</b> {row['Unidade Demandante']}</span>
-                            <span>📑 <b>Tipo:</b> {row['Tipo']}</span>
-                            <span>🔍 <b>Status:</b> {row['Status da Contratação']}</span>
-                            <span>📋 <b>SEI:</b> <code>{row['Número SEI'] or '-'}</code></span>
-                            <span>🔢 <b>SISLOG:</b> {row['Número da Contratação SISLOG']}</span>
-                            <span>👤 <b>Responsável:</b> {row['Responsável']}</span>
-                        </div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+                st.html(_card_html(row))
 
     with sub_tab:
         cols_order = [
