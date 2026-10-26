@@ -429,10 +429,10 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
 
     # Sub-abas: A primeira é a nova aba de Resumo por Prioridades (da maior para a menor)
     sub_resumo, sub_graf, sub_atencao, sub_tab = st.tabs([
-        f"⚡ Resumo por Prioridades ({total_filtrados})",
+        "⚡ Resumo por Prioridades",
         "📊 Gráficos Analíticos",
-        f"⚠️ Pontos de Atenção ({pontos_atencao_count})",
-        f"📑 Tabela Completa ({total_filtrados})",
+        "⚠️ Pontos de Atenção",
+        "📑 Tabela Completa",
     ])
 
     # -------------------------------------------------------------- ABA 1: RESUMO POR PRIORIDADES (INICIAL)
@@ -457,9 +457,6 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
                     🟢 <b>Baixa Prioridade:</b> <span style="font-size:1.15rem; font-weight:700;">{c_baixa}</span> demandas
                 </div>
                 {f'<div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:8px; padding:8px 16px; font-size:0.88rem; color:#475569; font-weight:500;">⚪ <b>Não informada:</b> <span style="font-size:1.15rem; font-weight:700;">{c_nao_inf}</span></div>' if c_nao_inf > 0 else ''}
-            </div>
-            <div style="color: #64748B; font-size: 0.85rem; margin: -4px 0 14px 2px;">
-                Demandas ordenadas por criticidade (Alta → Média → Baixa) · <b>Sincronizado em:</b> {data_base}
             </div>
             """,
             unsafe_allow_html=True,
