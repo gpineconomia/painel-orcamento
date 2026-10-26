@@ -137,8 +137,10 @@ with st.sidebar:
                 import os as _os
                 if _os.name == "nt":
                     import sync_github
+                    import liquidado_mensal_data
                     sync_github.refresh_sharepoint_caches()
                     indicacoes_data.download_declarado_empenhado_seq_csv()
+                    liquidado_mensal_data.download_liquidado_mensal_csv()
                     sync_github.sync_to_github(refresh_sp=False)
                 else:
                     import data_source
