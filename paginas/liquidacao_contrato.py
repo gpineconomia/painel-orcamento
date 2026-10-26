@@ -165,6 +165,8 @@ col_gnd = col_gnd_list[0] if col_gnd_list else None
 col_class_list = [c for c in df_plan.columns if "classifica" in str(c).lower()]
 col_class = col_class_list[0] if col_class_list else None
 col_total_est = "Estimado Total 2026"
+col_indicado_list = [c for c in df_plan.columns if "indicado" in str(c).lower() and "restante" not in str(c).lower()]
+col_indicado = col_indicado_list[0] if col_indicado_list else None
 
 meses_nomes = [
     "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -175,8 +177,10 @@ map_cod_to_nome = {f"2026{i:02d}": meses_nomes[i-1] for i in range(1, 13)}
 map_nome_to_cod = {meses_nomes[i-1]: f"2026{i:02d}" for i in range(1, 13)}
 
 # ------------------------------------------------------------------ TRATAMENTO DO SAP BO E CRUZAMENTO POR CONTRATO
-# A liquidação é identificada pela coluna Período Referência no formato AAAAMM (AAAA=Ano, MM=Mês)
-if "Ano_Referencia" in df_sap.columns:
+# O SIAFIC filtra por Exercício 2026 (ano contábil de execução), totalizando exatamente os R$ 130.318.070,15 oficiais
+if "Exercicio_Ano" in df_sap.columns:
+    df_sap_2026 = df_sap[df_sap["Exercicio_Ano"] == 2026].copy()
+elif "Ano_Referencia" in df_sap.columns:
     df_sap_2026 = df_sap[df_sap["Ano_Referencia"] == 2026].copy()
 else:
     df_sap_2026 = df_sap[df_sap["Periodo_AnoMes"].astype(str).str.startswith("2026")].copy()
@@ -194,6 +198,7 @@ for _, r_pl in df_plan.iterrows():
     
     procs_item = extrair_procs(r_pl.get(col_proc, ""))
     val_est_tot = safe_float(r_pl.get(col_total_est))
+    val_emp_tot = safe_float(r_pl.get(col_indicado)) if col_indicado else 0.0
     
     if chave_contrato not in contratos_agrupados:
         contratos_agrupados[chave_contrato] = {
@@ -207,6 +212,7 @@ for _, r_pl in df_plan.iterrows():
             "Grupos_Despesa": set(),
             "Classificacoes": set(),
             "Estimado_Total": 0.0,
+            "Empenhado_Total": 0.0,
             "Estimado_Meses": {m: 0.0 for m in meses_nomes},
             "Total_Liquidado_SIAFIC": 0.0,
             "Liquidado_Meses": {m: 0.0 for m in meses_nomes},
@@ -229,6 +235,7 @@ for _, r_pl in df_plan.iterrows():
         contratos_agrupados[chave_contrato]["Classificacoes"].add(str(r_pl.get(col_class)).strip())
         
     contratos_agrupados[chave_contrato]["Estimado_Total"] += val_est_tot
+    contratos_agrupados[chave_contrato]["Empenhado_Total"] += val_emp_tot
     for m in meses_nomes:
         c_m = f"Estimado {m}"
         contratos_agrupados[chave_contrato]["Estimado_Meses"][m] += safe_float(r_pl.get(c_m))
@@ -247,6 +254,13 @@ for _, row_sap in df_sap_2026.iterrows():
     v = safe_float(row_sap.get("Valor_Liquidado_Saldo", 0))
     m_cod = str(row_sap.get("Periodo_AnoMes", "")).strip()
     m_nome = map_cod_to_nome.get(m_cod)
+    if not m_nome:
+        try:
+            mm = int(m_cod[-2:])
+            if 1 <= mm <= 12:
+                m_nome = meses_nomes[mm - 1]
+        except Exception:
+            m_nome = "Janeiro"
 
     c_candidatos = proc_to_c_keys.get(p, set()) if p else set()
     if not c_candidatos:
@@ -329,6 +343,7 @@ for row_sob in sobras_sap_rows:
             "Grupos_Despesa": {gnd_label},
             "Classificacoes": {"SIAFIC Direto"},
             "Estimado_Total": 0.0,
+            "Empenhado_Total": 0.0,
             "Estimado_Meses": {m: 0.0 for m in meses_nomes},
             "Total_Liquidado_SIAFIC": 0.0,
             "Liquidado_Meses": {m: 0.0 for m in meses_nomes},
@@ -338,6 +353,7 @@ for row_sob in sobras_sap_rows:
         }
     c_dict = contratos_agrupados[chave_sobra]
     c_dict["Total_Liquidado_SIAFIC"] += v
+    c_dict["Empenhado_Total"] += v
     if m_nome in c_dict["Liquidado_Meses"]:
         c_dict["Liquidado_Meses"][m_nome] += v
     if b:
@@ -358,8 +374,10 @@ for c_key, c_data in contratos_agrupados.items():
     beneficiarios_siafic = c_data["Beneficiarios_SIAFIC"]
     
     val_est = c_data["Estimado_Total"]
-    saldo_a_liquidar = val_est - tot_liquidado_siafic
-    pct_exec = (tot_liquidado_siafic / val_est * 100) if val_est > 0 else (100.0 if tot_liquidado_siafic > 0 else 0.0)
+    val_emp = c_data["Empenhado_Total"]
+    val_ref = val_emp if val_emp > 0 else val_est
+    saldo_a_liquidar = val_emp - tot_liquidado_siafic if val_emp > 0 else (val_est - tot_liquidado_siafic)
+    pct_exec = (tot_liquidado_siafic / val_ref * 100) if val_ref > 0 else (100.0 if tot_liquidado_siafic > 0 else 0.0)
     
     # Classificação de Status de Liquidação
     if tot_liquidado_siafic == 0:
@@ -367,10 +385,10 @@ for c_key, c_data in contratos_agrupados.items():
             status_exec = "⚪ Sem Processo SEI"
         else:
             status_exec = "⚪ Sem Liquidação no SIAFIC"
-    elif abs(val_est - tot_liquidado_siafic) < 1.0 or (val_est > 0 and 99.0 <= pct_exec <= 101.0):
+    elif abs(val_ref - tot_liquidado_siafic) < 1.0 or (val_ref > 0 and 99.0 <= pct_exec <= 101.0):
         status_exec = "🟢 Conforme / 100% Liquidado"
-    elif tot_liquidado_siafic > val_est and val_est > 0:
-        status_exec = "🟠 Liquidado Acima do Estimado"
+    elif tot_liquidado_siafic > val_ref and val_ref > 0:
+        status_exec = "🟠 Liquidado Acima do Empenhado"
     else:
         status_exec = "🔵 Em Liquidação"
         
@@ -393,6 +411,7 @@ for c_key, c_data in contratos_agrupados.items():
         "Grupo_Despesa": gnd_display,
         "Classificacao": class_display,
         "Estimado_Total_2026": val_est,
+        "Empenhado_Total_2026": val_emp,
         "Total_Liquidado_SIAFIC": tot_liquidado_siafic,
         "Saldo_A_Liquidar": saldo_a_liquidar,
         "Pct_Executado": pct_exec,
@@ -529,10 +548,27 @@ idx_fim_prop = max(1, mes_atual - 2)
 nome_fim_prop = meses_nomes[idx_fim_prop - 1]
 meses_prop_lista = meses_nomes[:idx_fim_prop]
 
-total_estimado_geral = df_cards["Estimado_Total_2026"].sum()
+# Carregamento do empenhado oficial SIAFIC caso não haja filtros de unidade específicos
+try:
+    import indicacoes_data
+    df_seq_oficial, _ = indicacoes_data.load_sap_sequencial_data()
+except Exception:
+    df_seq_oficial = pd.DataFrame()
+
+# Se não há filtro de unidade aplicado, utiliza o Empenhado Oficial do SIAFIC 2026 (R$ 193.487.196,02)
+# Caso haja filtro de GND ou unidade, calcula com base nos contratos filtrados
+if not sel_uni and not sel_gnd and not df_seq_oficial.empty:
+    total_empenhado_geral = float(df_seq_oficial["Empenhado"].sum())
+elif not sel_uni and sel_gnd and not df_seq_oficial.empty:
+    gnd_cods = [3 if "custeio" in str(x).lower() else (4 if "invest" in str(x).lower() else 5) for x in sel_gnd]
+    sub_seq = df_seq_oficial[df_seq_oficial["Grupo_Cod"].isin(gnd_cods)]
+    total_empenhado_geral = float(sub_seq["Empenhado"].sum()) if not sub_seq.empty else df_cards["Empenhado_Total_2026"].sum()
+else:
+    total_empenhado_geral = df_cards["Empenhado_Total_2026"].sum()
+
 total_liquidado_geral = df_cards["Total_Liquidado_SIAFIC"].sum()
-saldo_restante_geral = total_estimado_geral - total_liquidado_geral
-pct_geral = (total_liquidado_geral / total_estimado_geral * 100) if total_estimado_geral > 0 else 0.0
+saldo_restante_geral = total_empenhado_geral - total_liquidado_geral
+pct_geral = (total_liquidado_geral / total_empenhado_geral * 100) if total_empenhado_geral > 0 else 0.0
 
 total_est_prop_geral = sum(df_cards[f"Estimado_{m}"].sum() for m in meses_prop_lista)
 total_liq_prop_geral = sum(df_cards[f"Liquidado_{m}"].sum() for m in meses_prop_lista)
@@ -544,16 +580,16 @@ k1, k2, k3, k4, k5 = st.columns(5)
 
 with k1:
     st.markdown(
-        f'<div class="kpi"><div class="label">Total Estimado 2026</div>'
-        f'<div class="value">{fmt_card_mi(total_estimado_geral)}</div>'
-        f'<div class="sub">{num(len(df_cards))} contratos e despesas</div></div>',
+        f'<div class="kpi"><div class="label">Total Empenhado 2026</div>'
+        f'<div class="value">{fmt_card_mi(total_empenhado_geral)}</div>'
+        f'<div class="sub">Total: {fmt_brl(total_empenhado_geral)}</div></div>',
         unsafe_allow_html=True
     )
 with k2:
     st.markdown(
         f'<div class="kpi"><div class="label">Total Liquidado (SIAFIC)</div>'
         f'<div class="value">{fmt_card_mi(total_liquidado_geral)}</div>'
-        f'<div class="sub">{num(contratos_com_liq_count)} despesas c/ liquidação (SIAFIC Total)</div></div>',
+        f'<div class="sub">Total: {fmt_brl(total_liquidado_geral)}</div></div>',
         unsafe_allow_html=True
     )
 
@@ -561,14 +597,14 @@ with k3:
     st.markdown(
         f'<div class="kpi"><div class="label">Saldo a Liquidar</div>'
         f'<div class="value">{fmt_card_mi(saldo_restante_geral)}</div>'
-        f'<div class="sub">Restante orçamentário anual</div></div>',
+        f'<div class="sub">Empenhado − Liquidado</div></div>',
         unsafe_allow_html=True
     )
 with k4:
     st.markdown(
-        f'<div class="kpi"><div class="label">% Executado Total</div>'
+        f'<div class="kpi"><div class="label">% Liquidado / Empenhado</div>'
         f'<div class="value">{pct_geral:.1f}%</div>'
-        f'<div class="sub">Do orçamento anual 2026</div></div>',
+        f'<div class="sub">Do total empenhado 2026</div></div>',
         unsafe_allow_html=True
     )
 with k5:
@@ -655,16 +691,16 @@ with tab_contrato:
 
         # KPIs individuais do contrato
         kc1, kc2, kc3, kc4, kc5 = st.columns(5)
-        c_est_tot = float(c_row["Estimado_Total_2026"])
+        c_emp_tot = float(c_row.get("Empenhado_Total_2026", c_row.get("Estimado_Total_2026", 0.0)))
         c_liq_tot = float(c_row["Total_Liquidado_SIAFIC"])
         c_saldo = float(c_row["Saldo_A_Liquidar"])
         c_pct = float(c_row["Pct_Executado"])
         
         with kc1:
             st.markdown(
-                f'<div class="kpi"><div class="label">Total Estimado 2026</div>'
-                f'<div class="value">{fmt_card_mi(c_est_tot)}</div>'
-                f'<div class="sub">Total: {fmt_brl(c_est_tot)}</div></div>',
+                f'<div class="kpi"><div class="label">Total Empenhado 2026</div>'
+                f'<div class="value">{fmt_card_mi(c_emp_tot)}</div>'
+                f'<div class="sub">Total: {fmt_brl(c_emp_tot)}</div></div>',
                 unsafe_allow_html=True
             )
         with kc2:
@@ -678,14 +714,14 @@ with tab_contrato:
             st.markdown(
                 f'<div class="kpi"><div class="label">Saldo a Liquidar</div>'
                 f'<div class="value">{fmt_card_mi(c_saldo)}</div>'
-                f'<div class="sub">Diferença restante</div></div>',
+                f'<div class="sub">Empenhado − Liquidado</div></div>',
                 unsafe_allow_html=True
             )
         with kc4:
             st.markdown(
                 f'<div class="kpi"><div class="label">% Executado Total</div>'
                 f'<div class="value">{c_pct:.1f}%</div>'
-                f'<div class="sub">Da estimativa anual realizada</div></div>',
+                f'<div class="sub">Do valor empenhado</div></div>',
                 unsafe_allow_html=True
             )
         with kc5:

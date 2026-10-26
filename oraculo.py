@@ -279,7 +279,12 @@ def load_oraculo_kb() -> dict[str, Any]:
 
     if not df_liq.empty:
         df_liq = df_liq.copy()
-        df_liq_2026 = df_liq[df_liq["Ano_Referencia"] == 2026].copy() if "Ano_Referencia" in df_liq.columns else df_liq.copy()
+        if "Exercicio_Ano" in df_liq.columns:
+            df_liq_2026 = df_liq[df_liq["Exercicio_Ano"] == 2026].copy()
+        elif "Ano_Referencia" in df_liq.columns:
+            df_liq_2026 = df_liq[df_liq["Ano_Referencia"] == 2026].copy()
+        else:
+            df_liq_2026 = df_liq.copy()
         df_liq_2026["_search_blob"] = (
             df_liq_2026[["Processo_SEI", "Beneficiario_Nome", "Natureza_Despesa_Nome", "Natureza_Despesa_Codigo"]]
             .fillna("").astype(str).agg(" | ".join, axis=1).apply(norm_text)
