@@ -137,18 +137,10 @@ def carregar_dados_brutos() -> tuple[pd.DataFrame, str]:
     sheet_name = "Contratações 2026" if "Contratações 2026" in xls.sheet_names else xls.sheet_names[0]
     df = pd.read_excel(CACHE_FILE, sheet_name=sheet_name)
 
-    data_atualizacao = ""
-    for col in df.columns:
-        matches = df[col].astype(str).str.extract(r"Data da Atualiza[çc][ãa]o:\s*([0-9/]+)", flags=re.IGNORECASE)
-        found = matches.dropna()
-        if not found.empty:
-            data_atualizacao = str(found.iloc[0, 0]).strip()
-            break
-
-    if not data_atualizacao:
-        mtime = CACHE_FILE.stat().st_mtime
-        dt = datetime.fromtimestamp(mtime, tz=timezone.utc).astimezone(TZ_BRASILIA)
-        data_atualizacao = dt.strftime("%d/%m/%Y às %H:%M")
+    # Data de sincronização oficial formatada (ex: 26/10/2026 às 11:45)
+    mtime = CACHE_FILE.stat().st_mtime
+    dt = datetime.fromtimestamp(mtime, tz=timezone.utc).astimezone(TZ_BRASILIA)
+    data_atualizacao = dt.strftime("%d/%m/%Y às %H:%M")
 
     df.columns = [str(c).strip() for c in df.columns]
 
@@ -233,22 +225,21 @@ def render_contratacoes_dashboard(key_prefix: str = "") -> None:
         st.warning("Não há contratações registradas para exibição.")
         return
 
-    # Cabeçalho informativo
-    st.markdown(
-        f"""
-        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.2rem;">
-            <span style="background-color: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; padding: 0.3rem 0.7rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500;">
-                📁 <b>Fonte Oficial:</b> SharePoint (Kelly Alexandria)
-            </span>
-            <span style="background-color: #F0FDF4; color: #15803D; border: 1px solid #BBF7D0; padding: 0.3rem 0.7rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500;">
-                🔄 <b>Sincronização:</b> Automática a cada 60 minutos
-            </span>
-            <span style="background-color: #F8FAFC; color: #475569; border: 1px solid #E2E8F0; padding: 0.3rem 0.7rem; border-radius: 9999px; font-size: 0.85rem; font-weight: 500;">
-                📅 <b>Data Base:</b> {data_base}
-            </span>
-        </div>
-        """,
-        unsafe_allow_html=True,
+    # Cabeçalho Oficial idêntico ao das outras abas (Execução 2026, Indicações e Liquidação)
+    st.html(
+        f"""<div style="background:#0F2A20; border-radius:12px; padding:12px 24px; margin-bottom:1.1rem;
+                    display:flex; justify-content:space-between; align-items:center; color:#FFFFFF;
+                    box-shadow: 0 4px 14px rgba(15,42,32,0.18); flex-wrap:wrap; gap:12px;">
+          <div>
+            <h2 style="margin:0; font-size:1.55rem; font-weight:700; color:#FFFFFF; letter-spacing:-0.02em;">
+              📋 Acompanhamento das Contratações · Execução 2026
+            </h2>
+          </div>
+          <div style="font-size:0.85rem; color:#A7F3D0; text-align:right;">
+            <strong>Fonte Oficial:</strong> GELC<br>
+            <span style="font-size:0.75rem; color:#D1FAE5;">Sincronizado em: {data_base}</span>
+          </div>
+        </div>"""
     )
 
     # Filtros em expander ou na própria view
