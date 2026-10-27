@@ -48,10 +48,6 @@ df = df_raw.copy()
 
 with st.sidebar:
     st.header("Filtros · Supressões PLOA")
-    if st.button("🔄 Atualizar agora", width="stretch", key="btn_refresh_sup"):
-        st.cache_data.clear()
-        st.rerun()
-
     busca = st.text_input("🔎 Buscar (item, contrato, ação sugerida)", key="busca_sup")
     if busca:
         mask = (

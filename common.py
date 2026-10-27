@@ -428,6 +428,61 @@ def get_orcamento_atualizado(grupos_selecionados: list[str] | set[str] | None = 
     return tot
 
 
+def executar_atualizacao_geral():
+    """Sincroniza todas as bases de dados (SharePoint, Google Sheets, SIAFIC ou GitHub Cloud), limpa os caches e filtros e recarrega o painel."""
+    import os as _os
+    if _os.name == "nt":
+        try:
+            import sync_github
+            import indicacoes_data
+            import liquidado_mensal_data
+            import contratacoes_data
+            import pca_data
+
+            sync_github.refresh_sharepoint_caches()
+            try:
+                contratacoes_data.download_contratacoes_workbook()
+            except Exception:
+                pass
+            try:
+                pca_data.download_pca_workbook()
+            except Exception:
+                pass
+            try:
+                indicacoes_data.download_declarado_empenhado_seq_csv()
+            except Exception:
+                pass
+            try:
+                liquidado_mensal_data.download_liquidado_mensal_csv()
+            except Exception:
+                pass
+            sync_github.sync_to_github(refresh_sp=False)
+        except Exception:
+            pass
+    else:
+        try:
+            import data_source
+            cloud_files = [
+                data_source.CACHE_FILE_2026,
+                data_source.CACHE_FILE_2027,
+                data_source.CACHE_FILE_SUPRESSOES_2027,
+                data_source.BASE_DIR / "data" / "pca_2027_cache.xlsx",
+                data_source.BASE_DIR / "data" / "contratacoes_2026_cache.xlsx",
+                data_source.BASE_DIR / "data" / "liquidado_mensal_sap.csv",
+                data_source.BASE_DIR / "data" / "declarado_empenhado_seq_sap.csv",
+            ]
+            for c_file in cloud_files:
+                data_source.fetch_from_github_cloud(c_file.name, c_file)
+        except Exception:
+            pass
+
+    st.cache_data.clear()
+    for k in list(st.session_state.keys()):
+        if k.startswith(("f_", "b_", "slider_", "filtro_", "sel_", "busca_")):
+            del st.session_state[k]
+    st.rerun()
+
+
 def build_context(ano: int = 2026) -> SimpleNamespace:
     """Carrega a planilha do ano desejado, desenha os filtros na barra lateral e devolve os dados filtrados."""
     current_cfg = get_settings(ano=ano)
@@ -577,20 +632,6 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
     filtros: list[str] = []
     with st.sidebar:
         st.header(f"Filtros · {ctx.ANO}")
-        if st.button("🔄 Atualizar agora", width="stretch", key=f"btn_refresh_{ano}"):
-            st.cache_data.clear()
-            for k in list(st.session_state.keys()):
-                if k.startswith("f_"):
-                    del st.session_state[k]
-            if _AUTH is not None:
-                try:
-                    import sync_github
-                    sync_github.refresh_sharepoint_caches()
-                    sync_github.sync_to_github(refresh_sp=False)
-                except Exception:
-                    pass
-            st.rerun()
-
         busca = st.text_input("🔎 Buscar (item, objeto, resumo, contrato, SEI, IPOF, empresa)", key=f"b_{ano}")
         if busca:
             mask = pd.Series(False, index=df.index)

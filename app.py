@@ -36,32 +36,11 @@ pages = {
 pg = st.navigation(pages)
 
 with st.sidebar:
-    st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
-    if st.button("🔄 Atualizar Painel", use_container_width=True, help="Baixa as alterações mais recentes do SharePoint e recarrega os dados"):
-        with st.spinner("Sincronizando com o SharePoint..."):
-            try:
-                import os as _os
-                if _os.name == "nt":
-                    import sync_github
-                    sync_github.refresh_sharepoint_caches()
-                    sync_github.sync_to_github(refresh_sp=False)
-                else:
-                    import data_source
-                    cloud_files = [
-                        data_source.CACHE_FILE_2026,
-                        data_source.CACHE_FILE_2027,
-                        data_source.CACHE_FILE_SUPRESSOES_2027,
-                        data_source.BASE_DIR / "data" / "pca_2027_cache.xlsx",
-                        data_source.BASE_DIR / "data" / "contratacoes_2026_cache.xlsx",
-                        data_source.BASE_DIR / "data" / "liquidado_mensal_sap.csv",
-                        data_source.BASE_DIR / "data" / "declarado_empenhado_seq_sap.csv",
-                    ]
-                    for c_file in cloud_files:
-                        data_source.fetch_from_github_cloud(c_file.name, c_file)
-            except Exception:
-                pass
-            st.cache_data.clear()
-            st.rerun()
+    st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    if st.button("🔄 Atualizar Painel", use_container_width=True, help="Baixa as alterações mais recentes do SharePoint/SIAFIC e recarrega os dados"):
+        with st.spinner("Sincronizando todas as bases de dados..."):
+            from common import executar_atualizacao_geral
+            executar_atualizacao_geral()
 
 # Botão flutuante do Oráculo em todas as páginas de dashboard
 if pg != page_oraculo:

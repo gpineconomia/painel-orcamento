@@ -130,30 +130,6 @@ with st.sidebar:
         help="Oculta sequenciais com valor Autorizado (A) igual a 0,00.",
     )
 
-    st.divider()
-    if st.button("🔄 Atualizar Dados", use_container_width=True):
-        with st.spinner("Sincronizando SIAFIC e Planilha 2026..."):
-            try:
-                import os as _os
-                if _os.name == "nt":
-                    import sync_github
-                    import liquidado_mensal_data
-                    sync_github.refresh_sharepoint_caches()
-                    indicacoes_data.download_declarado_empenhado_seq_csv()
-                    liquidado_mensal_data.download_liquidado_mensal_csv()
-                    sync_github.sync_to_github(refresh_sp=False)
-                else:
-                    import data_source
-                    data_source.fetch_from_github_cloud(
-                        data_source.CACHE_FILE_2026.name,
-                        data_source.CACHE_FILE_2026,
-                    )
-                    indicacoes_data.download_declarado_empenhado_seq_csv()
-            except Exception:
-                pass
-            st.cache_data.clear()
-            st.rerun()
-
 # Aplica filtros no DataFrame por Sequencial
 df_f = df_seq_all.copy()
 if sel_fontes:
