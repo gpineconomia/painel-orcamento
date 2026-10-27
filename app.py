@@ -47,7 +47,16 @@ with st.sidebar:
                     sync_github.sync_to_github(refresh_sp=False)
                 else:
                     import data_source
-                    for c_file in [data_source.CACHE_FILE_2026, data_source.CACHE_FILE_2027]:
+                    cloud_files = [
+                        data_source.CACHE_FILE_2026,
+                        data_source.CACHE_FILE_2027,
+                        data_source.CACHE_FILE_SUPRESSOES_2027,
+                        data_source.BASE_DIR / "data" / "pca_2027_cache.xlsx",
+                        data_source.BASE_DIR / "data" / "contratacoes_2026_cache.xlsx",
+                        data_source.BASE_DIR / "data" / "liquidado_mensal_sap.csv",
+                        data_source.BASE_DIR / "data" / "declarado_empenhado_seq_sap.csv",
+                    ]
+                    for c_file in cloud_files:
                         data_source.fetch_from_github_cloud(c_file.name, c_file)
             except Exception:
                 pass
