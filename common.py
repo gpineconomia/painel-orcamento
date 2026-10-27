@@ -508,6 +508,23 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
                 mask_seq54 |= raw[c].astype(str).str.strip().isin(["4145", "4145.0"])
         raw = raw[~mask_seq54]
 
+    # Mapeamento de sequenciais associados a cada despesa
+    seq_cols = [c for c in raw.columns if "seq" in str(c).lower()]
+    if seq_cols:
+        def _get_seqs(row):
+            s = set()
+            for col_s in seq_cols:
+                v = row[col_s]
+                if pd.notna(v):
+                    try:
+                        s.add(int(float(v)))
+                    except (ValueError, TypeError):
+                        pass
+            return s
+        raw["_seqs"] = raw.apply(_get_seqs, axis=1)
+    else:
+        raw["_seqs"] = [set() for _ in range(len(raw))]
+
     df = raw[raw[C_TOTAL] > 0].copy()
 
     def classify_contract(val: object) -> str:
@@ -633,6 +650,24 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
                 else:
                     df = df[df[c].isin(sel)]
                 filtros.append(f"{label}: {', '.join(sel)}")
+
+            # Filtro por Sequencial logo após Unidade em 2027
+            if label == "Unidade" and ano == 2027 and "_seqs" in df.columns:
+                all_seqs_set = set().union(*df["_seqs"]) if not df.empty else set()
+                all_seqs = sorted(all_seqs_set)
+                if all_seqs:
+                    widget_key_seq = f"f_{ano}_sequencial"
+                    sel_seq = st.multiselect(
+                        "Sequencial",
+                        options=all_seqs,
+                        format_func=lambda x: f"Seq {x}",
+                        key=widget_key_seq,
+                        placeholder="Todos os sequenciais...",
+                    )
+                    if sel_seq:
+                        sel_seq_set = set(sel_seq)
+                        df = df[df["_seqs"].apply(lambda s: bool(s.intersection(sel_seq_set)))]
+                        filtros.append(f"Sequencial: {', '.join(f'Seq {s}' for s in sel_seq)}")
 
         # Filtro de PROFISCO: por padrão 'Não' (desconsidera PROFISCO = Sim)
         if ctx.C_PROF and ctx.C_PROF in df.columns:

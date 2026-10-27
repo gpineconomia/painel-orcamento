@@ -271,7 +271,8 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
                     val_map_c = {"_val_inicial": val_c_inicial, "_val_deficit": val_c_def, "_val_total": val_c_total}
                     procs_c = extrair_numeros(linhas_c[C_PROC]) if C_PROC else []
                     ipofs_c = extrair_numeros(linhas_c[C_N_IPOF]) if C_N_IPOF else []
-                    contratos_data.append((c_nome, val_map_c, procs_c, ipofs_c))
+                    seqs_c = sorted(set().union(*linhas_c["_seqs"])) if "_seqs" in linhas_c.columns and not linhas_c.empty else []
+                    contratos_data.append((c_nome, val_map_c, procs_c, ipofs_c, seqs_c))
                 
                 # Ordena os contratos
                 if sort_col == "Nome da Unidade":
@@ -279,13 +280,20 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
                 else:
                     contratos_data.sort(key=lambda x: x[1][sort_k], reverse=is_descending)
                 
-                for c_nome, val_map_c, procs_c, ipofs_c in contratos_data:
+                for c_nome, val_map_c, procs_c, ipofs_c, seqs_c in contratos_data:
                     tags_c = []
                     if c_nome != "(Sem contrato)":
                         tags_c.append(
                             f'<span style="background:#F1F5F9; color:#1E293B; font-size:0.76rem; '
                             f'font-weight:700; padding:2px 8px; border-radius:4px; border:1px solid #CBD5E1; '
                             f'font-variant-numeric:tabular-nums;">Contrato: {c_nome}</span>'
+                        )
+                    if seqs_c:
+                        tags_c.extend(
+                            f'<span style="background:#EFF6FF; color:#1D4ED8; font-size:0.75rem; '
+                            f'font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #BFDBFE; '
+                            f'font-variant-numeric:tabular-nums;">Seq {s}</span>'
+                            for s in seqs_c
                         )
                     if procs_c:
                         tags_c.extend(
