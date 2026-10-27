@@ -669,7 +669,8 @@ with tab_contrato:
 
         # KPIs individuais do contrato
         kc1, kc2, kc3, kc4, kc5 = st.columns(5)
-        c_emp_tot = float(c_row.get("Empenhado_Total_2026", c_row.get("Estimado_Total_2026", 0.0)))
+        c_est_tot = float(c_row.get("Estimado_Total_2026", 0.0))
+        c_emp_tot = float(c_row.get("Empenhado_Total_2026", c_est_tot))
         c_liq_tot = float(c_row["Total_Liquidado_SIAFIC"])
         c_saldo = float(c_row["Saldo_A_Liquidar"])
         c_pct = float(c_row["Pct_Executado"])
@@ -740,12 +741,17 @@ with tab_contrato:
             df_c_tab_fmt["Saldo do Mês (R$)"] = df_c_tab_fmt["Saldo do Mês"].apply(fmt_brl)
             df_c_tab_fmt["% Exec."] = df_c_tab_fmt["% Executado"].apply(lambda x: f"{x:.1f}%")
             
+            tot_mes_est = float(df_c_meses["Estimado"].sum())
+            tot_mes_liq = float(df_c_meses["Liquidado"].sum())
+            tot_mes_saldo = tot_mes_est - tot_mes_liq
+            tot_mes_pct = (tot_mes_liq / tot_mes_est * 100) if tot_mes_est > 0 else (100.0 if tot_mes_liq > 0 else 0.0)
+
             linha_tot = pd.DataFrame([{
                 "Mês": "TOTAL ANUAL",
-                "Estimado (R$)": fmt_brl(c_est_tot),
-                "Liquidado SIAFIC (R$)": fmt_brl(c_liq_tot),
-                "Saldo do Mês (R$)": fmt_brl(c_saldo),
-                "% Exec.": f"{c_pct:.1f}%",
+                "Estimado (R$)": fmt_brl(c_est_tot or tot_mes_est),
+                "Liquidado SIAFIC (R$)": fmt_brl(tot_mes_liq or c_liq_tot),
+                "Saldo do Mês (R$)": fmt_brl(tot_mes_saldo),
+                "% Exec.": f"{tot_mes_pct:.1f}%",
             }])
             df_c_final = pd.concat([df_c_tab_fmt[["Mês", "Estimado (R$)", "Liquidado SIAFIC (R$)", "Saldo do Mês (R$)", "% Exec."]], linha_tot], ignore_index=True)
             
