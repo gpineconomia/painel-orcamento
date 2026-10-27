@@ -111,13 +111,6 @@ st.html(
 # ------------------------------------------------------------------ FILTROS NA BARRA LATERAL
 with st.sidebar:
     st.header("Filtros · PCA 2027")
-
-    if st.button("🔄 Atualizar dados do PCA", width="stretch", key="btn_refresh_pca_unidade"):
-        with st.spinner("Conectando ao Google Drive e baixando versão mais recente..."):
-            pca_data.download_pca_workbook()
-            st.cache_data.clear()
-            st.rerun()
-
     busca = st.text_input("🔎 Buscar (Objeto, Processo SEI, Contrato, Unidade)", key="f_pca_u_busca")
 
     # 1. Superintendência / Unidade Superior

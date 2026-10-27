@@ -476,28 +476,6 @@ with st.sidebar:
     # 6. Busca Livre
     busca_livre = st.text_input("🔎 Buscar (Contrato, Processo, Fornecedor, Objeto)", key="f_liq_busca")
 
-    st.divider()
-    if st.button("🔄 Atualizar Dados", use_container_width=True, key="btn_atualizar_liq"):
-        with st.spinner("Sincronizando SIAFIC e Planilha 2026..."):
-            try:
-                import os as _os
-                if _os.name == "nt":
-                    import sync_github
-                    sync_github.refresh_sharepoint_caches()
-                    liquidado_mensal_data.download_liquidado_mensal_csv()
-                    sync_github.sync_to_github(refresh_sp=False)
-                else:
-                    import data_source
-                    data_source.fetch_from_github_cloud(
-                        data_source.CACHE_FILE_2026.name,
-                        data_source.CACHE_FILE_2026,
-                    )
-                    liquidado_mensal_data.load_liquidado_mensal_data(auto_download_if_missing=True)
-            except Exception:
-                pass
-            st.cache_data.clear()
-            st.rerun()
-
 # Aplicação dos filtros
 df_view = df_contratos.copy()
 if sel_uni:
