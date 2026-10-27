@@ -327,7 +327,9 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
                 val_map_c = {"_val_inicial": val_c_inicial, "_val_deficit": val_c_def, "_val_total": val_c_total}
                 procs = extrair_numeros(linhas_resumo[C_PROC]) if C_PROC else []
                 ipofs = extrair_numeros(linhas_resumo[C_N_IPOF]) if C_N_IPOF else []
-                tags_c = [f'<span style="background:#EBF5F0; color:#0A6B56; font-size:0.75rem; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #CDE5DA;">SEI {p}</span>' for p in procs] + \
+                seqs = sorted(set().union(*linhas_resumo["_seqs"])) if "_seqs" in linhas_resumo.columns and not linhas_resumo.empty else []
+                tags_c = [f'<span style="background:#EFF6FF; color:#1D4ED8; font-size:0.75rem; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #BFDBFE; font-variant-numeric:tabular-nums;">Seq {s}</span>' for s in seqs] + \
+                         [f'<span style="background:#EBF5F0; color:#0A6B56; font-size:0.75rem; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #CDE5DA;">SEI {p}</span>' for p in procs] + \
                          [f'<span style="background:#F0FDF4; color:#15803D; font-size:0.75rem; font-weight:600; padding:2px 7px; border-radius:4px; border:1px solid #BBF7D0;">IPOF {i}</span>' for i in ipofs]
                 if tags_c or val_map_c["_val_total"] > 0:
                     tag_valor = render_valores(val_map_c, font_size="0.82rem", peso="600",
