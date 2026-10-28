@@ -135,11 +135,13 @@ def parse_date(val: object) -> pd.Timestamp | None:
 
 def download_pca_workbook(timeout: int = 25) -> bool:
     """Faz download da planilha mais recente do PCA 2027 do Google Sheets e salva no cache local."""
+    from data_source import is_xlsx_content_equal
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     try:
         resp = requests.get(PCA_GSHEET_URL, timeout=timeout)
         if resp.status_code == 200 and resp.content.startswith(b"PK"):
-            PCA_CACHE_FILE.write_bytes(resp.content)
+            if not PCA_CACHE_FILE.exists() or not is_xlsx_content_equal(resp.content, PCA_CACHE_FILE.read_bytes()):
+                PCA_CACHE_FILE.write_bytes(resp.content)
             return True
     except Exception as e:
         print(f"Aviso ao baixar PCA do Google Sheets: {e}")
@@ -148,7 +150,8 @@ def download_pca_workbook(timeout: int = 25) -> bool:
     try:
         resp_gh = requests.get(PCA_GITHUB_RAW_URL, timeout=15)
         if resp_gh.status_code == 200 and resp_gh.content.startswith(b"PK"):
-            PCA_CACHE_FILE.write_bytes(resp_gh.content)
+            if not PCA_CACHE_FILE.exists() or not is_xlsx_content_equal(resp_gh.content, PCA_CACHE_FILE.read_bytes()):
+                PCA_CACHE_FILE.write_bytes(resp_gh.content)
             return True
     except Exception:
         pass

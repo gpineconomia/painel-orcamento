@@ -43,6 +43,7 @@ def download_contratacoes_workbook(timeout: int = 30) -> bool:
     try:
         import win32com.client
         import pythoncom
+        from data_source import is_xlsx_content_equal
 
         pythoncom.CoInitialize()
         excel = win32com.client.Dispatch("Excel.Application")
@@ -50,17 +51,25 @@ def download_contratacoes_workbook(timeout: int = 30) -> bool:
         excel.DisplayAlerts = False
 
         wb = excel.Workbooks.Open(SHAREPOINT_DIRECT_DOC_URL, ReadOnly=True)
-        dest_abs = str(CACHE_FILE.resolve())
-        if CACHE_FILE.exists():
+        tmp_file = CACHE_FILE.with_suffix(".tmp.xlsx")
+        dest_tmp = str(tmp_file.resolve())
+        if tmp_file.exists():
             try:
-                CACHE_FILE.unlink()
+                tmp_file.unlink()
             except Exception:
                 pass
-        wb.SaveCopyAs(dest_abs)
+        wb.SaveCopyAs(dest_tmp)
         wb.Close(SaveChanges=False)
         excel.Quit()
 
-        if CACHE_FILE.exists() and CACHE_FILE.stat().st_size > 1000:
+        if tmp_file.exists() and tmp_file.stat().st_size > 1000:
+            new_bytes = tmp_file.read_bytes()
+            if not CACHE_FILE.exists() or not is_xlsx_content_equal(new_bytes, CACHE_FILE.read_bytes()):
+                CACHE_FILE.write_bytes(new_bytes)
+            try:
+                tmp_file.unlink()
+            except Exception:
+                pass
             return True
     except Exception:
         pass
