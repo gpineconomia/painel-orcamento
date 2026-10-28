@@ -105,6 +105,28 @@ def download_workbook(url: str) -> bytes:
     return content
 
 
+def is_xlsx_content_equal(new_bytes: bytes, existing_bytes: bytes) -> bool:
+    """Compara o conteúdo real das planilhas em arquivos XLSX ignorando metadados de timestamp/criação do ZIP."""
+    if new_bytes == existing_bytes:
+        return True
+    try:
+        import hashlib
+        import io
+        import zipfile
+
+        def get_hash(raw: bytes) -> str:
+            h = hashlib.sha256()
+            with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+                for name in sorted(zf.namelist()):
+                    if name.startswith("xl/worksheets/") or name.startswith("xl/sharedStrings"):
+                        h.update(zf.read(name))
+            return h.hexdigest()
+
+        return get_hash(new_bytes) == get_hash(existing_bytes)
+    except Exception:
+        return False
+
+
 GITHUB_RAW_BASE = "https://raw.githubusercontent.com/gpineconomia/painel-orcamento/main/data"
 
 
@@ -115,9 +137,10 @@ def fetch_from_github_cloud(filename: str, cache_file: Path) -> bool:
     try:
         import time
         url = f"{GITHUB_RAW_BASE}/{filename}?_t={int(time.time())}"
-        resp = requests.get(url, timeout=20, headers={"Cache-Control": "no-cache"})
+        resp = requests.get(url, timeout=20, headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache"})
         if resp.status_code == 200 and len(resp.content) > 500:
-            cache_file.write_bytes(resp.content)
+            if not cache_file.exists() or not is_xlsx_content_equal(resp.content, cache_file.read_bytes()):
+                cache_file.write_bytes(resp.content)
             return True
     except Exception:
         pass
@@ -139,7 +162,9 @@ def load_data(ano: int = 2026) -> tuple[pd.DataFrame, datetime, str | None]:
         try:
             if not cfg["url"]:
                 raise RuntimeError(f"SHAREPOINT_URL para {ano} não configurada.")
-            cache_file.write_bytes(download_workbook(cfg["url"]))
+            new_content = download_workbook(cfg["url"])
+            if not cache_file.exists() or not is_xlsx_content_equal(new_content, cache_file.read_bytes()):
+                cache_file.write_bytes(new_content)
         except Exception as exc:  # noqa: BLE001
             if not cache_file.exists():
                 raise
@@ -185,7 +210,9 @@ def load_supressoes_2027() -> tuple[pd.DataFrame, datetime, str | None]:
     if _AUTH is not None:
         try:
             if url:
-                cache_file.write_bytes(download_workbook(url))
+                new_content = download_workbook(url)
+                if not cache_file.exists() or not is_xlsx_content_equal(new_content, cache_file.read_bytes()):
+                    cache_file.write_bytes(new_content)
         except Exception as exc:  # noqa: BLE001
             if not cache_file.exists():
                 raise
