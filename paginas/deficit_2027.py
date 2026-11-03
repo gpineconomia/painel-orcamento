@@ -317,28 +317,199 @@ with tab_graficos:
         st.plotly_chart(fig_top, width="stretch")
 
 with tab_tabela:
-    st.markdown("#### Detalhamento das Demandas em Déficit Orçamentário")
+    st.markdown("#### 📋 Detalhamento Interativo das Demandas em Déficit")
+    st.caption("Consulte, filtre e ordene as 24 demandas de suplementação orçamentária para a PLOA 2027.")
 
-    df_disp = df.copy()
-    df_disp["Valor (R$)"] = df_disp["Valor"].apply(lambda v: brl(v, short=False))
-    df_disp["% do Déficit"] = df_disp["% do Déficit"].apply(lambda v: f"{v:.2f}%")
-
-    col_order = ["Despesa", "Unidade", "Tipo_Demanda", "Prazo", "Categoria_Prazo", "Valor (R$)", "% do Déficit"]
-    st.dataframe(
-        df_disp[col_order],
-        width="stretch",
-        height=520,
-        hide_index=True,
+    # 1. Filtro Rápido por Segmento / Momento
+    segmentos = ["Todos", "🚨 Imediato / Urgente", "📅 1º Semestre 2027", "📆 2º Semestre 2027", "⏳ Indeterminado"]
+    filtro_momento = st.segmented_control(
+        "Filtrar por Momento de Necessidade:",
+        options=segmentos,
+        default="Todos",
+        key="tab_def_momento",
     )
 
-    # Botão para download dos dados filtrados
-    buffer = io.BytesIO()
-    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-        df.to_excel(writer, index=False, sheet_name="Deficit_2027")
-    st.download_button(
-        label="📥 Baixar Planilha de Déficit (Excel)",
-        data=buffer.getvalue(),
-        file_name="Deficit_2027_Filtrado.xlsx",
-        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        key="btn_dl_def",
+    # 2. Filtros Específicos em Linha
+    fc1, fc2, fc3 = st.columns([1.6, 1.2, 1.2])
+    with fc1:
+        f_busca_tab = st.text_input(
+            "🔍 Buscar na tabela",
+            placeholder="Digite nome do contrato, serviço ou palavra-chave...",
+            key="tab_def_busca",
+        )
+    with fc2:
+        unis_tab = sorted(df["Unidade"].unique().tolist())
+        f_uni_tab = st.multiselect(
+            "Unidade Responsável",
+            options=unis_tab,
+            default=unis_tab,
+            key="tab_def_unis",
+        )
+    with fc3:
+        tipos_tab = sorted(df["Tipo_Demanda"].unique().tolist())
+        f_tipo_tab = st.multiselect(
+            "Tipo de Demanda",
+            options=tipos_tab,
+            default=tipos_tab,
+            key="tab_def_tipos",
+        )
+
+    # Aplicação dos filtros na visualização da tabela
+    df_tab = df.copy()
+
+    # Aplica segmented control
+    if filtro_momento == "🚨 Imediato / Urgente":
+        df_tab = df_tab[df_tab["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]
+    elif filtro_momento == "📅 1º Semestre 2027":
+        df_tab = df_tab[df_tab["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]
+    elif filtro_momento == "📆 2º Semestre 2027":
+        df_tab = df_tab[df_tab["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]
+    elif filtro_momento == "⏳ Indeterminado":
+        df_tab = df_tab[df_tab["Prazo"] == "Indeterminado"]
+
+    # Aplica busca textual
+    if f_busca_tab:
+        df_tab = df_tab[
+            df_tab["Despesa"].astype(str).str.contains(f_busca_tab, case=False, na=False)
+            | df_tab["Prazo"].astype(str).str.contains(f_busca_tab, case=False, na=False)
+        ]
+
+    # Aplica multiselects
+    if f_uni_tab:
+        df_tab = df_tab[df_tab["Unidade"].isin(f_uni_tab)]
+    if f_tipo_tab:
+        df_tab = df_tab[df_tab["Tipo_Demanda"].isin(f_tipo_tab)]
+
+    # 3. Faixa de Resumo Dinâmico dos Dados Filtrados
+    tot_tab = float(df_tab["Valor"].sum())
+    qtd_tab = len(df_tab)
+    pct_tab = (tot_tab / tot_deficit * 100) if tot_deficit > 0 else 0.0
+
+    st.markdown(
+        f"""<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:10px 18px; margin: 12px 0 16px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
+            <div style="color:#166534; font-size:0.95rem; font-weight:600;">
+                📋 Exibindo <strong>{qtd_tab}</strong> de {qtd_itens} demandas selecionadas
+            </div>
+            <div style="font-size:0.95rem; color:#14532D;">
+                Total Filtrado: <strong style="font-size:1.15rem; color:#0A6B56;">{brl(tot_tab)}</strong> 
+                <span style="font-size:0.85rem; color:#15803D; font-weight:600;">({pct_tab:.1f}% do déficit ativo)</span>
+            </div>
+        </div>""",
+        unsafe_allow_html=True,
     )
+
+    if df_tab.empty:
+        st.info("Nenhuma demanda encontrada para os filtros selecionados na tabela.")
+    else:
+        # 4. Tabela Interativa Formatada
+        df_view = df_tab[["Despesa", "Unidade", "Tipo_Demanda", "Prazo", "Categoria_Prazo", "Valor", "% do Déficit"]].copy()
+        max_pct = float(df_raw["% do Déficit"].max()) if not df_raw.empty else 100.0
+
+        st.dataframe(
+            df_view,
+            width="stretch",
+            height=460,
+            hide_index=True,
+            column_config={
+                "Despesa": st.column_config.TextColumn(
+                    "Despesa em Rascunho",
+                    help="Nome, objeto ou contrato da demanda com necessidade de recursos",
+                    width="large",
+                ),
+                "Unidade": st.column_config.TextColumn(
+                    "Unidade Responsável",
+                    width="medium",
+                ),
+                "Tipo_Demanda": st.column_config.TextColumn(
+                    "Tipo de Demanda",
+                    width="small",
+                ),
+                "Prazo": st.column_config.TextColumn(
+                    "Momento de Liberação",
+                    help="Prazo ou calendário informado para a necessidade do orçamento",
+                    width="small",
+                ),
+                "Categoria_Prazo": st.column_config.TextColumn(
+                    "Categoria",
+                    width="small",
+                ),
+                "Valor": st.column_config.NumberColumn(
+                    "Valor do Déficit (R$)",
+                    help="Valor total estimado necessário",
+                    format="R$ %,.2f",
+                ),
+                "% do Déficit": st.column_config.ProgressColumn(
+                    "% do Déficit",
+                    help="Participação percentual da despesa sobre o déficit total (R$ 49,85 Mi)",
+                    format="%.2f%%",
+                    min_value=0.0,
+                    max_value=max_pct,
+                ),
+            },
+        )
+
+        # 5. Inspecionar Detalhes da Demanda (Card Amigável)
+        with st.expander("🔍 Inspecionar Detalhes de uma Demanda Selecionada"):
+            lista_despesas = df_tab["Despesa"].tolist()
+            item_sel = st.selectbox(
+                "Selecione uma despesa para detalhamento:",
+                options=lista_despesas,
+                key="sel_despesa_inspect",
+            )
+            if item_sel:
+                d_row = df_tab[df_tab["Despesa"] == item_sel].iloc[0]
+                d_val = float(d_row["Valor"])
+                d_pct = float(d_row["% do Déficit"])
+                st.markdown(
+                    f"""<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-left:4px solid #0A6B56; border-radius:8px; padding:16px 20px;">
+                        <div style="font-size:1.15rem; font-weight:700; color:#0F172A; margin-bottom:8px;">
+                            {d_row['Despesa']}
+                        </div>
+                        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:10px;">
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Valor Necessário</span><br>
+                                <span style="font-size:1.25rem; font-weight:800; color:#0A6B56;">{brl(d_val)}</span>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Impacto no Déficit</span><br>
+                                <span style="font-size:1.25rem; font-weight:800; color:#2563EB;">{d_pct:.2f}%</span>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Momento da Liberação</span><br>
+                                <span style="font-size:1.05rem; font-weight:700; color:#334155;">{d_row['Prazo']}</span>
+                            </div>
+                            <div>
+                                <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Unidade / Tipo</span><br>
+                                <span style="font-size:1.0rem; font-weight:600; color:#334155;">{d_row['Unidade']} · {d_row['Tipo_Demanda']}</span>
+                            </div>
+                        </div>
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
+
+        # 6. Botões de Exportação
+        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        col_dl1, col_dl2 = st.columns(2)
+
+        with col_dl1:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+                df_tab.to_excel(writer, index=False, sheet_name="Deficit_2027")
+            st.download_button(
+                label="📥 Baixar Dados Filtrados em Excel (.xlsx)",
+                data=buffer.getvalue(),
+                file_name="Deficit_2027_Filtrado.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                key="btn_dl_def_xlsx",
+                use_container_width=True,
+            )
+
+        with col_dl2:
+            st.download_button(
+                label="📄 Baixar Dados Filtrados em CSV (.csv)",
+                data=df_tab.to_csv(index=False, sep=";", decimal=",").encode("utf-8-sig"),
+                file_name="Deficit_2027_Filtrado.csv",
+                mime="text/csv",
+                key="btn_dl_def_csv",
+                use_container_width=True,
+            )
