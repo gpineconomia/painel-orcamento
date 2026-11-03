@@ -88,7 +88,11 @@ if df.empty:
 tot_orc = float(df["Orçamento 2027"].sum())
 tot_teto = float(df["Teto Ajustado 2027"].sum())
 tot_econ = float(df["Economia Gerada"].sum())
-pct_global = (tot_econ / tot_orc * 100) if tot_orc > 0 else 0.0
+
+# Total estimado nas Despesas por Unidade (2027) para cálculo do índice global
+tot_despesas_unidade_2027 = get_total_despesas_unidade_2027(sel_unidades)
+pct_global = (tot_econ / tot_despesas_unidade_2027 * 100) if tot_despesas_unidade_2027 > 0 else 0.0
+pct_alvo = (tot_econ / tot_orc * 100) if tot_orc > 0 else 0.0
 qtd_itens = len(df)
 qtd_cortados = int((df["Economia Gerada"] > 0).sum())
 
@@ -106,7 +110,10 @@ with c1:
           </div>
           <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
                       color:#6EE7B7; margin-top:8px; font-weight:700;">
-            Orçamento 2027 Proposto
+            Proposta dos Contratos Alvo
+          </div>
+          <div style="font-size:0.70rem; color:#A7F3D0; margin-top:4px; opacity:0.85;">
+            Estimado inicial dos itens analisados
           </div>
         </div>"""
     )
@@ -121,7 +128,10 @@ with c2:
           </div>
           <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
                       color:#A5F3FC; margin-top:8px; font-weight:700;">
-            Teto Ajustado 2027
+            Teto dos Contratos Alvo
+          </div>
+          <div style="font-size:0.70rem; color:#BAE6FD; margin-top:4px; opacity:0.85;">
+            Limite pós-supressão dos itens
           </div>
         </div>"""
     )
@@ -138,6 +148,9 @@ with c3:
                       color:#FECDD3; margin-top:8px; font-weight:700;">
             Economia Total Gerada
           </div>
+          <div style="font-size:0.70rem; color:#FFE4E6; margin-top:4px; opacity:0.85;">
+            Redução total proposta
+          </div>
         </div>"""
     )
 
@@ -153,6 +166,9 @@ with c4:
                       color:#C7D2FE; margin-top:8px; font-weight:700;">
             Índice Global de Supressão
           </div>
+          <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
+            Sobre {brl(tot_despesas_unidade_2027, short=True)} (Despesas por Unidade)
+          </div>
         </div>"""
     )
 
@@ -167,6 +183,9 @@ with c5:
           <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
                       color:#94A3B8; margin-top:8px; font-weight:700;">
             Itens Suprimidos / Analisados
+          </div>
+          <div style="font-size:0.70rem; color:#CBD5E1; margin-top:4px; opacity:0.85;">
+            Corte nos contratos alvo: {pct_alvo:.1f}%
           </div>
         </div>"""
     )
@@ -184,7 +203,7 @@ with tab_graficos:
         df_u = df.groupby("Unidade")[["Orçamento 2027", "Teto Ajustado 2027", "Economia Gerada"]].sum().reset_index()
         fig_comp = go.Figure()
         fig_comp.add_trace(go.Bar(
-            name="Orçamento Proposto",
+            name="Proposta Contratos Alvo",
             x=df_u["Unidade"],
             y=df_u["Orçamento 2027"],
             marker_color="#064E3B",
@@ -192,7 +211,7 @@ with tab_graficos:
             textposition="outside",
         ))
         fig_comp.add_trace(go.Bar(
-            name="Teto Ajustado",
+            name="Teto Contratos Alvo",
             x=df_u["Unidade"],
             y=df_u["Teto Ajustado 2027"],
             marker_color="#0E7490",
@@ -201,7 +220,7 @@ with tab_graficos:
         ))
         fig_comp.update_layout(
             barmode="group",
-            title="Comparativo: Orçamento Proposto vs. Teto Ajustado por Unidade",
+            title="Comparativo: Proposta Inicial vs. Teto Ajustado (Contratos Alvo por Unidade)",
             height=420,
         )
         fig_comp = style(fig_comp, height=420)
@@ -266,12 +285,12 @@ with tab_tabela:
 
     # Exibição visual com tabela estilizada
     df_disp = df.copy()
-    df_disp["Orçamento 2027 (R$)"] = df_disp["Orçamento 2027"].apply(lambda v: brl(v, short=False))
+    df_disp["Proposta Inicial (R$)"] = df_disp["Orçamento 2027"].apply(lambda v: brl(v, short=False))
     df_disp["Teto Ajustado (R$)"] = df_disp["Teto Ajustado 2027"].apply(lambda v: brl(v, short=False))
     df_disp["Economia Gerada (R$)"] = df_disp["Economia Gerada"].apply(lambda v: brl(v, short=False))
     df_disp["% Redução"] = df_disp["% Redução"].apply(lambda v: f"{v:.1f}%")
 
-    col_order = ["Unidade", "Item de Despesa", "Ação Sugerida", "Orçamento 2027 (R$)", "Teto Ajustado (R$)", "Economia Gerada (R$)", "% Redução"]
+    col_order = ["Unidade", "Item de Despesa", "Ação Sugerida", "Proposta Inicial (R$)", "Teto Ajustado (R$)", "Economia Gerada (R$)", "% Redução"]
     st.dataframe(
         df_disp[col_order],
         width="stretch",
