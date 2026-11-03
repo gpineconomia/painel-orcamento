@@ -720,6 +720,7 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
         grupos_selecionados = None
         for label, c in dims.items():
             if label == "Contrato":
+                ctx.df_sem_contrato = df.copy()
                 special_status = [
                     "Contratados (Todos)",
                     "Em Processo",
