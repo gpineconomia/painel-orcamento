@@ -344,6 +344,7 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
             break
 
         desp_str = str(desp).strip()
+        desp_lower = desp_str.lower()
         val_f = float(val) if val is not None else 0.0
 
         if isinstance(prazo_raw, datetime):
@@ -358,14 +359,14 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 "10/2027": "Outubro/2027",
             }.get(dt_str, dt_str)
             ordem = {
-                "12/2026": 2,
-                "01/2027": 3,
-                "02/2027": 4,
-                "03/2027": 5,
-                "06/2027": 6,
-                "09/2027": 7,
-                "10/2027": 8,
-            }.get(dt_str, 9)
+                "12/2026": 1,
+                "01/2027": 2,
+                "02/2027": 3,
+                "03/2027": 4,
+                "06/2027": 5,
+                "09/2027": 6,
+                "10/2027": 7,
+            }.get(dt_str, 8)
             prazo_label = mes_nome
             prazo_cat = "Calendário PLOA"
         elif isinstance(prazo_raw, str):
@@ -376,12 +377,18 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 prazo_cat = "Imediato / Urgente"
             elif "judicial" in p_clean:
                 prazo_label = "Pendente Judicial"
-                ordem = 1
+                ordem = 8
                 prazo_cat = "Imediato / Urgente"
             elif "indeterminado" in p_clean:
-                prazo_label = "Indeterminado"
-                ordem = 10
-                prazo_cat = "Indeterminado"
+                # No cronograma oficial da PLOA, o Convênio SEFAZ/RS está alocado em Janeiro/2027
+                if "sefaz" in desp_lower:
+                    prazo_label = "Janeiro/2027"
+                    ordem = 2
+                    prazo_cat = "Calendário PLOA"
+                else:
+                    prazo_label = "Indeterminado"
+                    ordem = 9
+                    prazo_cat = "Indeterminado"
             else:
                 prazo_label = prazo_raw.strip().capitalize()
                 ordem = 11
@@ -391,7 +398,6 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
             ordem = 12
             prazo_cat = "Outros"
 
-        desp_lower = desp_str.lower()
         unidade = "Outros"
         for kw, u in unit_map.items():
             if kw in desp_lower:
