@@ -175,7 +175,7 @@ with c4:
             </div>
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            Sobre {brl(tot_orc, short=True)} (Proposta dos Contratos Alvo)
+            Sobre {brl(tot_orc, short=True)} (Contratos Alvo)
           </div>
         </div>"""
     )
