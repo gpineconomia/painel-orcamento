@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import brl, num, style, get_total_despesas_unidade_2027
+from common import brl, num, style, get_total_despesas_unidade_2027, fmt_brl
 
 try:
     from common import get_supressoes_data
