@@ -657,7 +657,7 @@ with tab_tabela:
                 d_row = df_tab[df_tab["Despesa"] == item_sel].iloc[0]
                 d_val = float(d_row["Valor"])
                 d_pct = float(d_row["% do Déficit"])
-                st.markdown(
+                st.html(
                     f"""<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-left:4px solid #0A6B56; border-radius:8px; padding:16px 20px;">
                         <div style="font-size:1.15rem; font-weight:700; color:#0F172A; margin-bottom:8px;">
                             {d_row['Despesa']}
@@ -680,12 +680,11 @@ with tab_tabela:
                                 <span style="font-size:1.0rem; font-weight:600; color:#334155;">{d_row['Unidade']} · {d_row['Tipo_Demanda']}</span>
                             </div>
                         </div>
-                    </div>""",
-                    unsafe_allow_html=True,
+                    </div>"""
                 )
 
         # 6. Botões de Exportação
-        st.markdown("<div style='height: 10px;'></div>", unsafe_allow_html=True)
+        st.html("<div style='height: 10px;'></div>")
         col_dl1, col_dl2 = st.columns(2)
 
         with col_dl1:
