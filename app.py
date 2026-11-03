@@ -25,6 +25,7 @@ pages = {
     "Orçamento 2027 (Planejamento)": [
         st.Page("paginas/despesas_unidade.py", title="Despesas por Unidade", icon="🏢"),
         st.Page("paginas/visao_analitica.py", title="Visão Analítica", icon="📊"),
+        st.Page("paginas/deficit_2027.py", title="Déficit Orçamentário", icon="⚠️"),
         st.Page("paginas/supressoes_2027.py", title="Supressões PLOA", icon="✂️"),
         st.Page("paginas/pca_2027.py", title="PCA 2027 (GELC)", icon="📑"),
     ],

@@ -32,6 +32,7 @@ FILES_TO_SYNC = [
     "paginas/despesas_unidade.py",
     "paginas/execucao_2026.py",
     "paginas/supressoes_2027.py",
+    "paginas/deficit_2027.py",
     "paginas/visao_2026.py",
     "paginas/visao_analitica.py",
     "paginas/liquidacao_contrato.py",
@@ -49,6 +50,7 @@ FILES_TO_SYNC = [
     "data/planilha_2026_cache.xlsx",
     "data/planilha_cache.xlsx",
     "data/supressoes_2027_cache.xlsx",
+    "data/deficit_2027_cache.xlsx",
     "data/pca_2027_cache.xlsx",
     "data/contratacoes_2026_cache.xlsx",
     "data/liquidado_mensal_sap.csv",
@@ -125,6 +127,7 @@ def refresh_sharepoint_caches() -> None:
         (lambda: data_source.load_data(2026), "Orçamento 2026"),
         (lambda: data_source.load_data(2027), "PLOA 2027"),
         (lambda: data_source.load_supressoes_2027(), "Supressões 2027"),
+        (lambda: data_source.load_deficit_2027(), "Déficit 2027"),
     ]:
         try:
             _, _, warn = fn()
