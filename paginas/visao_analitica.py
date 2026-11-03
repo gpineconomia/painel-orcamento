@@ -46,7 +46,7 @@ cota = ctx.cota_tesouro
 saldo_cota = cota - tot_geral
 sem_est = int((df[C_TOTAL] == 0).sum())
 
-# Estimado Essencial: Contratados (Todos), Em Processo, Em Substituição
+# Estimado Essencial: Contratados (Todos), Em Processo, Em Substituição + Em Planejamento com Déficit
 status_essenciais = ["Contratados (Todos)", "Em Processo", "Em Substituição"]
 df_base_ess = getattr(ctx, "df_sem_contrato", df).copy()
 if C_TOTAL not in df_base_ess.columns:
@@ -55,6 +55,13 @@ if C_TOTAL not in df_base_ess.columns:
 mask_ess = df_base_ess["_status_contrato"].isin(status_essenciais)
 if "_is_contratado" in df_base_ess.columns:
     mask_ess |= df_base_ess["_is_contratado"]
+
+# Soma também os itens com Contrato "Em Planejamento" que tenham a coluna Déficit preenchida (priorizados)
+C_DEFICIT = getattr(ctx, "C_DEFICIT", None)
+if C_DEFICIT and C_DEFICIT in df_base_ess.columns:
+    val_def_ess = pd.to_numeric(df_base_ess[C_DEFICIT], errors="coerce").fillna(0)
+    mask_plan_def = (df_base_ess["_status_contrato"] == "Em Planejamento") & (val_def_ess > 0)
+    mask_ess |= mask_plan_def
 
 tot_essencial = float(df_base_ess[mask_ess][C_TOTAL].sum())
 
@@ -93,7 +100,7 @@ with c_ess:
             </div>
           </div>
           <div style="font-size:0.65rem; color:#CCFBF1; margin-top:4px; opacity:0.85;">
-            Contratados + Processo + Subst.
+            Contratados + Processo + Subst. + Planej. Priorizados
           </div>
         </div>"""
     )
