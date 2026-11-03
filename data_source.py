@@ -377,18 +377,12 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 prazo_cat = "Imediato / Urgente"
             elif "judicial" in p_clean:
                 prazo_label = "Pendente Judicial"
-                ordem = 8
+                ordem = 9
                 prazo_cat = "Imediato / Urgente"
             elif "indeterminado" in p_clean:
-                # No cronograma oficial da PLOA, o Convênio SEFAZ/RS está alocado em Janeiro/2027
-                if "sefaz" in desp_lower:
-                    prazo_label = "Janeiro/2027"
-                    ordem = 2
-                    prazo_cat = "Calendário PLOA"
-                else:
-                    prazo_label = "Indeterminado"
-                    ordem = 9
-                    prazo_cat = "Indeterminado"
+                prazo_label = "Prazo Indeterminado"
+                ordem = 8
+                prazo_cat = "Prazo Indeterminado"
             else:
                 prazo_label = prazo_raw.strip().capitalize()
                 ordem = 11

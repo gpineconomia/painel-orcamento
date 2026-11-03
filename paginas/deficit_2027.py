@@ -90,6 +90,24 @@ if df.empty:
     st.stop()
 
 # ------------------------------------------------------------------ TOTAIS E MÉTRICAS
+def fmt_card_mi(v: float | int | None, decimals: int = 1) -> str:
+    """Formata valor em milhões sempre com Mi (ex: 49,8 Mi, 0,5 Mi, 0,7 Mi), nunca 'mil'."""
+    if v is None or pd.isna(v) or v == 0:
+        return f"0,{0 * decimals} Mi" if decimals > 0 else "0 Mi"
+    val = float(v)
+    sign = "-" if val < 0 else ""
+    return f"{sign}{abs(val) / 1e6:,.{decimals}f} Mi".replace(".", ",")
+
+
+def fmt_grafico_mi(v: float | int | None, decimals: int = 1, prefix: str = "R$ ") -> str:
+    """Formata valor em milhões para rótulos de gráfico (ex: R$ 0,5 Mi, R$ 26,3 Mi)."""
+    if v is None or pd.isna(v) or v == 0:
+        return f"{prefix}0,{0 * decimals} Mi" if decimals > 0 else f"{prefix}0 Mi"
+    val = float(v)
+    sign = "-" if val < 0 else ""
+    return f"{prefix}{sign}{abs(val) / 1e6:,.{decimals}f} Mi".replace(".", ",")
+
+
 tot_deficit = float(df["Valor"].sum())
 qtd_itens = len(df)
 
@@ -97,7 +115,7 @@ qtd_itens = len(df)
 val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]["Valor"].sum())
 val_sem1 = float(df[df["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]["Valor"].sum())
 val_sem2 = float(df[df["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]["Valor"].sum())
-val_judicial = float(df[df["Prazo"] == "Pendente Judicial"]["Valor"].sum())
+val_indet = float(df[df["Prazo"].str.contains("Indeterminado", case=False, na=False)]["Valor"].sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -110,7 +128,7 @@ with c1:
                     border: 1.5px solid rgba(248,113,113,0.45); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(tot_deficit, short=True).replace("R$ ", "")}
+              {fmt_card_mi(tot_deficit, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FCA5A5; margin-top:8px; font-weight:700;">
@@ -130,7 +148,7 @@ with c2:
                     border: 1px solid rgba(251,146,60,0.35); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_imediato_urgente, short=True).replace("R$ ", "")}
+              {fmt_card_mi(val_imediato_urgente, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FDBA74; margin-top:8px; font-weight:700;">
@@ -150,7 +168,7 @@ with c3:
                     border: 1px solid rgba(252,211,77,0.3); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_sem1, short=True).replace("R$ ", "")}
+              {fmt_card_mi(val_sem1, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FDE68A; margin-top:8px; font-weight:700;">
@@ -170,7 +188,7 @@ with c4:
                     border: 1px solid rgba(125,211,252,0.3); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_sem2, short=True).replace("R$ ", "")}
+              {fmt_card_mi(val_sem2, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#BAE6FD; margin-top:8px; font-weight:700; white-space:nowrap;">
@@ -185,20 +203,20 @@ with c4:
 
 with c5:
     st.html(
-        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #4338CA 0%, #312E81 100%);
-                    box-shadow: 0 4px 14px rgba(67,56,202,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
-                    border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+                    box-shadow: 0 4px 14px rgba(79,70,229,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1px solid rgba(165,180,252,0.35); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_judicial, short=True).replace("R$ ", "")}
+              {fmt_card_mi(val_indet, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
-              Pendência Judicial
+              Prazo Indeterminado
             </div>
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            2 demandas (sem IPOF)
+            1 demanda (Convênio SEFAZ/RS)
           </div>
         </div>"""
     )
@@ -229,6 +247,7 @@ with tab_timeline:
     col_card, col_time = st.columns([1.1, 3.2], gap="large")
 
     with col_card:
+        tot_deficit_str = f"{tot_deficit / 1e6:,.2f}".replace(".", ",")
         st.markdown(
             f"""<div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:18px; padding:28px 20px;
                         box-shadow:0 6px 22px rgba(27,54,93,0.07); text-align:center; height:100%; min-height:560px;
@@ -258,7 +277,7 @@ with tab_timeline:
                         Total Estimado
                     </div>
                     <div style="font-size:2.35rem; font-weight:900; color:#0A6B56; line-height:1.1; margin-top:6px; letter-spacing:-0.02em;">
-                        R$ {tot_deficit / 1e6:,.2f}".replace(".", ",")
+                        R$ {tot_deficit_str}
                     </div>
                     <div style="font-size:1.2rem; font-weight:800; color:#0A6B56; margin-top:2px;">
                         milhões
@@ -291,6 +310,7 @@ with tab_timeline:
             prazo_val = float(sub_df["Valor"].sum())
             val_str = f"{prazo_val / 1e6:,.2f} mi".replace(".", ",")
             is_judicial = ("judicial" in prazo.lower())
+            is_indet = ("indeterminado" in prazo.lower())
             is_primeiro = (idx == 0)
             is_ultimo = (idx == total_prazos - 1)
 
@@ -301,6 +321,13 @@ with tab_timeline:
                 cor_linha = "#DC2626"
                 cor_texto = "#DC2626"
                 bg_row = "#FFFBFB"
+            elif is_indet:
+                nome_periodo = "Prazo Indeterminado"
+                sub_periodo = "<div style='font-size:0.78rem; color:#4F46E5; font-weight:600; margin-top:2px;'>(demanda sem data fixa)</div>"
+                cor_ponto = "#4F46E5"
+                cor_linha = "#4F46E5"
+                cor_texto = "#3730A3"
+                bg_row = "#FBFBFF"
             else:
                 nome_periodo = prazo.replace("/", " de ")
                 sub_periodo = ""
@@ -321,7 +348,7 @@ with tab_timeline:
             itens_parts = []
             for _, r in sub_df.iterrows():
                 v_mi = r["Valor"] / 1e6
-                v_lbl = f"{v_mi:,.2f} milhões".replace(".", ",") if v_mi >= 0.01 else f"R$ {r['Valor']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                v_lbl = f"{v_mi:,.2f} milhões".replace(".", ",")
                 d_nome = r["Despesa"].replace("**", "").strip()
                 itens_parts.append(
                     f"""<div style="margin-bottom: 5px; line-height: 1.45;">
@@ -393,15 +420,15 @@ with tab_graficos:
         x="Prazo",
         y="Valor",
         title="Cronograma da Necessidade do Orçamento Liberado",
-        text=df_chrono["Valor"].apply(lambda v: brl(v, short=True)),
+        text=df_chrono["Valor"].apply(lambda v: fmt_grafico_mi(v, 1)),
         color="Prazo",
         color_discrete_sequence=px.colors.qualitative.Prism,
     )
+    fig_chrono = style(fig_chrono, height=420)
     fig_chrono.update_traces(textposition="outside", cliponaxis=False)
     max_val_c = df_chrono["Valor"].max() if not df_chrono.empty else 1.0
-    fig_chrono.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Valor (R$)", margin=dict(t=40, r=30))
-    fig_chrono.update_yaxes(range=[0, max_val_c * 1.20])
-    fig_chrono = style(fig_chrono, height=420)
+    fig_chrono.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Valor (R$)", margin=dict(l=10, r=40, t=50, b=10))
+    fig_chrono.update_yaxes(range=[0, max_val_c * 1.25])
     st.plotly_chart(fig_chrono, width="stretch")
 
     c_g1, c_g2 = st.columns([1, 1])
@@ -434,15 +461,15 @@ with tab_graficos:
             y="Tipo_Demanda",
             orientation="h",
             title="Déficit por Tipo de Demanda",
-            text=df_t["Valor"].apply(lambda v: brl(v, short=True)),
+            text=df_t["Valor"].apply(lambda v: fmt_grafico_mi(v, 1)),
             color="Tipo_Demanda",
             color_discrete_sequence=px.colors.qualitative.Safe,
         )
+        fig_tipo = style(fig_tipo, height=400)
         fig_tipo.update_traces(textposition="outside", cliponaxis=False)
         max_val_t = df_t["Valor"].max() if not df_t.empty else 1.0
-        fig_tipo.update_xaxes(range=[0, max_val_t * 1.30], showticklabels=True)
-        fig_tipo.update_layout(showlegend=False, xaxis_title=None, yaxis_title=None, margin=dict(r=45))
-        fig_tipo = style(fig_tipo, height=400)
+        fig_tipo.update_xaxes(range=[0, max_val_t * 1.35], showticklabels=True)
+        fig_tipo.update_layout(showlegend=False, xaxis_title=None, yaxis_title=None, margin=dict(l=10, r=80, t=50, b=10))
         st.plotly_chart(fig_tipo, width="stretch")
 
     # Gráfico 4: Top 10 Maiores Demandas com Déficit
@@ -452,7 +479,7 @@ with tab_graficos:
         nome_curto = nome_orig.where(nome_orig.str.len() <= 55, nome_orig.str.slice(0, 54) + "…")
         df_top["Item_Unico"] = nome_curto + nome_curto.groupby(nome_curto).cumcount().map(lambda k: "\u200b" * k)
         df_top["Rotulo_Mi"] = df_top["Valor"].apply(
-            lambda v: f"R$ {v / 1e6:,.2f} Mi".replace(",", "X").replace(".", ",").replace("X", ".")
+            lambda v: fmt_grafico_mi(v, 1)
         )
 
         fig_top = px.bar(
@@ -468,6 +495,7 @@ with tab_graficos:
             custom_data=["Despesa", "Unidade", "Prazo", "% do Déficit"],
             labels={"Valor": "Déficit (R$)", "Item_Unico": "Despesa"},
         )
+        fig_top = style(fig_top, height=480)
         fig_top.update_traces(
             textposition="outside",
             cliponaxis=False,
@@ -475,10 +503,9 @@ with tab_graficos:
             textfont=dict(size=12, color="#0F2A20", family="Inter, Segoe UI, sans-serif"),
         )
         max_val_top = df_top["Valor"].max() if not df_top.empty else 1.0
-        fig_top.update_xaxes(range=[0, max_val_top * 1.30], showticklabels=False, title=None)
+        fig_top.update_xaxes(range=[0, max_val_top * 1.35], showticklabels=False, title=None)
         fig_top.update_yaxes(title=None, tickfont=dict(size=12))
-        fig_top.update_layout(margin=dict(r=45))
-        fig_top = style(fig_top, height=480)
+        fig_top.update_layout(margin=dict(l=10, r=80, t=50, b=10))
         st.plotly_chart(fig_top, width="stretch")
 
 with tab_tabela:
@@ -536,7 +563,7 @@ with tab_tabela:
     elif filtro_momento == "📆 2º Semestre 2027":
         df_tab = df_tab[df_tab["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]
     elif filtro_momento == "⏳ Indeterminado":
-        df_tab = df_tab[df_tab["Prazo"] == "Indeterminado"]
+        df_tab = df_tab[df_tab["Prazo"].str.contains("Indeterminado", case=False, na=False)]
 
     # Aplica busca textual
     if f_busca_tab:
