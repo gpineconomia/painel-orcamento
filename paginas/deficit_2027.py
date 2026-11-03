@@ -223,14 +223,21 @@ with c5:
 
 st.write("")
 
+cores_unidades = {
+    "Tecnologia da Informação": "#2563EB",
+    "Gestão Integrada": "#059669",
+    "Receita": "#7C3AED",
+    "Receita/Gestão Integrada": "#D97706",
+}
+
 # ------------------------------------------------------------------ SEÇÃO ANALÍTICA & GRÁFICOS
-tab_timeline, tab_graficos, tab_tabela = st.tabs([
-    "⏱️ Linha do Tempo da Necessidade",
+tab_graficos, tab_tabela, tab_timeline = st.tabs([
     "📊 Gráficos & Distribuição",
     "📋 Tabela Detalhada do Déficit",
+    "⏱️ Linha do Tempo da Necessidade",
 ])
 
-# ------------------------------------------------------------------ ABA 1: LINHA DO TEMPO (INSPIRAÇÃO OFICIAL)
+# ------------------------------------------------------------------ ABA 3: LINHA DO TEMPO (INSPIRAÇÃO OFICIAL)
 with tab_timeline:
     st.markdown(
         """<div style="margin-bottom: 18px;">
@@ -399,13 +406,6 @@ with tab_timeline:
             </div>""",
             unsafe_allow_html=True,
         )
-
-cores_unidades = {
-    "Tecnologia da Informação": "#2563EB",
-    "Gestão Integrada": "#059669",
-    "Receita": "#7C3AED",
-    "Receita/Gestão Integrada": "#D97706",
-}
 
 with tab_graficos:
     # Gráfico 1: Linha do tempo / Cronograma de necessidade de liberação orçamentária
