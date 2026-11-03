@@ -11,7 +11,17 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from data_source import CACHE_FILE_2026, CACHE_FILE_2027, get_settings, load_data, load_supressoes_2027, _AUTH
+from data_source import (
+    CACHE_FILE_2026,
+    CACHE_FILE_2027,
+    CACHE_FILE_SUPRESSOES_2027,
+    CACHE_FILE_DEFICIT_2027,
+    get_settings,
+    load_data,
+    load_supressoes_2027,
+    load_deficit_2027,
+    _AUTH,
+)
 
 # Hash SHA-256 com salt da senha de acesso externo
 _AUTH_SALT = "goias_ploa_salt_2026:"
@@ -310,6 +320,11 @@ def get_supressoes_data():
     return load_supressoes_2027()
 
 
+@st.cache_data(ttl=REFRESH_SECONDS, show_spinner="Atualizando dados de Déficit do SharePoint…")
+def get_deficit_data():
+    return load_deficit_2027()
+
+
 @st.cache_data(ttl=REFRESH_SECONDS)
 def get_total_despesas_unidade_2027(unidades_sup: list[str] | tuple[str, ...] | None = None) -> float:
     """Calcula o valor Estimado Total das Despesas por Unidade (2027) com filtros padrão (Situação=Ativo, PROFISCO=Não)."""
@@ -521,6 +536,7 @@ def executar_atualizacao_geral():
                 data_source.CACHE_FILE_2026,
                 data_source.CACHE_FILE_2027,
                 data_source.CACHE_FILE_SUPRESSOES_2027,
+                data_source.CACHE_FILE_DEFICIT_2027,
                 data_source.BASE_DIR / "data" / "pca_2027_cache.xlsx",
                 data_source.BASE_DIR / "data" / "contratacoes_2026_cache.xlsx",
                 data_source.BASE_DIR / "data" / "liquidado_mensal_sap.csv",

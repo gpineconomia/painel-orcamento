@@ -44,11 +44,16 @@ URL_SUPRESSOES_2027_DEFAULT = (
     "https://gestaocolaborativa.economia.go.gov.br/sites/planejamento/orcamento/Documentos%20Compartilhados/2027/PLOA%202027/"
     "Supressoes%202027.xlsx?d=wb31fd57c9556440283b522a1c0457c59"
 )
+URL_DEFICIT_2027_DEFAULT = (
+    "https://gestaocolaborativa.economia.go.gov.br/sites/planejamento/orcamento/Documentos%20Compartilhados/2027/PLOA%202027/"
+    "Dados%20para%20apresenta%C3%A7%C3%A3o%20para%20Or%C3%A7amento%20central.xlsx?d=w474065bad2f84e74aba3b3f5119c9a14"
+)
 
 BASE_DIR = Path(__file__).parent
 CACHE_FILE_2026 = BASE_DIR / "data" / "planilha_2026_cache.xlsx"
 CACHE_FILE_2027 = BASE_DIR / "data" / "planilha_cache.xlsx"
 CACHE_FILE_SUPRESSOES_2027 = BASE_DIR / "data" / "supressoes_2027_cache.xlsx"
+CACHE_FILE_DEFICIT_2027 = BASE_DIR / "data" / "deficit_2027_cache.xlsx"
 CACHE_FILE = CACHE_FILE_2027  # compatibilidade
 
 load_dotenv(BASE_DIR / ".env")
@@ -257,6 +262,168 @@ def load_supressoes_2027() -> tuple[pd.DataFrame, datetime, str | None]:
     if not df.empty:
         df["% Redução"] = (df["Economia Gerada"] / df["Orçamento 2027"] * 100).fillna(0.0)
     updated = to_brasilia_datetime(cache_file.stat().st_mtime)
+    return df, updated, warning
+
+
+def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
+    """Retorna (df_deficit, momento_da_atualizacao, aviso) da aba 'Rascunhos - Déficit'."""
+    warning = None
+    cache_file = CACHE_FILE_DEFICIT_2027
+    cache_file.parent.mkdir(exist_ok=True)
+    url = os.getenv("SHAREPOINT_URL_DEFICIT_2027", URL_DEFICIT_2027_DEFAULT).strip()
+    filename = cache_file.name
+
+    if _AUTH is not None:
+        try:
+            if url:
+                new_content = download_workbook(url)
+                if not cache_file.exists() or not is_xlsx_content_equal(new_content, cache_file.read_bytes()):
+                    cache_file.write_bytes(new_content)
+        except Exception as exc:  # noqa: BLE001
+            if not cache_file.exists():
+                raise
+            warning = f"Não foi possível atualizar Déficit da fonte ({exc}). Exibindo dados do cache."
+    else:
+        fetch_from_github_cloud(filename, cache_file)
+
+    import openpyxl
+
+    wb = openpyxl.load_workbook(io.BytesIO(cache_file.read_bytes()), data_only=True)
+    sheet_matches = [s for s in wb.sheetnames if "d" in s.lower() and "ficit" in s.lower()]
+    sheet_name = sheet_matches[0] if sheet_matches else wb.sheetnames[0]
+    ws = wb[sheet_name]
+
+    unit_map = {
+        "business analytics": "Tecnologia da Informação",
+        "sefaz/rs": "Receita",
+        "licenças microsoft": "Tecnologia da Informação",
+        "licencas microsoft": "Tecnologia da Informação",
+        "sap": "Tecnologia da Informação",
+        "inteligência artificial": "Tecnologia da Informação",
+        "inteligencia artificial": "Tecnologia da Informação",
+        "software assurance": "Tecnologia da Informação",
+        "ar condicionado": "Gestão Integrada",
+        "empilhadeira": "Receita",
+        "satélite": "Receita",
+        "satelite": "Receita",
+        "govtech": "Receita",
+        "capacitação": "Gestão Integrada",
+        "capacitacao": "Gestão Integrada",
+        "serviços gerais": "Gestão Integrada",
+        "servicos gerais": "Gestão Integrada",
+        "ocr fixo": "Receita",
+        "call center": "Receita/Gestão Integrada",
+        "eventos": "Gestão Integrada",
+        "antivirus": "Tecnologia da Informação",
+        "furgões": "Receita",
+        "furgoes": "Receita",
+        "corrida de rua": "Gestão Integrada",
+        "monitoramento": "Gestão Integrada",
+        "infraestrutura": "Tecnologia da Informação",
+        "nível superior": "Gestão Integrada",
+        "nivel superior": "Gestão Integrada",
+        "nível médio": "Gestão Integrada",
+        "nivel medio": "Gestão Integrada",
+        "desenvolvimento": "Tecnologia da Informação",
+    }
+
+    start_row = 8
+    for r in range(1, 15):
+        val = ws.cell(row=r, column=3).value
+        if val and "despesa" in str(val).lower():
+            start_row = r + 1
+            break
+
+    records = []
+    for r in range(start_row, 50):
+        desp = ws.cell(row=r, column=3).value
+        prazo_raw = ws.cell(row=r, column=4).value
+        val = ws.cell(row=r, column=5).value
+
+        if not desp or str(desp).strip().lower() == "total":
+            break
+
+        desp_str = str(desp).strip()
+        val_f = float(val) if val is not None else 0.0
+
+        if isinstance(prazo_raw, datetime):
+            dt_str = prazo_raw.strftime("%m/%Y")
+            mes_nome = {
+                "12/2026": "Dezembro/2026",
+                "01/2027": "Janeiro/2027",
+                "02/2027": "Fevereiro/2027",
+                "03/2027": "Março/2027",
+                "06/2027": "Junho/2027",
+                "09/2027": "Setembro/2027",
+                "10/2027": "Outubro/2027",
+            }.get(dt_str, dt_str)
+            ordem = {
+                "12/2026": 1,
+                "01/2027": 2,
+                "02/2027": 3,
+                "03/2027": 4,
+                "06/2027": 5,
+                "09/2027": 6,
+                "10/2027": 7,
+            }.get(dt_str, 8)
+            prazo_label = mes_nome
+            prazo_cat = "Calendário PLOA"
+        elif isinstance(prazo_raw, str):
+            p_clean = prazo_raw.strip().lower()
+            if "imediato" in p_clean:
+                prazo_label = "Imediato"
+                ordem = 0
+                prazo_cat = "Imediato"
+            elif "judicial" in p_clean:
+                prazo_label = "Pendente Judicial"
+                ordem = 8
+                prazo_cat = "Pendente Judicial"
+            elif "indeterminado" in p_clean:
+                prazo_label = "Indeterminado"
+                ordem = 9
+                prazo_cat = "Indeterminado"
+            else:
+                prazo_label = prazo_raw.strip().capitalize()
+                ordem = 10
+                prazo_cat = "Outros"
+        else:
+            prazo_label = "Não Informado"
+            ordem = 11
+            prazo_cat = "Outros"
+
+        desp_lower = desp_str.lower()
+        unidade = "Outros"
+        for kw, u in unit_map.items():
+            if kw in desp_lower:
+                unidade = u
+                break
+
+        if "nova contrata" in desp_lower:
+            tipo = "Nova Contratação"
+        elif "prorroga" in desp_lower:
+            tipo = "Prorrogação"
+        elif "vigente" in desp_lower:
+            tipo = "Contrato Vigente"
+        elif "complementar" in desp_lower:
+            tipo = "Complementar"
+        else:
+            tipo = "Outros"
+
+        records.append({
+            "Despesa": desp_str,
+            "Unidade": unidade,
+            "Tipo_Demanda": tipo,
+            "Prazo": prazo_label,
+            "Categoria_Prazo": prazo_cat,
+            "Ordem_Cronologica": ordem,
+            "Valor": val_f,
+        })
+
+    df = pd.DataFrame(records)
+    tot_val = df["Valor"].sum() if not df.empty else 0.0
+    if not df.empty and tot_val > 0:
+        df["% do Déficit"] = (df["Valor"] / tot_val * 100).round(2)
+    updated = to_brasilia_datetime(cache_file.stat().st_mtime) if cache_file.exists() else datetime.now()
     return df, updated, warning
 
 
