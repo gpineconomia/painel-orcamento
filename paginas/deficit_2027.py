@@ -239,7 +239,7 @@ tab_graficos, tab_tabela, tab_timeline = st.tabs([
 
 # ------------------------------------------------------------------ ABA 3: LINHA DO TEMPO (INSPIRAÇÃO OFICIAL)
 with tab_timeline:
-    st.markdown(
+    st.html(
         """<div style="margin-bottom: 18px;">
             <h3 style="margin:0; font-size:1.5rem; font-weight:800; color:#1B365D; letter-spacing:-0.02em;">
                 Necessidade de crédito adicional prevista
@@ -247,59 +247,48 @@ with tab_timeline:
             <div style="font-size:0.95rem; color:#64748B; margin-top:4px; font-weight:500;">
                 Previsão de necessidades orçamentárias para 2027 · Secretaria de Estado da Economia
             </div>
-        </div>""",
-        unsafe_allow_html=True,
+        </div>"""
     )
 
     col_card, col_time = st.columns([1.1, 3.2], gap="large")
 
     with col_card:
         tot_deficit_str = f"{tot_deficit / 1e6:,.2f}".replace(".", ",")
-        st.markdown(
-            f"""<div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:18px; padding:28px 20px;
-                        box-shadow:0 6px 22px rgba(27,54,93,0.07); text-align:center; height:100%; min-height:560px;
-                        display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;">
-                <div>
-                    <!-- Ícone Gráfico -->
-                    <div style="width:78px; height:78px; margin:0 auto 18px auto; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-                                border:2px solid #BFDBFE; border-radius:50%; display:flex; align-items:center; justify-content:center;
-                                box-shadow:0 6px 16px rgba(37,99,235,0.12);">
-                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 3v18h18"/>
-                            <path d="m19 9-5 5-4-4-3 3"/>
-                            <path d="M14 9h5v5"/>
-                        </svg>
-                    </div>
-
-                    <!-- Título -->
-                    <div style="font-size:1.05rem; font-weight:800; color:#1B365D; line-height:1.35; letter-spacing:-0.01em; text-transform:uppercase;">
-                        Previsão de Necessidade Orçamentária para 2027
-                    </div>
-
-                    <!-- Linha divisória verde -->
-                    <div style="width:52px; height:3.5px; background:#0D9488; margin:16px auto; border-radius:2px;"></div>
-
-                    <!-- Total Estimado -->
-                    <div style="font-size:1.05rem; color:#64748B; font-weight:600; margin-top:8px;">
-                        Total Estimado
-                    </div>
-                    <div style="font-size:2.35rem; font-weight:900; color:#0A6B56; line-height:1.1; margin-top:6px; letter-spacing:-0.02em;">
-                        R$ {tot_deficit_str}
-                    </div>
-                    <div style="font-size:1.2rem; font-weight:800; color:#0A6B56; margin-top:2px;">
-                        milhões
-                    </div>
-                    <div style="font-size:0.85rem; color:#64748B; margin-top:10px;">
-                        ({len(df)} demandas mapeadas)
-                    </div>
-                </div>
-
-                <!-- Rodapé -->
-                <div style="margin-top:24px; padding-top:14px; border-top:1px solid #F1F5F9; font-size:0.75rem; color:#94A3B8; line-height:1.4;">
-                    Observação: valores expressos em milhões de reais (R$ mi).
-                </div>
-            </div>""",
-            unsafe_allow_html=True,
+        st.html(
+            f"""<div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:18px; padding:24px 18px;
+box-shadow:0 6px 22px rgba(27,54,93,0.07); text-align:center; height:100%; min-height:480px;
+display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;">
+<div>
+<div style="width:72px; height:72px; margin:0 auto 16px auto; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+border:2px solid #BFDBFE; border-radius:50%; display:flex; align-items:center; justify-content:center;
+box-shadow:0 6px 16px rgba(37,99,235,0.12);">
+<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+<path d="M3 3v18h18"/>
+<path d="m19 9-5 5-4-4-3 3"/>
+<path d="M14 9h5v5"/>
+</svg>
+</div>
+<div style="font-size:1.05rem; font-weight:800; color:#1B365D; line-height:1.35; letter-spacing:-0.01em; text-transform:uppercase;">
+Previsão de Necessidade Orçamentária para 2027
+</div>
+<div style="width:52px; height:3.5px; background:#0D9488; margin:14px auto; border-radius:2px;"></div>
+<div style="font-size:1.05rem; color:#64748B; font-weight:600; margin-top:8px;">
+Total Estimado
+</div>
+<div style="font-size:2.35rem; font-weight:900; color:#0A6B56; line-height:1.1; margin-top:6px; letter-spacing:-0.02em;">
+R$ {tot_deficit_str}
+</div>
+<div style="font-size:1.2rem; font-weight:800; color:#0A6B56; margin-top:2px;">
+milhões
+</div>
+<div style="font-size:0.85rem; color:#64748B; margin-top:10px;">
+({len(df)} demandas mapeadas)
+</div>
+</div>
+<div style="margin-top:20px; padding-top:12px; border-top:1px solid #F1F5F9; font-size:0.75rem; color:#94A3B8; line-height:1.4;">
+Observação: valores expressos em milhões de reais (R$ mi).
+</div>
+</div>"""
         )
 
     with col_time:
@@ -389,22 +378,20 @@ with tab_timeline:
 
         corpo_tabela = "".join(linhas_html)
 
-        st.markdown(
-            f"""<div style="border:2px solid #4F46E5; border-radius:16px; overflow:hidden; background:#FFFFFF; box-shadow:0 8px 24px rgba(79,70,229,0.08);">
-                <!-- Header Navy -->
-                <div style="background:#1B365D; color:#FFFFFF; display:grid; grid-template-columns: 210px 140px 1fr; padding:12px 18px; font-weight:800; font-size:0.84rem; letter-spacing:0.05em; text-transform:uppercase;">
-                    <div style="padding-left: 24px;">Período</div>
-                    <div style="text-align: center;">Valor Estimado</div>
-                    <div style="padding-left: 10px;">Itens / Ações Previstas</div>
-                </div>
-                <!-- Linhas -->
-                {corpo_tabela}
-                <!-- Rodapé -->
-                <div style="background:#F8FAFC; padding:8px 18px; font-size:0.75rem; color:#64748B; font-weight:500; border-top:1px solid #E2E8F0;">
-                    Valores expressos em milhões de reais (R$ mi).
-                </div>
-            </div>""",
-            unsafe_allow_html=True,
+        st.html(
+            f"""<div style="border:2px solid #4F46E5; border-radius:16px; overflow-x:auto; background:#FFFFFF; box-shadow:0 8px 24px rgba(79,70,229,0.08);">
+<div style="min-width: 620px;">
+<div style="background:#1B365D; color:#FFFFFF; display:grid; grid-template-columns: 210px 140px 1fr; padding:12px 18px; font-weight:800; font-size:0.84rem; letter-spacing:0.05em; text-transform:uppercase;">
+<div style="padding-left: 24px;">Período</div>
+<div style="text-align: center;">Valor Estimado</div>
+<div style="padding-left: 10px;">Itens / Ações Previstas</div>
+</div>
+{corpo_tabela}
+<div style="background:#F8FAFC; padding:8px 18px; font-size:0.75rem; color:#64748B; font-weight:500; border-top:1px solid #E2E8F0;">
+Valores expressos em milhões de reais (R$ mi).
+</div>
+</div>
+</div>"""
         )
 
 with tab_graficos:
@@ -595,7 +582,7 @@ with tab_tabela:
     qtd_tab = len(df_tab)
     pct_tab = (tot_tab / tot_deficit * 100) if tot_deficit > 0 else 0.0
 
-    st.markdown(
+    st.html(
         f"""<div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:10px; padding:10px 18px; margin: 12px 0 16px 0; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
             <div style="color:#166534; font-size:0.95rem; font-weight:600;">
                 📋 Exibindo <strong>{qtd_tab}</strong> de {qtd_itens} demandas selecionadas
@@ -604,8 +591,7 @@ with tab_tabela:
                 Total Filtrado: <strong style="font-size:1.15rem; color:#0A6B56;">{fmt_brl(tot_tab)}</strong> 
                 <span style="font-size:0.85rem; color:#15803D; font-weight:600;">({f"{pct_tab:.1f}%".replace(".", ",")} do déficit ativo)</span>
             </div>
-        </div>""",
-        unsafe_allow_html=True,
+        </div>"""
     )
 
     if df_tab.empty:
