@@ -97,7 +97,7 @@ qtd_itens = len(df)
 val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]["Valor"].sum())
 val_sem1 = float(df[df["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]["Valor"].sum())
 val_sem2 = float(df[df["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]["Valor"].sum())
-val_indet = float(df[df["Prazo"] == "Indeterminado"]["Valor"].sum())
+val_judicial = float(df[df["Prazo"] == "Pendente Judicial"]["Valor"].sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -190,15 +190,15 @@ with c5:
                     border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_indet, short=True).replace("R$ ", "")}
+              {brl(val_judicial, short=True).replace("R$ ", "")}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
-              Prazo Indeterminado
+              Pendência Judicial
             </div>
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            1 demanda (Convênio SEFAZ/RS)
+            2 demandas (sem IPOF)
           </div>
         </div>"""
     )
@@ -206,7 +206,172 @@ with c5:
 st.write("")
 
 # ------------------------------------------------------------------ SEÇÃO ANALÍTICA & GRÁFICOS
-tab_graficos, tab_tabela = st.tabs(["📊 Gráficos & Distribuição", "📋 Tabela Detalhada do Déficit"])
+tab_timeline, tab_graficos, tab_tabela = st.tabs([
+    "⏱️ Linha do Tempo da Necessidade",
+    "📊 Gráficos & Distribuição",
+    "📋 Tabela Detalhada do Déficit",
+])
+
+# ------------------------------------------------------------------ ABA 1: LINHA DO TEMPO (INSPIRAÇÃO OFICIAL)
+with tab_timeline:
+    st.markdown(
+        """<div style="margin-bottom: 18px;">
+            <h3 style="margin:0; font-size:1.5rem; font-weight:800; color:#1B365D; letter-spacing:-0.02em;">
+                Necessidade de crédito adicional prevista
+            </h3>
+            <div style="font-size:0.95rem; color:#64748B; margin-top:4px; font-weight:500;">
+                Previsão de necessidades orçamentárias para 2027 · Secretaria de Estado da Economia
+            </div>
+        </div>""",
+        unsafe_allow_html=True,
+    )
+
+    col_card, col_time = st.columns([1.1, 3.2], gap="large")
+
+    with col_card:
+        st.markdown(
+            f"""<div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:18px; padding:28px 20px;
+                        box-shadow:0 6px 22px rgba(27,54,93,0.07); text-align:center; height:100%; min-height:560px;
+                        display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;">
+                <div>
+                    <!-- Ícone Gráfico -->
+                    <div style="width:78px; height:78px; margin:0 auto 18px auto; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+                                border:2px solid #BFDBFE; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                                box-shadow:0 6px 16px rgba(37,99,235,0.12);">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1D4ED8" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 3v18h18"/>
+                            <path d="m19 9-5 5-4-4-3 3"/>
+                            <path d="M14 9h5v5"/>
+                        </svg>
+                    </div>
+
+                    <!-- Título -->
+                    <div style="font-size:1.05rem; font-weight:800; color:#1B365D; line-height:1.35; letter-spacing:-0.01em; text-transform:uppercase;">
+                        Previsão de Necessidade Orçamentária para 2027
+                    </div>
+
+                    <!-- Linha divisória verde -->
+                    <div style="width:52px; height:3.5px; background:#0D9488; margin:16px auto; border-radius:2px;"></div>
+
+                    <!-- Total Estimado -->
+                    <div style="font-size:1.05rem; color:#64748B; font-weight:600; margin-top:8px;">
+                        Total Estimado
+                    </div>
+                    <div style="font-size:2.35rem; font-weight:900; color:#0A6B56; line-height:1.1; margin-top:6px; letter-spacing:-0.02em;">
+                        R$ {tot_deficit / 1e6:,.2f}".replace(".", ",")
+                    </div>
+                    <div style="font-size:1.2rem; font-weight:800; color:#0A6B56; margin-top:2px;">
+                        milhões
+                    </div>
+                    <div style="font-size:0.85rem; color:#64748B; margin-top:10px;">
+                        ({len(df)} demandas mapeadas)
+                    </div>
+                </div>
+
+                <!-- Rodapé -->
+                <div style="margin-top:24px; padding-top:14px; border-top:1px solid #F1F5F9; font-size:0.75rem; color:#94A3B8; line-height:1.4;">
+                    Observação: valores expressos em milhões de reais (R$ mi).
+                </div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
+
+    with col_time:
+        # Monta as linhas da timeline a partir de df
+        prazos_ordenados = sorted(
+            df["Prazo"].unique(),
+            key=lambda p: df[df["Prazo"] == p]["Ordem_Cronologica"].iloc[0]
+        )
+
+        linhas_html = []
+        total_prazos = len(prazos_ordenados)
+
+        for idx, prazo in enumerate(prazos_ordenados):
+            sub_df = df[df["Prazo"] == prazo]
+            prazo_val = float(sub_df["Valor"].sum())
+            val_str = f"{prazo_val / 1e6:,.2f} mi".replace(".", ",")
+            is_judicial = ("judicial" in prazo.lower())
+            is_primeiro = (idx == 0)
+            is_ultimo = (idx == total_prazos - 1)
+
+            if is_judicial:
+                nome_periodo = "Pendência judicial"
+                sub_periodo = "<div style='font-size:0.78rem; color:#DC2626; font-weight:700; margin-top:2px;'>(estão sem IPOF)</div>"
+                cor_ponto = "#DC2626"
+                cor_linha = "#DC2626"
+                cor_texto = "#DC2626"
+                bg_row = "#FFFBFB"
+            else:
+                nome_periodo = prazo.replace("/", " de ")
+                sub_periodo = ""
+                cor_ponto = "#1E40AF"
+                cor_linha = "#2563EB"
+                cor_texto = "#1E293B"
+                bg_row = "#FFFFFF"
+
+            # Posição da linha vertical
+            if is_primeiro:
+                linha_css = f"top: 50%; bottom: 0; background: {cor_linha};"
+            elif is_ultimo:
+                linha_css = f"top: 0; bottom: 50%; background: {cor_linha};"
+            else:
+                linha_css = f"top: 0; bottom: 0; background: {cor_linha};"
+
+            # Itens deste prazo
+            itens_parts = []
+            for _, r in sub_df.iterrows():
+                v_mi = r["Valor"] / 1e6
+                v_lbl = f"{v_mi:,.2f} milhões".replace(".", ",") if v_mi >= 0.01 else f"R$ {r['Valor']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                d_nome = r["Despesa"].replace("**", "").strip()
+                itens_parts.append(
+                    f"""<div style="margin-bottom: 5px; line-height: 1.45;">
+                        <strong style="color: #0F172A; font-weight: 700;">{v_lbl}</strong> &nbsp;|&nbsp; 
+                        <span style="color: #334155;">{d_nome}</span>
+                    </div>"""
+                )
+            bloco_itens = "".join(itens_parts)
+
+            linhas_html.append(
+                f"""<div style="display:grid; grid-template-columns: 210px 140px 1fr; border-bottom:1px solid #E2E8F0; background:{bg_row}; min-height: 58px;">
+                    <!-- Coluna 1: Período com Linha e Ponto -->
+                    <div style="position:relative; padding:14px 10px 14px 44px; display:flex; flex-direction:column; justify-content:center;">
+                        <div style="position:absolute; left:22px; {linha_css} width:3.5px; z-index:1;"></div>
+                        <div style="position:absolute; left:16px; top:calc(50% - 8px); width:16px; height:16px; border-radius:50%; border:3.5px solid {cor_ponto}; background:#FFFFFF; z-index:2; box-shadow:0 0 0 2px #FFFFFF;"></div>
+                        <div style="font-weight:800; font-size:0.95rem; color:{cor_texto}; line-height:1.25;">{nome_periodo}</div>
+                        {sub_periodo}
+                    </div>
+
+                    <!-- Coluna 2: Valor Estimado -->
+                    <div style="display:flex; align-items:center; justify-content:center; font-size:1.25rem; font-weight:800; color:#0A6B56; text-align:center; padding:12px 6px; border-left:1px solid #F1F5F9; border-right:1px solid #F1F5F9;" title="Total: {fmt_brl(prazo_val)}">
+                        {val_str}
+                    </div>
+
+                    <!-- Coluna 3: Itens / Ações Previstas -->
+                    <div style="padding:12px 18px; font-size:0.87rem; display:flex; flex-direction:column; justify-content:center;">
+                        {bloco_itens}
+                    </div>
+                </div>"""
+            )
+
+        corpo_tabela = "".join(linhas_html)
+
+        st.markdown(
+            f"""<div style="border:2px solid #4F46E5; border-radius:16px; overflow:hidden; background:#FFFFFF; box-shadow:0 8px 24px rgba(79,70,229,0.08);">
+                <!-- Header Navy -->
+                <div style="background:#1B365D; color:#FFFFFF; display:grid; grid-template-columns: 210px 140px 1fr; padding:12px 18px; font-weight:800; font-size:0.84rem; letter-spacing:0.05em; text-transform:uppercase;">
+                    <div style="padding-left: 24px;">Período</div>
+                    <div style="text-align: center;">Valor Estimado</div>
+                    <div style="padding-left: 10px;">Itens / Ações Previstas</div>
+                </div>
+                <!-- Linhas -->
+                {corpo_tabela}
+                <!-- Rodapé -->
+                <div style="background:#F8FAFC; padding:8px 18px; font-size:0.75rem; color:#64748B; font-weight:500; border-top:1px solid #E2E8F0;">
+                    Valores expressos em milhões de reais (R$ mi).
+                </div>
+            </div>""",
+            unsafe_allow_html=True,
+        )
 
 cores_unidades = {
     "Tecnologia da Informação": "#2563EB",
