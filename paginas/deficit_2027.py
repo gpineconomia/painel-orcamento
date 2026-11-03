@@ -7,7 +7,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from common import brl, num, style, PALETTE
+from common import brl, num, style, PALETTE, fmt_brl
 
 try:
     from common import get_deficit_data
@@ -329,12 +329,12 @@ with tab_tabela:
         key="tab_def_momento",
     )
 
-    # 2. Filtros Específicos em Linha
-    fc1, fc2, fc3 = st.columns([1.6, 1.2, 1.2])
+    # 2. Filtros Específicos em Linha e Ordenação
+    fc1, fc2, fc3, fc4 = st.columns([1.5, 1.1, 1.1, 1.1])
     with fc1:
         f_busca_tab = st.text_input(
             "🔍 Buscar na tabela",
-            placeholder="Digite nome do contrato, serviço ou palavra-chave...",
+            placeholder="Digite contrato, serviço ou palavra-chave...",
             key="tab_def_busca",
         )
     with fc2:
@@ -352,6 +352,12 @@ with tab_tabela:
             options=tipos_tab,
             default=tipos_tab,
             key="tab_def_tipos",
+        )
+    with fc4:
+        ordem_tab = st.selectbox(
+            "Ordenar por:",
+            ["Maior Valor (R$)", "Menor Valor (R$)", "Cronológico (Prazo)", "Despesa (A-Z)", "Unidade"],
+            key="tab_def_ordem",
         )
 
     # Aplicação dos filtros na visualização da tabela
@@ -380,6 +386,18 @@ with tab_tabela:
     if f_tipo_tab:
         df_tab = df_tab[df_tab["Tipo_Demanda"].isin(f_tipo_tab)]
 
+    # Aplica ordenação selecionada
+    if ordem_tab == "Maior Valor (R$)":
+        df_tab = df_tab.sort_values(by="Valor", ascending=False)
+    elif ordem_tab == "Menor Valor (R$)":
+        df_tab = df_tab.sort_values(by="Valor", ascending=True)
+    elif ordem_tab == "Cronológico (Prazo)":
+        df_tab = df_tab.sort_values(by=["Ordem_Cronologica", "Valor"], ascending=[True, False])
+    elif ordem_tab == "Despesa (A-Z)":
+        df_tab = df_tab.sort_values(by="Despesa", ascending=True)
+    elif ordem_tab == "Unidade":
+        df_tab = df_tab.sort_values(by=["Unidade", "Valor"], ascending=[True, False])
+
     # 3. Faixa de Resumo Dinâmico dos Dados Filtrados
     tot_tab = float(df_tab["Valor"].sum())
     qtd_tab = len(df_tab)
@@ -391,8 +409,8 @@ with tab_tabela:
                 📋 Exibindo <strong>{qtd_tab}</strong> de {qtd_itens} demandas selecionadas
             </div>
             <div style="font-size:0.95rem; color:#14532D;">
-                Total Filtrado: <strong style="font-size:1.15rem; color:#0A6B56;">{brl(tot_tab)}</strong> 
-                <span style="font-size:0.85rem; color:#15803D; font-weight:600;">({pct_tab:.1f}% do déficit ativo)</span>
+                Total Filtrado: <strong style="font-size:1.15rem; color:#0A6B56;">{fmt_brl(tot_tab)}</strong> 
+                <span style="font-size:0.85rem; color:#15803D; font-weight:600;">({f"{pct_tab:.1f}%".replace(".", ",")} do déficit ativo)</span>
             </div>
         </div>""",
         unsafe_allow_html=True,
@@ -401,12 +419,15 @@ with tab_tabela:
     if df_tab.empty:
         st.info("Nenhuma demanda encontrada para os filtros selecionados na tabela.")
     else:
-        # 4. Tabela Interativa Formatada
-        df_view = df_tab[["Despesa", "Unidade", "Tipo_Demanda", "Prazo", "Categoria_Prazo", "Valor", "% do Déficit"]].copy()
-        max_pct = float(df_raw["% do Déficit"].max()) if not df_raw.empty else 100.0
+        # 4. Tabela Interativa Formatada no Padrão Brasileiro (X.XXX.XXX,XX)
+        df_view = df_tab.copy()
+        df_view["Valor (R$)"] = df_view["Valor"].apply(fmt_brl)
+        df_view["% do Déficit"] = df_view["% do Déficit"].apply(lambda v: f"{v:.2f}%".replace(".", ","))
+
+        cols_display = ["Despesa", "Unidade", "Tipo_Demanda", "Prazo", "Categoria_Prazo", "Valor (R$)", "% do Déficit"]
 
         st.dataframe(
-            df_view,
+            df_view[cols_display],
             width="stretch",
             height=460,
             hide_index=True,
@@ -433,17 +454,15 @@ with tab_tabela:
                     "Categoria",
                     width="small",
                 ),
-                "Valor": st.column_config.NumberColumn(
+                "Valor (R$)": st.column_config.TextColumn(
                     "Valor do Déficit (R$)",
-                    help="Valor total estimado necessário",
-                    format="R$ %,.2f",
+                    help="Valor no padrão monetário brasileiro (R$ X.XXX.XXX,XX)",
+                    alignment="right",
                 ),
-                "% do Déficit": st.column_config.ProgressColumn(
+                "% do Déficit": st.column_config.TextColumn(
                     "% do Déficit",
-                    help="Participação percentual da despesa sobre o déficit total (R$ 49,85 Mi)",
-                    format="%.2f%%",
-                    min_value=0.0,
-                    max_value=max_pct,
+                    help="Participação percentual da despesa sobre o déficit total",
+                    alignment="right",
                 ),
             },
         )
@@ -468,11 +487,11 @@ with tab_tabela:
                         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px; margin-top:10px;">
                             <div>
                                 <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Valor Necessário</span><br>
-                                <span style="font-size:1.25rem; font-weight:800; color:#0A6B56;">{brl(d_val)}</span>
+                                <span style="font-size:1.25rem; font-weight:800; color:#0A6B56;">{fmt_brl(d_val)}</span>
                             </div>
                             <div>
                                 <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Impacto no Déficit</span><br>
-                                <span style="font-size:1.25rem; font-weight:800; color:#2563EB;">{d_pct:.2f}%</span>
+                                <span style="font-size:1.25rem; font-weight:800; color:#2563EB;">{f"{d_pct:.2f}%".replace(".", ",")}</span>
                             </div>
                             <div>
                                 <span style="font-size:0.75rem; color:#64748B; text-transform:uppercase; font-weight:600;">Momento da Liberação</span><br>
