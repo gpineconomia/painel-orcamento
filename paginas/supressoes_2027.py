@@ -160,14 +160,14 @@ with c4:
                     box-shadow: 0 4px 14px rgba(49,46,129,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
           <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {pct_global:.1f}%
+            {pct_alvo:.1f}%
           </div>
           <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
                       color:#C7D2FE; margin-top:8px; font-weight:700;">
-            Índice Global de Supressão
+            Índice de Redução nos Contratos Alvo
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            Sobre {brl(tot_despesas_unidade_2027, short=True)} (Despesas por Unidade)
+            {qtd_cortados} de {qtd_itens} itens com redução
           </div>
         </div>"""
     )
@@ -178,14 +178,14 @@ with c5:
                     box-shadow: 0 4px 14px rgba(30,41,59,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(148,163,184,0.3); {card_base_style}">
           <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {qtd_cortados} <span style="font-size:1.1rem; font-weight:500; color:#94A3B8;">/ {qtd_itens}</span>
+            {pct_global:.1f}%
           </div>
           <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
                       color:#94A3B8; margin-top:8px; font-weight:700;">
-            Itens Suprimidos / Analisados
+            Índice Global de Supressão
           </div>
           <div style="font-size:0.70rem; color:#CBD5E1; margin-top:4px; opacity:0.85;">
-            Corte nos contratos alvo: {pct_alvo:.1f}%
+            Sobre {brl(tot_despesas_unidade_2027, short=True)} (Despesas por Unidade)
           </div>
         </div>"""
     )
