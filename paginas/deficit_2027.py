@@ -94,10 +94,10 @@ tot_deficit = float(df["Valor"].sum())
 qtd_itens = len(df)
 
 # Subtotais por momento
-val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026"])]["Valor"].sum())
+val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]["Valor"].sum())
 val_sem1 = float(df[df["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]["Valor"].sum())
 val_sem2 = float(df[df["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]["Valor"].sum())
-val_judicial_indet = float(df[df["Prazo"].isin(["Pendente Judicial", "Indeterminado"])]["Valor"].sum())
+val_indet = float(df[df["Prazo"] == "Indeterminado"]["Valor"].sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -138,7 +138,7 @@ with c2:
             </div>
           </div>
           <div style="font-size:0.70rem; color:#FFEDD5; margin-top:4px; opacity:0.85;">
-            Imediato e Dezembro/2026
+            Imediato, Pend. Judicial e Dez/26
           </div>
         </div>"""
     )
@@ -190,15 +190,15 @@ with c5:
                     border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {brl(val_judicial_indet, short=True).replace("R$ ", "")}
+              {brl(val_indet, short=True).replace("R$ ", "")}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
-              Judicial / Indet.
+              Prazo Indeterminado
             </div>
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            Pendente Judicial e Indeterminado
+            1 demanda (Convênio SEFAZ/RS)
           </div>
         </div>"""
     )

@@ -358,14 +358,14 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 "10/2027": "Outubro/2027",
             }.get(dt_str, dt_str)
             ordem = {
-                "12/2026": 1,
-                "01/2027": 2,
-                "02/2027": 3,
-                "03/2027": 4,
-                "06/2027": 5,
-                "09/2027": 6,
-                "10/2027": 7,
-            }.get(dt_str, 8)
+                "12/2026": 2,
+                "01/2027": 3,
+                "02/2027": 4,
+                "03/2027": 5,
+                "06/2027": 6,
+                "09/2027": 7,
+                "10/2027": 8,
+            }.get(dt_str, 9)
             prazo_label = mes_nome
             prazo_cat = "Calendário PLOA"
         elif isinstance(prazo_raw, str):
@@ -373,22 +373,22 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
             if "imediato" in p_clean:
                 prazo_label = "Imediato"
                 ordem = 0
-                prazo_cat = "Imediato"
+                prazo_cat = "Imediato / Urgente"
             elif "judicial" in p_clean:
                 prazo_label = "Pendente Judicial"
-                ordem = 8
-                prazo_cat = "Pendente Judicial"
+                ordem = 1
+                prazo_cat = "Imediato / Urgente"
             elif "indeterminado" in p_clean:
                 prazo_label = "Indeterminado"
-                ordem = 9
+                ordem = 10
                 prazo_cat = "Indeterminado"
             else:
                 prazo_label = prazo_raw.strip().capitalize()
-                ordem = 10
+                ordem = 11
                 prazo_cat = "Outros"
         else:
             prazo_label = "Não Informado"
-            ordem = 11
+            ordem = 12
             prazo_cat = "Outros"
 
         desp_lower = desp_str.lower()
