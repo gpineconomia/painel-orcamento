@@ -46,20 +46,54 @@ cota = ctx.cota_tesouro
 saldo_cota = cota - tot_geral
 sem_est = int((df[C_TOTAL] == 0).sum())
 
-c1, c2, c3, c4, c5 = st.columns(5)
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+# Estimado Essencial: Contratados (Todos), Em Processo, Em Substituição
+status_essenciais = ["Contratados (Todos)", "Em Processo", "Em Substituição"]
+df_base_ess = getattr(ctx, "df_sem_contrato", df).copy()
+if C_TOTAL not in df_base_ess.columns:
+    df_base_ess[C_TOTAL] = df_base_ess[C_MESES].sum(axis=1) if C_MESES else 0.0
+
+mask_ess = df_base_ess["_status_contrato"].isin(status_essenciais)
+if "_is_contratado" in df_base_ess.columns:
+    mask_ess |= df_base_ess["_is_contratado"]
+
+tot_essencial = float(df_base_ess[mask_ess][C_TOTAL].sum())
+
+c1, c_ess, c2, c3, c4, c5 = st.columns(6)
+card_base_style = "border-radius:14px; padding:14px 16px; color:#FFFFFF; text-align:left; min-height:115px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #064E3B 0%, #022C22 100%);
                     box-shadow: 0 6px 18px rgba(6,78,59,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
                     border: 1.5px solid rgba(52,211,153,0.45); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_geral, short=True).replace("R$ ", "")}
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_geral, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#6EE7B7; margin-top:8px; font-weight:700;">
+              Estimado Total {ANO}
+            </div>
           </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#6EE7B7; margin-top:8px; font-weight:700;">
-            Estimado Total {ANO}
+        </div>"""
+    )
+
+with c_ess:
+    st.html(
+        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0F766E 0%, #115E59 100%);
+                    box-shadow: 0 4px 14px rgba(15,118,110,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+                    border: 1.5px solid rgba(45,212,191,0.45); {card_base_style}">
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_essencial, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#5EEAD4; margin-top:8px; font-weight:700; white-space:nowrap;">
+              Estimado Essencial
+            </div>
+          </div>
+          <div style="font-size:0.65rem; color:#CCFBF1; margin-top:4px; opacity:0.85;">
+            Contratados + Processo + Subst.
           </div>
         </div>"""
     )
@@ -69,13 +103,15 @@ with c2:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
                     box-shadow: 0 4px 14px rgba(49,46,129,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_custeio, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#C7D2FE; margin-top:8px; font-weight:700; display:flex; justify-content:space-between;">
-            <span>Custeio</span>
-            <span style="background:rgba(255,255,255,0.2); padding:1px 6px; border-radius:4px;">{pct_custeio:.1f}%</span>
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_custeio, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#C7D2FE; margin-top:8px; font-weight:700; display:flex; justify-content:space-between;">
+              <span>Custeio</span>
+              <span style="background:rgba(255,255,255,0.2); padding:1px 6px; border-radius:4px;">{pct_custeio:.1f}%</span>
+            </div>
           </div>
         </div>"""
     )
@@ -85,13 +121,15 @@ with c3:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
                     box-shadow: 0 4px 14px rgba(2,132,199,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(186,230,253,0.3); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_invest, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#BAE6FD; margin-top:8px; font-weight:700; display:flex; justify-content:space-between;">
-            <span>Investimento</span>
-            <span style="background:rgba(255,255,255,0.2); padding:1px 6px; border-radius:4px;">{pct_invest:.1f}%</span>
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_invest, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#BAE6FD; margin-top:8px; font-weight:700; display:flex; justify-content:space-between;">
+              <span>Investimento</span>
+              <span style="background:rgba(255,255,255,0.2); padding:1px 6px; border-radius:4px;">{pct_invest:.1f}%</span>
+            </div>
           </div>
         </div>"""
     )
@@ -101,12 +139,14 @@ with c4:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0E7490 0%, #155E75 100%);
                     box-shadow: 0 4px 14px rgba(14,116,144,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(cota, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#A5F3FC; margin-top:8px; font-weight:700;">
-            Cota Tesouro
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(cota, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#A5F3FC; margin-top:8px; font-weight:700;">
+              Cota Tesouro
+            </div>
           </div>
         </div>"""
     )
@@ -118,12 +158,14 @@ with c5:
         f"""<div class="notranslate" translate="no" style="background: {saldo_bg};
                     box-shadow: 0 4px 14px rgba(37,99,235,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(saldo_cota, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:{saldo_color}; margin-top:8px; font-weight:700;">
-            Saldo Orçamentário
+          <div>
+            <div style="font-size:1.75rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(saldo_cota, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.70rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:{saldo_color}; margin-top:8px; font-weight:700;">
+              Saldo Orçamentário
+            </div>
           </div>
         </div>"""
     )
