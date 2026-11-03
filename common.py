@@ -310,6 +310,61 @@ def get_supressoes_data():
     return load_supressoes_2027()
 
 
+@st.cache_data(ttl=REFRESH_SECONDS)
+def get_total_despesas_unidade_2027(unidades_sup: list[str] | tuple[str, ...] | None = None) -> float:
+    """Calcula o valor Estimado Total das Despesas por Unidade (2027) com filtros padrão (Situação=Ativo, PROFISCO=Não)."""
+    raw_2027, _, _ = get_data(2027)
+    c_tot = None
+    c_prof = None
+    c_sit = None
+    c_def = None
+    c_uni = None
+    for c in raw_2027.columns:
+        c_str = str(c)
+        if c_str.startswith("Estimado Total"):
+            c_tot = c_str
+        elif "profisco" in c_str.lower():
+            c_prof = c_str
+        elif c_str == "Situação":
+            c_sit = c_str
+        elif "deficit" in c_str.lower():
+            c_def = c_str
+        elif c_str == "Unidade":
+            c_uni = c_str
+
+    if not c_tot:
+        return 0.0
+
+    c_meses = [c for m in MESES if (c := [col for col in raw_2027.columns if col == f"Estimado {m}"])]
+    c_meses = [c[0] for c in c_meses if c]
+
+    df = raw_2027[raw_2027[c_tot] > 0].copy()
+    if c_prof and c_prof in df.columns:
+        is_prof = df[c_prof].astype(str).str.strip().str.lower().isin(["sim", "s", "true"])
+        df = df[~is_prof]
+    if c_sit and c_sit in df.columns:
+        df = df[df[c_sit] == "Ativo"]
+
+    val_meses = df[c_meses].sum(axis=1) if c_meses else pd.to_numeric(df[c_tot], errors="coerce").fillna(0)
+    val_def = pd.to_numeric(df[c_def], errors="coerce").fillna(0) if c_def and c_def in df.columns else 0.0
+    df["_val_tot"] = val_meses + val_def
+
+    # Se filtrado por unidades de supressões (ex: SGI, STI, RECEITA)
+    if unidades_sup and len(unidades_sup) < 3 and c_uni and c_uni in df.columns:
+        uni_map = {
+            "SGI": ["Gestão Integrada"],
+            "STI": ["Tecnologia da Informação"],
+            "RECEITA": ["Receita", "Receita/Gestão Integrada"],
+        }
+        allowed = []
+        for u in unidades_sup:
+            allowed.extend(uni_map.get(str(u).upper().strip(), []))
+        if allowed:
+            df = df[df[c_uni].isin(allowed)]
+
+    return float(df["_val_tot"].sum())
+
+
 def get_cotas_tesouro_map(ano: int = 2026) -> dict[str, float]:
     """Lê as cotas orçamentárias (Fontes 15000100 e 15010100 Receitas Ordinárias do Tesouro em 2026 / LOA em 2027)."""
     if ano == 2026:
