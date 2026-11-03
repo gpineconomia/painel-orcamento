@@ -98,19 +98,21 @@ qtd_cortados = int((df["Economia Gerada"] > 0).sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4, c5 = st.columns(5)
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; min-height:120px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #064E3B 0%, #022C22 100%);
                     box-shadow: 0 6px 18px rgba(6,78,59,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
                     border: 1.5px solid rgba(52,211,153,0.45); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_orc, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#6EE7B7; margin-top:8px; font-weight:700;">
-            Proposta dos Contratos Alvo
+          <div>
+            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_orc, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#6EE7B7; margin-top:8px; font-weight:700;">
+              Proposta dos Contratos Alvo
+            </div>
           </div>
           <div style="font-size:0.70rem; color:#A7F3D0; margin-top:4px; opacity:0.85;">
             Estimado inicial dos itens analisados
@@ -123,12 +125,14 @@ with c2:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #0E7490 0%, #155E75 100%);
                     box-shadow: 0 4px 14px rgba(14,116,144,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_teto, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#A5F3FC; margin-top:8px; font-weight:700;">
-            Teto dos Contratos Alvo
+          <div>
+            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_teto, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#A5F3FC; margin-top:8px; font-weight:700;">
+              Teto dos Contratos Alvo
+            </div>
           </div>
           <div style="font-size:0.70rem; color:#BAE6FD; margin-top:4px; opacity:0.85;">
             Limite pós-supressão dos itens
@@ -141,12 +145,14 @@ with c3:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #BE123C 0%, #9F1239 100%);
                     box-shadow: 0 4px 14px rgba(190,18,60,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {brl(tot_econ, short=True).replace("R$ ", "")}
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#FECDD3; margin-top:8px; font-weight:700;">
-            Economia Total Gerada
+          <div>
+            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {brl(tot_econ, short=True).replace("R$ ", "")}
+            </div>
+            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#FECDD3; margin-top:8px; font-weight:700;">
+              Economia Total Gerada
+            </div>
           </div>
           <div style="font-size:0.70rem; color:#FFE4E6; margin-top:4px; opacity:0.85;">
             Redução total proposta
@@ -159,15 +165,17 @@ with c4:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #312E81 0%, #1E1B4B 100%);
                     box-shadow: 0 4px 14px rgba(49,46,129,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(165,180,252,0.3); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {pct_alvo:.1f}%
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#C7D2FE; margin-top:8px; font-weight:700;">
-            Índice de Redução nos Contratos Alvo
+          <div>
+            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {pct_alvo:.1f}%
+            </div>
+            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
+              Redução nos Contratos Alvo
+            </div>
           </div>
           <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            {qtd_cortados} de {qtd_itens} itens com redução
+            Sobre {brl(tot_orc, short=True)} (Proposta dos Contratos Alvo)
           </div>
         </div>"""
     )
@@ -177,12 +185,14 @@ with c5:
         f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
                     box-shadow: 0 4px 14px rgba(30,41,59,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(148,163,184,0.3); {card_base_style}">
-          <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-            {pct_global:.1f}%
-          </div>
-          <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.06em;
-                      color:#94A3B8; margin-top:8px; font-weight:700;">
-            Índice Global de Supressão
+          <div>
+            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+              {pct_global:.1f}%
+            </div>
+            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                        color:#94A3B8; margin-top:8px; font-weight:700; white-space:nowrap;">
+              Índice Global de Supressão
+            </div>
           </div>
           <div style="font-size:0.70rem; color:#CBD5E1; margin-top:4px; opacity:0.85;">
             Sobre {brl(tot_despesas_unidade_2027, short=True)} (Despesas por Unidade)
