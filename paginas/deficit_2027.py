@@ -233,7 +233,9 @@ with tab_graficos:
         color_discrete_sequence=px.colors.qualitative.Prism,
     )
     fig_chrono.update_traces(textposition="outside", cliponaxis=False)
-    fig_chrono.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Valor (R$)")
+    max_val_c = df_chrono["Valor"].max() if not df_chrono.empty else 1.0
+    fig_chrono.update_layout(showlegend=False, xaxis_title=None, yaxis_title="Valor (R$)", margin=dict(t=40, r=30))
+    fig_chrono.update_yaxes(range=[0, max_val_c * 1.20])
     fig_chrono = style(fig_chrono, height=420)
     st.plotly_chart(fig_chrono, width="stretch")
 
@@ -272,7 +274,9 @@ with tab_graficos:
             color_discrete_sequence=px.colors.qualitative.Safe,
         )
         fig_tipo.update_traces(textposition="outside", cliponaxis=False)
-        fig_tipo.update_layout(showlegend=False, xaxis_title=None, yaxis_title=None)
+        max_val_t = df_t["Valor"].max() if not df_t.empty else 1.0
+        fig_tipo.update_xaxes(range=[0, max_val_t * 1.30], showticklabels=True)
+        fig_tipo.update_layout(showlegend=False, xaxis_title=None, yaxis_title=None, margin=dict(r=45))
         fig_tipo = style(fig_tipo, height=400)
         st.plotly_chart(fig_tipo, width="stretch")
 
@@ -305,8 +309,10 @@ with tab_graficos:
             hovertemplate="<b>%{customdata[0]}</b><br>Unidade: %{customdata[1]}<br>Prazo: %{customdata[2]}<br>Valor: %{text} (%{customdata[3]:.1f}%)<extra></extra>",
             textfont=dict(size=12, color="#0F2A20", family="Inter, Segoe UI, sans-serif"),
         )
-        fig_top.update_xaxes(range=[0, df_top["Valor"].max() * 1.25], showticklabels=False, title=None)
+        max_val_top = df_top["Valor"].max() if not df_top.empty else 1.0
+        fig_top.update_xaxes(range=[0, max_val_top * 1.30], showticklabels=False, title=None)
         fig_top.update_yaxes(title=None, tickfont=dict(size=12))
+        fig_top.update_layout(margin=dict(r=45))
         fig_top = style(fig_top, height=480)
         st.plotly_chart(fig_top, width="stretch")
 
