@@ -44,9 +44,46 @@ CSS = """
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 html, body, [class*="css"], .stApp {font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;}
 .stApp {background: linear-gradient(180deg,#F6FAF8 0%,#EEF6F2 100%);}
-.block-container {padding-top: 1.8rem; max-width: 1600px;}
+.block-container, [data-testid="stMainBlockContainer"] {padding-top: 0.25rem !important; padding-bottom: 2rem !important; max-width: 1600px;}
 #MainMenu, footer {visibility: hidden;}
-header[data-testid="stHeader"] {background: transparent;}
+header[data-testid="stHeader"] {background: transparent !important; height: 1.2rem !important; min-height: 1.2rem !important;}
+
+/* Oculta completamente componentes invisíveis que criam linha em branco no topo */
+iframe[title="streamlit_autorefresh.st_autorefresh"],
+div[data-testid="stCustomComponentV1"]:has(iframe[title="streamlit_autorefresh.st_autorefresh"]) {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+.block-container > div:first-child,
+[data-testid="stMainBlockContainer"] > div:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
+
+/* Remove espaçamento/linha pulada antes do cabeçalho em TODAS as abas (tabs) */
+div[data-baseweb="tab-panel"] {
+    padding-top: 0.25rem !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+div[data-baseweb="tab-list"] {
+    margin-bottom: 0.25rem !important;
+    gap: 8px !important;
+}
+div[data-baseweb="tab-panel"] > div > div:first-child,
+div[data-baseweb="tab-panel"] [data-testid="stVerticalBlock"] > div:first-child,
+div[data-baseweb="tab-panel"] [data-testid="stMarkdownContainer"] > *:first-child,
+div[data-baseweb="tab-panel"] h1:first-child,
+div[data-baseweb="tab-panel"] h2:first-child,
+div[data-baseweb="tab-panel"] h3:first-child,
+div[data-baseweb="tab-panel"] h4:first-child,
+div[data-baseweb="tab-panel"] h5:first-child,
+div[data-baseweb="tab-panel"] h6:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+}
 
 /* Cabeçalho */
 .hero {display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:1.2rem;
@@ -216,7 +253,7 @@ def check_access() -> None:
 
 
 def inject_css() -> None:
-    st.markdown(CSS, unsafe_allow_html=True)
+    st.html(CSS)
     st.html(
         """<meta name="google" content="notranslate">
         <script>

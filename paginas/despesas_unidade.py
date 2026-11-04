@@ -215,8 +215,6 @@ with c4:
         </div>"""
     )
 
-st.write("")
-
 # ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO E FILTROS
 ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1.5, 1.3, 1.8])
 
@@ -237,7 +235,6 @@ with ctrl_col2:
     )
 
 with ctrl_col3:
-    st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True)
     is_sidebar_ess = st.session_state.get(f"f_essenciais_{ANO}") == "⭐ Somente Essenciais"
     btn_essencial = st.toggle(
         "⭐ Somente Despesas Essenciais",

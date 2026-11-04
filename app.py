@@ -9,7 +9,6 @@ import oraculo
 
 st.set_page_config(page_title="Gestão Orçamentária", page_icon="📊", layout="wide")
 inject_css()
-st_autorefresh(interval=REFRESH_SECONDS * 1000, key="auto_refresh")
 
 # ------------------------------------------------------------------ navegação de páginas
 page_oraculo = st.Page("paginas/oraculo_ia.py", title="Oráculo (Assistente IA)", icon="🔮")
@@ -37,6 +36,7 @@ pages = {
 pg = st.navigation(pages)
 
 with st.sidebar:
+    st_autorefresh(interval=REFRESH_SECONDS * 1000, key="auto_refresh")
     st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
     if st.button("🔄 Atualizar Painel", use_container_width=True, help="Baixa as alterações mais recentes do SharePoint/SIAFIC e recarrega os dados"):
         with st.spinner("Sincronizando todas as bases de dados..."):
