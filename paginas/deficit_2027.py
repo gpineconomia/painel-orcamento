@@ -312,7 +312,7 @@ Observação: valores expressos em milhões de reais (R$ mi).
 
             if is_judicial:
                 nome_periodo = "Pendência judicial"
-                sub_periodo = "<div style='font-size:0.78rem; color:#DC2626; font-weight:700; margin-top:2px;'>(estão sem IPOF)</div>"
+                sub_periodo = ""
                 cor_ponto = "#DC2626"
                 cor_linha = "#DC2626"
                 cor_texto = "#DC2626"
