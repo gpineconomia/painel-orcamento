@@ -347,7 +347,16 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
         desp_lower = desp_str.lower()
         val_f = float(val) if val is not None else 0.0
 
-        if isinstance(prazo_raw, datetime):
+        # Regras de negócio prioritárias para classificação de prazos de déficit
+        if "sefaz" in desp_lower:
+            prazo_label = "Prazo Indeterminado"
+            ordem = 8
+            prazo_cat = "Prazo Indeterminado"
+        elif "desenvolvimento" in desp_lower and ("tic" in desp_lower or "profisco" in desp_lower):
+            prazo_label = "Pendência judicial"
+            ordem = 9
+            prazo_cat = "Imediato / Urgente"
+        elif isinstance(prazo_raw, datetime):
             dt_str = prazo_raw.strftime("%m/%Y")
             mes_nome = {
                 "12/2026": "Dezembro/2026",
@@ -376,7 +385,7 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 ordem = 0
                 prazo_cat = "Imediato / Urgente"
             elif "judicial" in p_clean:
-                prazo_label = "Pendente Judicial"
+                prazo_label = "Pendência judicial"
                 ordem = 9
                 prazo_cat = "Imediato / Urgente"
             elif "indeterminado" in p_clean:

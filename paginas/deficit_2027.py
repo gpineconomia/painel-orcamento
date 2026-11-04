@@ -112,7 +112,7 @@ tot_deficit = float(df["Valor"].sum())
 qtd_itens = len(df)
 
 # Subtotais por momento
-val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]["Valor"].sum())
+val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendência judicial", "Pendente Judicial"])]["Valor"].sum())
 val_sem1 = float(df[df["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]["Valor"].sum())
 val_sem2 = float(df[df["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]["Valor"].sum())
 val_indet = float(df[df["Prazo"].str.contains("Indeterminado", case=False, na=False)]["Valor"].sum())
@@ -156,7 +156,7 @@ with c2:
             </div>
           </div>
           <div style="font-size:0.70rem; color:#FFEDD5; margin-top:4px; opacity:0.85;">
-            Imediato, Pend. Judicial e Dez/26
+            Imediato e Pendência Judicial
           </div>
         </div>"""
     )
@@ -253,11 +253,11 @@ with tab_timeline:
     col_card, col_time = st.columns([1.1, 3.2], gap="large")
 
     with col_card:
-        tot_deficit_str = f"{tot_deficit / 1e6:,.2f}".replace(".", ",")
+        tot_deficit_str = f"{tot_deficit / 1e6:,.1f}".replace(".", ",")
         st.html(
             f"""<div style="background:#FFFFFF; border:1.5px solid #E2E8F0; border-radius:18px; padding:24px 18px;
 box-shadow:0 6px 22px rgba(27,54,93,0.07); text-align:center; height:100%; min-height:480px;
-display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden;">
+display:flex; flex-direction:column; justify-content:space-between; position:relative; overflow:hidden; box-sizing:border-box; width:100%;">
 <div>
 <div style="width:72px; height:72px; margin:0 auto 16px auto; background:linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
 border:2px solid #BFDBFE; border-radius:50%; display:flex; align-items:center; justify-content:center;
