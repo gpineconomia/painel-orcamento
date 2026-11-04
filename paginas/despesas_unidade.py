@@ -104,7 +104,7 @@ st.html(
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c_ess, c2, c3, c4 = st.columns(5)
 
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; min-height:115px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:18px 20px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
@@ -112,13 +112,16 @@ with c1:
                     box-shadow: 0 6px 18px rgba(6,78,59,0.32), inset 0 1px 0 rgba(255,255,255,0.25);
                     border: 1.5px solid rgba(52,211,153,0.45); {card_base_style}">
           <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            <div style="font-size:1.95rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
               {brl(tot_geral, short=True).replace("R$ ", "")}
             </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#6EE7B7; margin-top:8px; font-weight:700;">
               Estimado Total
             </div>
+          </div>
+          <div style="font-size:0.68rem; color:#A7F3D0; margin-top:4px; opacity:0.85;">
+            Planejamento Consolidado
           </div>
         </div>"""
     )
@@ -129,10 +132,10 @@ with c_ess:
                     box-shadow: 0 4px 14px rgba(15,118,110,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1.5px solid rgba(45,212,191,0.45); {card_base_style}">
           <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            <div style="font-size:1.95rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
               {brl(tot_essencial, short=True).replace("R$ ", "")}
             </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#5EEAD4; margin-top:8px; font-weight:700; white-space:nowrap;">
               Estimado Essencial
             </div>
@@ -149,16 +152,16 @@ with c2:
                     box-shadow: 0 4px 14px rgba(190,18,60,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
           <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            <div style="font-size:1.95rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
               {brl(tot_def, short=True).replace("R$ ", "")}
             </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FECDD3; margin-top:8px; font-weight:700;">
               Estimado Déficit
             </div>
           </div>
           <div style="font-size:0.68rem; color:#FFE4E6; margin-top:4px; opacity:0.85;">
-            Autorizado
+            Necessidade Suplementação (Autorizado)
           </div>
         </div>"""
     )
@@ -169,13 +172,16 @@ with c3:
                     box-shadow: 0 4px 14px rgba(14,116,144,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
           <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            <div style="font-size:1.95rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
               {brl(cota, short=True).replace("R$ ", "")}
             </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#A5F3FC; margin-top:8px; font-weight:700;">
               Cota Tesouro
             </div>
+          </div>
+          <div style="font-size:0.68rem; color:#CFFAFE; margin-top:4px; opacity:0.85;">
+            Limite Inicial Disponível
           </div>
         </div>"""
     )
@@ -186,13 +192,16 @@ with c4:
                     box-shadow: 0 4px 14px rgba(37,99,235,0.22), inset 0 1px 0 rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.15); {card_base_style}">
           <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+            <div style="font-size:1.95rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
               {brl(tot_cota_deficit, short=True).replace("R$ ", "")}
             </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+            <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#BFDBFE; margin-top:8px; font-weight:700;">
               Cota + Déficit
             </div>
+          </div>
+          <div style="font-size:0.68rem; color:#DBEAFE; margin-top:4px; opacity:0.85;">
+            Cota Disponível + Suplementação
           </div>
         </div>"""
     )
