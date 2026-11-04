@@ -46,31 +46,35 @@ cota = ctx.cota_tesouro
 saldo_cota = cota - tot_geral
 sem_est = int((df[C_TOTAL] == 0).sum())
 
-# Estimado Essencial: Contratados (Todos), Em Processo, Em Substituição + Em Planejamento com Déficit
+# Estimado Essencial: Contratados (Todos), Em Processo, Em Substituição + Em Planejamento com Déficit ou IPOF Liberado
+# Calculado sobre a base filtrada (df) para refletir os filtros selecionados pelo usuário
 status_essenciais = ["Contratados (Todos)", "Em Processo", "Em Substituição"]
-df_base_ess = getattr(ctx, "df_sem_contrato", df).copy()
+df_base_ess = df.copy()
 if C_TOTAL not in df_base_ess.columns:
     df_base_ess[C_TOTAL] = df_base_ess[C_MESES].sum(axis=1) if C_MESES else 0.0
 
-mask_ess = df_base_ess["_status_contrato"].isin(status_essenciais)
-if "_is_contratado" in df_base_ess.columns:
-    mask_ess |= df_base_ess["_is_contratado"]
+if "_is_essencial" in df_base_ess.columns:
+    mask_ess = df_base_ess["_is_essencial"]
+else:
+    mask_ess = df_base_ess["_status_contrato"].isin(status_essenciais)
+    if "_is_contratado" in df_base_ess.columns:
+        mask_ess |= df_base_ess["_is_contratado"]
 
-# Soma também os itens com Contrato "Em Planejamento" que tenham a coluna Déficit preenchida (priorizados)
-C_DEFICIT = getattr(ctx, "C_DEFICIT", None)
-if C_DEFICIT and C_DEFICIT in df_base_ess.columns:
-    val_def_ess = pd.to_numeric(df_base_ess[C_DEFICIT], errors="coerce").fillna(0)
-    mask_plan_def = (df_base_ess["_status_contrato"] == "Em Planejamento") & (val_def_ess > 0)
-    mask_ess |= mask_plan_def
+    # Soma também os itens com Contrato "Em Planejamento" que tenham a coluna Déficit preenchida (priorizados)
+    C_DEFICIT = getattr(ctx, "C_DEFICIT", None)
+    if C_DEFICIT and C_DEFICIT in df_base_ess.columns:
+        val_def_ess = pd.to_numeric(df_base_ess[C_DEFICIT], errors="coerce").fillna(0)
+        mask_plan_def = (df_base_ess["_status_contrato"] == "Em Planejamento") & (val_def_ess > 0)
+        mask_ess |= mask_plan_def
 
-# Inclui também as despesas com Contrato "Em Planejamento" que tenham as IPOFs com Situação como Liberado
-C_IPOF = getattr(ctx, "C_IPOF", None)
-if C_IPOF and C_IPOF in df_base_ess.columns:
-    mask_plan_ipof_lib = (
-        (df_base_ess["_status_contrato"] == "Em Planejamento")
-        & df_base_ess[C_IPOF].astype(str).str.contains("Liberado", case=False, na=False)
-    )
-    mask_ess |= mask_plan_ipof_lib
+    # Inclui também as despesas com Contrato "Em Planejamento" que tenham as IPOFs com Situação como Liberado
+    C_IPOF = getattr(ctx, "C_IPOF", None)
+    if C_IPOF and C_IPOF in df_base_ess.columns:
+        mask_plan_ipof_lib = (
+            (df_base_ess["_status_contrato"] == "Em Planejamento")
+            & df_base_ess[C_IPOF].astype(str).str.contains("Liberado", case=False, na=False)
+        )
+        mask_ess |= mask_plan_ipof_lib
 
 tot_essencial = float(df_base_ess[mask_ess][C_TOTAL].sum())
 
