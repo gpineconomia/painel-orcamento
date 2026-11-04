@@ -31,7 +31,7 @@ def download_liquidado_mensal_csv(timeout: int = 60) -> bool:
         # Consulta os metadados do documento para identificar a instância executada mais recente
         try:
             url_meta = f"{client.base_url}/raylight/v1/documents/{doc_id}"
-            r_meta = client.session.get(url_meta, headers={"Accept": "application/json"}, timeout=15)
+            r_meta = client.session.get(url_meta, headers={"Accept": "application/json"}, timeout=60)
             if r_meta.status_code == 200:
                 doc_info = r_meta.json().get("document", {})
                 last_inst = doc_info.get("lastSuccessfulInstanceId")
