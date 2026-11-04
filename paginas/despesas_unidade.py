@@ -240,6 +240,14 @@ with ctrl_col2:
 
 # Base para listagem na tabela hierárquica
 df_lista = df.copy()
+# Unifica Receita e Receita/Gestão Integrada em 'Receita Estadual', sem '(SRE)'
+def _map_uni_exib(u):
+    s = str(u).strip()
+    if "receita" in s.lower():
+        return "Receita Estadual"
+    return s
+df_lista["_unidade_exibicao"] = df_lista[C_UNI].apply(_map_uni_exib)
+
 tot_lista_ini = tot_inicial
 tot_lista_def = tot_def
 tot_lista_geral = tot_geral
@@ -291,16 +299,16 @@ col_sort_map = {
 sort_k = col_sort_map.get(sort_col, "_val_total")
 
 if sort_col == "Nome da Unidade":
-    ordem_unidades = df_lista.groupby(C_UNI)["_val_total"].sum().sort_index(ascending=not is_descending)
+    ordem_unidades = df_lista.groupby("_unidade_exibicao")["_val_total"].sum().sort_index(ascending=not is_descending)
 else:
-    ordem_unidades = df_lista.groupby(C_UNI)[sort_k].sum().sort_values(ascending=not is_descending)
+    ordem_unidades = df_lista.groupby("_unidade_exibicao")[sort_k].sum().sort_values(ascending=not is_descending)
 
 open_attr = "open" if expandir_tudo else ""
 
 linhas_html = []
 for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
     bg_row = "#F6FAF8" if idx % 2 == 1 else "#FFFFFF"
-    sub_df = df_lista[df_lista[C_UNI] == unidade].copy()
+    sub_df = df_lista[df_lista["_unidade_exibicao"] == unidade].copy()
     
     u_inicial = float(sub_df["_val_inicial"].sum())
     u_def = float(sub_df["_val_deficit"].sum())
