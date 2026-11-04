@@ -347,36 +347,25 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
         desp_lower = desp_str.lower()
         val_f = float(val) if val is not None else 0.0
 
-        # Regras de negócio prioritárias para classificação de prazos de déficit
-        if "sefaz" in desp_lower:
-            prazo_label = "Prazo Indeterminado"
-            ordem = 8
-            prazo_cat = "Prazo Indeterminado"
-        elif "desenvolvimento" in desp_lower and ("tic" in desp_lower or "profisco" in desp_lower):
-            prazo_label = "Pendência judicial"
-            ordem = 9
-            prazo_cat = "Imediato / Urgente"
-        elif isinstance(prazo_raw, datetime):
-            dt_str = prazo_raw.strftime("%m/%Y")
-            mes_nome = {
-                "12/2026": "Dezembro/2026",
-                "01/2027": "Janeiro/2027",
-                "02/2027": "Fevereiro/2027",
-                "03/2027": "Março/2027",
-                "06/2027": "Junho/2027",
-                "09/2027": "Setembro/2027",
-                "10/2027": "Outubro/2027",
-            }.get(dt_str, dt_str)
-            ordem = {
-                "12/2026": 1,
-                "01/2027": 2,
-                "02/2027": 3,
-                "03/2027": 4,
-                "06/2027": 5,
-                "09/2027": 6,
-                "10/2027": 7,
-            }.get(dt_str, 8)
-            prazo_label = mes_nome
+        # Interpretação estrita do prazo da planilha (sem regras hardcoded)
+        if isinstance(prazo_raw, datetime):
+            mes_map = {
+                1: ("Janeiro/2027", 1),
+                2: ("Fevereiro/2027", 2),
+                3: ("Março/2027", 3),
+                4: ("Abril/2027", 4),
+                5: ("Maio/2027", 5),
+                6: ("Junho/2027", 6),
+                7: ("Julho/2027", 7),
+                8: ("Agosto/2027", 8),
+                9: ("Setembro/2027", 9),
+                10: ("Outubro/2027", 10),
+                11: ("Novembro/2027", 11),
+                12: ("Dezembro/2026" if prazo_raw.year == 2026 else "Dezembro/2027", 0 if prazo_raw.year == 2026 else 12),
+            }
+            lbl, ord_num = mes_map.get(prazo_raw.month, (prazo_raw.strftime("%m/%Y"), 8))
+            prazo_label = lbl
+            ordem = ord_num
             prazo_cat = "Calendário PLOA"
         elif isinstance(prazo_raw, str):
             p_clean = prazo_raw.strip().lower()
@@ -384,21 +373,21 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
                 prazo_label = "Imediato"
                 ordem = 0
                 prazo_cat = "Imediato / Urgente"
-            elif "judicial" in p_clean:
-                prazo_label = "Pendência judicial"
-                ordem = 9
-                prazo_cat = "Imediato / Urgente"
             elif "indeterminado" in p_clean:
                 prazo_label = "Prazo Indeterminado"
-                ordem = 8
+                ordem = 99
                 prazo_cat = "Prazo Indeterminado"
+            elif "judicial" in p_clean:
+                prazo_label = "Pendência judicial"
+                ordem = 98
+                prazo_cat = "Outros"
             else:
                 prazo_label = prazo_raw.strip().capitalize()
-                ordem = 11
+                ordem = 50
                 prazo_cat = "Outros"
         else:
             prazo_label = "Não Informado"
-            ordem = 12
+            ordem = 99
             prazo_cat = "Outros"
 
         unidade = "Outros"
