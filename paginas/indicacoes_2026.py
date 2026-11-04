@@ -173,7 +173,7 @@ pct_saldo_emp = (tot_saldo_emp / tot_aut * 100) if tot_aut > 0 else 0.0
 
 # ------------------------------------------------------------------ LINHA 1: TERMÔMETRO (% SOBRE O AUTORIZADO) - ESTILO "DESPESAS POR UNIDADE"
 t1, t2, t3, t4 = st.columns(4)
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:18px 20px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with t1:
     st.html(
@@ -401,8 +401,6 @@ st.download_button(
     file_name="indicacoes_por_sequencial_2026.csv",
     mime="text/csv",
 )
-
-st.markdown("<div style='height:0.6rem'></div>", unsafe_allow_html=True)
 
 # ------------------------------------------------------------------ ABAS ANALÍTICAS E DRILL-DOWN DAS INDICAÇÕES
 tab_graf, tab_det, tab_acao = st.tabs([

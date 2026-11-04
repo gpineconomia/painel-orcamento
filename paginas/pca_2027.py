@@ -261,7 +261,7 @@ qtd_sem = int(mask_sem.sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4 = st.columns(4)
-card_base_style = "border-radius:14px; padding:18px 22px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:18px 22px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
@@ -334,8 +334,6 @@ with c4:
           </div>
         </div>"""
     )
-
-st.write("")
 
 # ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO & ALERTA DE RISCO
 ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1.5, 1.3, 2.5])

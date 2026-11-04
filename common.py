@@ -85,6 +85,33 @@ div[data-baseweb="tab-panel"] h6:first-child {
     padding-top: 0 !important;
 }
 
+/* Padronização de altura e alinhamento dos Cards de Métricas/KPIs */
+div[data-testid="column"] {
+    display: flex !important;
+    flex-direction: column !important;
+}
+div[data-testid="column"] > div[data-testid="stVerticalBlockBorderWrapper"],
+div[data-testid="column"] > div[data-testid="stVerticalBlock"] {
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+    height: 100% !important;
+}
+div[data-testid="column"] [data-testid="stHtml"] {
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 1 auto !important;
+}
+div[data-testid="column"] [data-testid="stHtml"] > div {
+    min-height: 148px !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    box-sizing: border-box !important;
+}
+
 /* Cabeçalho */
 .hero {display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:1.2rem;
     padding-bottom:1rem; border-bottom:1px solid #DCEBE3;}

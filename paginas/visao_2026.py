@@ -58,7 +58,7 @@ saldo_cota = cota - tot_geral
 sem_est = int((df[C_TOTAL] == 0).sum())
 
 c1, c2, c3, c4, c5 = st.columns(5)
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:18px 20px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
@@ -136,8 +136,6 @@ with c5:
           </div>
         </div>"""
     )
-
-st.write("")
 
 # ------------------------------------------------------------------ ABAS ANALÍTICAS
 tab_geral, tab_onde, tab_quando, tab_qual, tab_dados, tab_contrat = st.tabs(

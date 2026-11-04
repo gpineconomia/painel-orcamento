@@ -201,8 +201,6 @@ with c5:
         </div>"""
     )
 
-st.write("")
-
 tab_geral, tab_onde, tab_quando, tab_qual, tab_dados = st.tabs(
     ["📊 Visão geral", "📍 Onde", "📅 Quando", "✅ Andamento e qualidade", "📋 Dados"]
 )

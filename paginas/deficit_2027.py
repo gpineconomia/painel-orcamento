@@ -221,8 +221,6 @@ with c5:
         </div>"""
     )
 
-st.write("")
-
 cores_unidades = {
     "Tecnologia da Informação": "#2563EB",
     "Gestão Integrada": "#059669",
@@ -240,7 +238,7 @@ tab_graficos, tab_tabela, tab_timeline = st.tabs([
 # ------------------------------------------------------------------ ABA 3: LINHA DO TEMPO (INSPIRAÇÃO OFICIAL)
 with tab_timeline:
     st.html(
-        """<div style="margin-bottom: 18px;">
+        """<div style="margin-top:0; margin-bottom: 14px;">
             <h3 style="margin:0; font-size:1.5rem; font-weight:800; color:#1B365D; letter-spacing:-0.02em;">
                 Necessidade de crédito adicional prevista
             </h3>

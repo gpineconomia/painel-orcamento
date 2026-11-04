@@ -200,8 +200,6 @@ with c5:
         </div>"""
     )
 
-st.write("")
-
 # ------------------------------------------------------------------ SEÇÃO ANALÍTICA & GRÁFICOS
 tab_graficos, tab_tabela = st.tabs(["📊 Gráficos & Distribuição", "📋 Tabela Detalhada das Supressões"])
 

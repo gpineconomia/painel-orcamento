@@ -593,8 +593,6 @@ with k5:
         unsafe_allow_html=True
     )
 
-st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
-
 # ------------------------------------------------------------------ ABAS DETALHADAS
 tab_contrato, tab_mensal, tab_sobras_sap = st.tabs([
     "🔎 Evolução Mensal de um Contrato Específico",
