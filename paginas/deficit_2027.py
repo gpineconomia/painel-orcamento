@@ -112,14 +112,19 @@ tot_deficit = float(df["Valor"].sum())
 qtd_itens = len(df)
 
 # Subtotais por momento
-val_imediato_urgente = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendência judicial", "Pendente Judicial"])]["Valor"].sum())
+val_imediato = float(df[df["Prazo"].isin(["Imediato", "Dezembro/2026"])]["Valor"].sum())
 val_sem1 = float(df[df["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]["Valor"].sum())
 val_sem2 = float(df[df["Prazo"].isin(["Setembro/2027", "Outubro/2027"])]["Valor"].sum())
 val_indet = float(df[df["Prazo"].str.contains("Indeterminado", case=False, na=False)]["Valor"].sum())
 
 # ------------------------------------------------------------------ CARDS NO TOPO
-c1, c2, c3, c4, c5 = st.columns(5)
 card_base_style = "border-radius:14px; padding:18px 20px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
+
+if val_indet > 0:
+    c1, c2, c3, c4, c5 = st.columns(5)
+else:
+    c1, c2, c3, c4 = st.columns(4)
+    c5 = None
 
 with c1:
     st.html(
@@ -148,7 +153,7 @@ with c2:
                     border: 1px solid rgba(251,146,60,0.35); {card_base_style}">
           <div>
             <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {fmt_card_mi(val_imediato_urgente, 1)}
+              {fmt_card_mi(val_imediato, 1)}
             </div>
             <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FDBA74; margin-top:8px; font-weight:700;">
@@ -156,7 +161,7 @@ with c2:
             </div>
           </div>
           <div style="font-size:0.70rem; color:#FFEDD5; margin-top:4px; opacity:0.85;">
-            Imediato e Pendência Judicial
+            Demandas imediatas para liberação
           </div>
         </div>"""
     )
@@ -201,25 +206,26 @@ with c4:
         </div>"""
     )
 
-with c5:
-    st.html(
-        f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
-                    box-shadow: 0 4px 14px rgba(79,70,229,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
-                    border: 1px solid rgba(165,180,252,0.35); {card_base_style}">
-          <div>
-            <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
-              {fmt_card_mi(val_indet, 1)}
-            </div>
-            <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
-                        color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
-              Prazo Indeterminado
-            </div>
-          </div>
-          <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
-            1 demanda (Convênio SEFAZ/RS)
-          </div>
-        </div>"""
-    )
+if c5:
+    with c5:
+        st.html(
+            f"""<div class="notranslate" translate="no" style="background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+                        box-shadow: 0 4px 14px rgba(79,70,229,0.25), inset 0 1px 0 rgba(255,255,255,0.2);
+                        border: 1px solid rgba(165,180,252,0.35); {card_base_style}">
+              <div>
+                <div style="font-size:1.85rem; font-weight:800; line-height:1.1; color:#FFFFFF; letter-spacing:-0.02em;">
+                  {fmt_card_mi(val_indet, 1)}
+                </div>
+                <div style="font-size:0.71rem; text-transform:uppercase; letter-spacing:0.05em;
+                            color:#C7D2FE; margin-top:8px; font-weight:700; white-space:nowrap;">
+                  Prazo Indeterminado
+                </div>
+              </div>
+              <div style="font-size:0.70rem; color:#E0E7FF; margin-top:4px; opacity:0.85;">
+                Demandas sem data definida
+              </div>
+            </div>"""
+        )
 
 cores_unidades = {
     "Tecnologia da Informação": "#2563EB",
@@ -308,7 +314,14 @@ Observação: valores expressos em milhões de reais (R$ mi).
             is_primeiro = (idx == 0)
             is_ultimo = (idx == total_prazos - 1)
 
-            if is_judicial:
+            if prazo.lower() == "imediato":
+                nome_periodo = "Imediato"
+                sub_periodo = "<div style='font-size:0.78rem; color:#C2410C; font-weight:600; margin-top:2px;'>(necessidade imediata)</div>"
+                cor_ponto = "#C2410C"
+                cor_linha = "#EA580C"
+                cor_texto = "#9A3412"
+                bg_row = "#FFFBF7"
+            elif is_judicial:
                 nome_periodo = "Pendência judicial"
                 sub_periodo = ""
                 cor_ponto = "#DC2626"
@@ -498,7 +511,10 @@ with tab_tabela:
     st.caption(f"Consulte, filtre e ordene as {len(df)} demandas de suplementação orçamentária para a PLOA 2027.")
 
     # 1. Filtro Rápido por Segmento / Momento
-    segmentos = ["Todos", "🚨 Imediato / Urgente", "📅 1º Semestre 2027", "📆 2º Semestre 2027", "⏳ Indeterminado"]
+    segmentos = ["Todos", "🚨 Imediato / Urgente", "📅 1º Semestre 2027", "📆 2º Semestre 2027"]
+    if val_indet > 0:
+        segmentos.append("⏳ Indeterminado")
+
     filtro_momento = st.segmented_control(
         "Filtrar por Momento de Necessidade:",
         options=segmentos,
@@ -542,7 +558,7 @@ with tab_tabela:
 
     # Aplica segmented control
     if filtro_momento == "🚨 Imediato / Urgente":
-        df_tab = df_tab[df_tab["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendência judicial", "Pendente Judicial"])]
+        df_tab = df_tab[df_tab["Prazo"].isin(["Imediato", "Dezembro/2026"])]
     elif filtro_momento == "📅 1º Semestre 2027":
         df_tab = df_tab[df_tab["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]
     elif filtro_momento == "📆 2º Semestre 2027":
