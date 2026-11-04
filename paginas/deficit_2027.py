@@ -119,7 +119,7 @@ val_indet = float(df[df["Prazo"].str.contains("Indeterminado", case=False, na=Fa
 
 # ------------------------------------------------------------------ CARDS NO TOPO
 c1, c2, c3, c4, c5 = st.columns(5)
-card_base_style = "border-radius:14px; padding:16px 18px; color:#FFFFFF; text-align:left; min-height:120px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
+card_base_style = "border-radius:14px; padding:18px 20px; color:#FFFFFF; text-align:left; min-height:148px; height:100%; display:flex; flex-direction:column; justify-content:space-between; transition: transform 0.15s ease;"
 
 with c1:
     st.html(
