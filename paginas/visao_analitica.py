@@ -335,25 +335,7 @@ with tab_qual:
 
 # ------------------------------------------------------------------ Dados
 with tab_dados:
-    col_d1, col_d2 = st.columns([2.3, 1.4])
-    with col_d2:
-        sidebar_sel_visao = st.session_state.get(f"f_essenciais_{ANO}", "Todas")
-        def_idx_visao = 1 if sidebar_sel_visao == "⭐ Somente Essenciais" else (2 if sidebar_sel_visao == "⚠️ Somente Não Essenciais" else 0)
-        sel_ess_dados = st.selectbox(
-            "Filtrar por criticidade:",
-            ["Todas as despesas", "⭐ Somente Essenciais", "⚠️ Somente Não Essenciais"],
-            index=def_idx_visao,
-            key="sel_ess_visao_dados",
-            help="Filtra a relação abaixo para listar somente despesas essenciais ou não essenciais.",
-        )
-    if sel_ess_dados == "⭐ Somente Essenciais" and "_is_essencial" in df.columns:
-        df_dados = df[df["_is_essencial"]].copy()
-        st.caption(f"⭐ Exibindo **{len(df_dados)}** despesas essenciais priorizadas")
-    elif sel_ess_dados == "⚠️ Somente Não Essenciais" and "_is_essencial" in df.columns:
-        df_dados = df[~df["_is_essencial"]].copy()
-        st.caption(f"⚠️ Exibindo **{len(df_dados)}** despesas não essenciais")
-    else:
-        df_dados = df.copy()
+    df_dados = df.copy()
 
     C_DEFICIT = getattr(ctx, "C_DEFICIT", None)
     cols = [c for c in (C_ITEM, C_NUM, C_OBJ, C_CLASS, C_EMP, C_SIT, C_IPOF, C_GRUPO, C_TIPO, C_UNI,
