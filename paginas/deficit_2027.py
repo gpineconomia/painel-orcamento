@@ -495,7 +495,7 @@ with tab_graficos:
 
 with tab_tabela:
     st.markdown("#### 📋 Detalhamento Interativo das Demandas em Déficit")
-    st.caption("Consulte, filtre e ordene as 24 demandas de suplementação orçamentária para a PLOA 2027.")
+    st.caption(f"Consulte, filtre e ordene as {len(df)} demandas de suplementação orçamentária para a PLOA 2027.")
 
     # 1. Filtro Rápido por Segmento / Momento
     segmentos = ["Todos", "🚨 Imediato / Urgente", "📅 1º Semestre 2027", "📆 2º Semestre 2027", "⏳ Indeterminado"]
@@ -542,7 +542,7 @@ with tab_tabela:
 
     # Aplica segmented control
     if filtro_momento == "🚨 Imediato / Urgente":
-        df_tab = df_tab[df_tab["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendente Judicial"])]
+        df_tab = df_tab[df_tab["Prazo"].isin(["Imediato", "Dezembro/2026", "Pendência judicial", "Pendente Judicial"])]
     elif filtro_momento == "📅 1º Semestre 2027":
         df_tab = df_tab[df_tab["Prazo"].isin(["Janeiro/2027", "Fevereiro/2027", "Março/2027", "Junho/2027"])]
     elif filtro_momento == "📆 2º Semestre 2027":
