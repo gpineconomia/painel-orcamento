@@ -157,11 +157,11 @@ with c2:
             </div>
             <div style="font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em;
                         color:#FECDD3; margin-top:8px; font-weight:700;">
-              Estimado Déficit
+              Estimado Déficit Autorizado
             </div>
           </div>
           <div style="font-size:0.68rem; color:#FFE4E6; margin-top:4px; opacity:0.85;">
-            Necessidade Suplementação (Autorizado)
+            Necessidade Suplementação
           </div>
         </div>"""
     )
