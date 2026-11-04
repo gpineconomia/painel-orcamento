@@ -699,6 +699,27 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
     if ctx.C_ULT:
         df["_ult"] = pd.to_datetime(df[ctx.C_ULT], errors="coerce")
 
+    # Marca despesas essenciais em 2027
+    if ano == 2027:
+        status_ess = ["Contratados (Todos)", "Em Processo", "Em Substituição"]
+        mask_ess = df["_status_contrato"].isin(status_ess) if "_status_contrato" in df.columns else pd.Series(False, index=df.index)
+        if "_is_contratado" in df.columns:
+            mask_ess |= df["_is_contratado"]
+
+        if ctx.C_DEFICIT and ctx.C_DEFICIT in df.columns:
+            val_def = pd.to_numeric(df[ctx.C_DEFICIT], errors="coerce").fillna(0)
+            if "_status_contrato" in df.columns:
+                mask_ess |= (df["_status_contrato"] == "Em Planejamento") & (val_def > 0)
+
+        if ctx.C_IPOF and ctx.C_IPOF in df.columns:
+            if "_status_contrato" in df.columns:
+                mask_ess |= (
+                    (df["_status_contrato"] == "Em Planejamento")
+                    & df[ctx.C_IPOF].astype(str).str.contains("Liberado", case=False, na=False)
+                )
+
+        df["_is_essencial"] = mask_ess
+
     # ------------------------------------------------------------ filtros (barra lateral)
     filtros: list[str] = []
     with st.sidebar:
@@ -806,6 +827,20 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
             elif sel_deficit == "Não":
                 df = df[~is_def]
                 filtros.append("Déficit: Não")
+
+        # Filtro com botão para listar somente Despesas Essenciais (2027)
+        if ano == 2027 and "_is_essencial" in df.columns:
+            sel_essencial = st.radio(
+                "Despesas Essenciais",
+                ["Todas", "⭐ Somente Essenciais"],
+                horizontal=True,
+                index=0,
+                key=f"f_essenciais_{ano}",
+                help="Filtra a base do painel para exibir somente as despesas que compõem o Estimado Essencial (Contratados, Em Processo, Em Substituição, e Em Planejamento com Déficit ou IPOF Liberado).",
+            )
+            if sel_essencial == "⭐ Somente Essenciais":
+                df = df[df["_is_essencial"]]
+                filtros.append("Despesas: Somente Essenciais")
 
         max_v = float(df[C_TOTAL].max() or 0)
         if max_v > 0:
