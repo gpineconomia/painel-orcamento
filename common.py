@@ -892,19 +892,22 @@ def build_context(ano: int = 2026) -> SimpleNamespace:
                 df = df[~is_def]
                 filtros.append("Déficit: Não")
 
-        # Filtro com botão para listar somente Despesas Essenciais (2027)
+        # Filtro com botão para listar somente Despesas Essenciais / Não Essenciais (2027)
         if ano == 2027 and "_is_essencial" in df.columns:
             sel_essencial = st.radio(
                 "Despesas Essenciais",
-                ["Todas", "⭐ Somente Essenciais"],
+                ["Todas", "⭐ Somente Essenciais", "⚠️ Somente Não Essenciais"],
                 horizontal=True,
                 index=0,
                 key=f"f_essenciais_{ano}",
-                help="Filtra a base do painel para exibir somente as despesas que compõem o Estimado Essencial (Contratados, Em Processo, Em Substituição, e Em Planejamento com Déficit ou IPOF Liberado).",
+                help="Filtra a base do painel por criticidade: Todas, somente as Despesas Essenciais (Contratados, Processo, Substituição, e Planejamento com Déficit ou IPOF Liberado), ou somente Não Essenciais.",
             )
             if sel_essencial == "⭐ Somente Essenciais":
                 df = df[df["_is_essencial"]]
                 filtros.append("Despesas: Somente Essenciais")
+            elif sel_essencial == "⚠️ Somente Não Essenciais":
+                df = df[~df["_is_essencial"]]
+                filtros.append("Despesas: Somente Não Essenciais")
 
         max_v = float(df[C_TOTAL].max() or 0)
         if max_v > 0:

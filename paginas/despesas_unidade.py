@@ -239,17 +239,26 @@ with ctrl_col2:
     )
 
 with ctrl_col3:
-    is_sidebar_ess = st.session_state.get(f"f_essenciais_{ANO}") == "⭐ Somente Essenciais"
-    btn_essencial = st.toggle(
-        "⭐ Somente Despesas Essenciais",
-        value=is_sidebar_ess or st.session_state.get("toggle_essenciais_despesas", False),
-        key="toggle_essenciais_despesas",
-        help="Filtra a lista abaixo para exibir exclusivamente as despesas essenciais (Contratados, Processo, Substituição, e Planejamento com Déficit ou IPOF Liberado).",
+    sidebar_sel = st.session_state.get(f"f_essenciais_{ANO}", "Todas")
+    opcoes_filtro_tabela = ["Todas as despesas", "⭐ Somente Essenciais", "⚠️ Somente Não Essenciais"]
+    default_idx = 0
+    if sidebar_sel == "⭐ Somente Essenciais":
+        default_idx = 1
+    elif sidebar_sel == "⚠️ Somente Não Essenciais":
+        default_idx = 2
+
+    filtro_tabela_ess = st.selectbox(
+        "Filtro de criticidade:",
+        opcoes_filtro_tabela,
+        index=default_idx,
+        key="sel_criticidade_despesas",
+        help="Filtra a relação hierárquica abaixo: Todas, somente as Despesas Essenciais ou somente Não Essenciais.",
     )
 
+mask_filtro = df["_is_essencial"] if "_is_essencial" in df.columns else mask_ess
+
 # Base para listagem na tabela hierárquica
-if btn_essencial:
-    mask_filtro = df["_is_essencial"] if "_is_essencial" in df.columns else mask_ess
+if filtro_tabela_ess == "⭐ Somente Essenciais":
     df_lista = df[mask_filtro].copy()
     tot_lista_ini = float(df_lista["_val_inicial"].sum())
     tot_lista_def = float(df_lista["_val_deficit"].sum())
@@ -263,6 +272,24 @@ if btn_essencial:
             </span>
           </div>
           <div style="font-size:0.9rem; font-weight:800; color:#047857; background:#D1FAE5; padding:4px 12px; border-radius:20px;">
+            Total: {brl(tot_lista_geral)}
+          </div>
+        </div>"""
+    )
+elif filtro_tabela_ess == "⚠️ Somente Não Essenciais":
+    df_lista = df[~mask_filtro].copy()
+    tot_lista_ini = float(df_lista["_val_inicial"].sum())
+    tot_lista_def = float(df_lista["_val_deficit"].sum())
+    tot_lista_geral = float(df_lista["_val_total"].sum())
+    st.html(
+        f"""<div style="background:#FFFBEB; border:1.5px solid #F59E0B; border-radius:12px; padding:12px 18px; margin:8px 0 16px 0; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(245,158,11,0.12);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.2rem;">⚠️</span>
+            <span style="font-weight:700; color:#92400E; font-size:0.95rem;">
+              Filtro Ativo: Listando somente as {len(df_lista)} despesas não essenciais
+            </span>
+          </div>
+          <div style="font-size:0.9rem; font-weight:800; color:#B45309; background:#FEF3C7; padding:4px 12px; border-radius:20px;">
             Total: {brl(tot_lista_geral)}
           </div>
         </div>"""
