@@ -217,8 +217,8 @@ with c4:
 
 st.write("")
 
-# ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO
-ctrl_col1, ctrl_col2, _ = st.columns([1.6, 1.3, 3])
+# ------------------------------------------------------------------ CONTROLES DE ORDENAÇÃO E FILTROS
+ctrl_col1, ctrl_col2, ctrl_col3 = st.columns([1.5, 1.3, 1.8])
 
 with ctrl_col1:
     sort_col = st.selectbox(
@@ -235,6 +235,42 @@ with ctrl_col2:
         index=0,
         key="sort_dir_despesas",
     )
+
+with ctrl_col3:
+    st.write("<div style='height: 28px;'></div>", unsafe_allow_html=True)
+    is_sidebar_ess = st.session_state.get(f"f_essenciais_{ANO}") == "⭐ Somente Essenciais"
+    btn_essencial = st.toggle(
+        "⭐ Somente Despesas Essenciais",
+        value=is_sidebar_ess or st.session_state.get("toggle_essenciais_despesas", False),
+        key="toggle_essenciais_despesas",
+        help="Filtra a lista abaixo para exibir exclusivamente as despesas essenciais (Contratados, Processo, Substituição, e Planejamento com Déficit ou IPOF Liberado).",
+    )
+
+# Base para listagem na tabela hierárquica
+if btn_essencial:
+    mask_filtro = df["_is_essencial"] if "_is_essencial" in df.columns else mask_ess
+    df_lista = df[mask_filtro].copy()
+    tot_lista_ini = float(df_lista["_val_inicial"].sum())
+    tot_lista_def = float(df_lista["_val_deficit"].sum())
+    tot_lista_geral = float(df_lista["_val_total"].sum())
+    st.html(
+        f"""<div style="background:#ECFDF5; border:1.5px solid #10B981; border-radius:12px; padding:12px 18px; margin:8px 0 16px 0; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 8px rgba(16,185,129,0.12);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.2rem;">⭐</span>
+            <span style="font-weight:700; color:#065F46; font-size:0.95rem;">
+              Filtro Ativo: Listando somente as {len(df_lista)} despesas essenciais
+            </span>
+          </div>
+          <div style="font-size:0.9rem; font-weight:800; color:#047857; background:#D1FAE5; padding:4px 12px; border-radius:20px;">
+            Total: {brl(tot_lista_geral)}
+          </div>
+        </div>"""
+    )
+else:
+    df_lista = df.copy()
+    tot_lista_ini = tot_inicial
+    tot_lista_def = tot_def
+    tot_lista_geral = tot_geral
 
 # Configurações de colunas da tabela hierárquica
 COL_CONFIGS = {
@@ -283,16 +319,16 @@ col_sort_map = {
 sort_k = col_sort_map.get(sort_col, "_val_total")
 
 if sort_col == "Nome da Unidade":
-    ordem_unidades = df.groupby(C_UNI)["_val_total"].sum().sort_index(ascending=not is_descending)
+    ordem_unidades = df_lista.groupby(C_UNI)["_val_total"].sum().sort_index(ascending=not is_descending)
 else:
-    ordem_unidades = df.groupby(C_UNI)[sort_k].sum().sort_values(ascending=not is_descending)
+    ordem_unidades = df_lista.groupby(C_UNI)[sort_k].sum().sort_values(ascending=not is_descending)
 
 open_attr = "open" if expandir_tudo else ""
 
 linhas_html = []
 for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
     bg_row = "#F6FAF8" if idx % 2 == 1 else "#FFFFFF"
-    sub_df = df[df[C_UNI] == unidade].copy()
+    sub_df = df_lista[df_lista[C_UNI] == unidade].copy()
     
     u_inicial = float(sub_df["_val_inicial"].sum())
     u_def = float(sub_df["_val_deficit"].sum())
@@ -466,7 +502,7 @@ for idx, (unidade, total_u) in enumerate(ordem_unidades.items()):
         f'</details>'
     )
 
-val_map_tot = {"_val_inicial": tot_inicial, "_val_deficit": tot_def, "_val_total": tot_geral}
+val_map_tot = {"_val_inicial": tot_lista_ini, "_val_deficit": tot_lista_def, "_val_total": tot_lista_geral}
 valores_total = render_valores(val_map_tot, font_size="1.05rem", peso="800", is_footer=True)
 
 # Indicador visual no cabeçalho de qual coluna está ordenando

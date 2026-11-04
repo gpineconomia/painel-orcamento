@@ -333,10 +333,23 @@ with tab_qual:
 
 # ------------------------------------------------------------------ Dados
 with tab_dados:
+    col_d1, col_d2 = st.columns([2.5, 1.2])
+    with col_d2:
+        is_sidebar_ess = st.session_state.get(f"f_essenciais_{ANO}") == "⭐ Somente Essenciais"
+        btn_ess_dados = st.toggle(
+            "⭐ Somente Despesas Essenciais",
+            value=is_sidebar_ess or st.session_state.get("toggle_ess_visao_dados", False),
+            key="toggle_ess_visao_dados",
+            help="Filtra a relação abaixo para listar somente as despesas que compõem o Estimado Essencial.",
+        )
+    df_dados = df[df["_is_essencial"]].copy() if (btn_ess_dados and "_is_essencial" in df.columns) else df.copy()
+    if btn_ess_dados:
+        st.caption(f"⭐ Exibindo **{len(df_dados)}** despesas essenciais priorizadas")
+
     C_DEFICIT = getattr(ctx, "C_DEFICIT", None)
     cols = [c for c in (C_ITEM, C_NUM, C_OBJ, C_CLASS, C_EMP, C_SIT, C_IPOF, C_GRUPO, C_TIPO, C_UNI,
                         C_FIM, C_GLOBAL, C_DEFICIT, C_TOTAL, *C_MESES) if c]
-    view = df[cols].sort_values(C_ITEM if C_ITEM else C_TOTAL, ascending=True).copy()
+    view = df_dados[cols].sort_values(C_ITEM if C_ITEM else C_TOTAL, ascending=True).copy()
     if C_FIM:  # mistura datas e texto ("Indeterminado")
         view[C_FIM] = view[C_FIM].map(lambda x: "" if pd.isna(x) else str(x)[:10])
     st.dataframe(
