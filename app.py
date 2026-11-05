@@ -12,12 +12,8 @@ inject_css()
 
 # ------------------------------------------------------------------ navegação de páginas
 page_oraculo = st.Page("paginas/oraculo_ia.py", title="Oráculo (Assistente IA)", icon="🔮")
-page_apresentacao = st.Page("paginas/apresentacao_alta_gestao.py", title="Apresentação Executiva 2027", icon="📈")
 
 pages = {
-    "Alta Gestão": [
-        page_apresentacao,
-    ],
     "Orçamento 2026 (Execução)": [
         st.Page("paginas/execucao_2026.py", title="Despesas por Unidade", icon="🏢", default=True),
         st.Page("paginas/visao_2026.py", title="Visão Analítica", icon="📊"),
@@ -48,7 +44,7 @@ with st.sidebar:
             executar_atualizacao_geral()
 
 # Botão flutuante do Oráculo em todas as páginas de dashboard
-if pg != page_oraculo and pg != page_apresentacao:
+if pg != page_oraculo:
     oraculo.inject_floating_oraculo()
 
 pg.run()
