@@ -1,0 +1,2345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desafio Orçamentário 2027 | Alta Gestão - Economia GO</title>
+  <!-- Tailwind CSS permitido via CDN oficial -->
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    
+    * {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    }
+    
+    .slide {
+      display: none;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity 0.35s ease-out, transform 0.35s ease-out;
+    }
+    .slide.active {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    /* Gradientes em verde escuro institucional */
+    .bg-gradient-forest {
+      background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
+    }
+    .bg-gradient-mint {
+      background: linear-gradient(135deg, #f0fdf4 0%, #e6fcf0 100%);
+    }
+    .shadow-green-soft {
+      box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.08), 0 8px 10px -6px rgba(5, 150, 105, 0.04);
+    }
+    
+                                                                                        /* Print / PDF view mode - Sem cortes: fluxo natural com quebra entre slides */
+    @page {
+      size: A4 landscape;
+      margin: 8mm 10mm;
+    }
+    @media print {
+      html, body {
+        background: #f8fafc !important;
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+      .no-print, header, footer, .desktop-slide-nav, .mobile-slide-nav {
+        display: none !important;
+      }
+      main {
+        display: block !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        border: none !important;
+        min-height: 0 !important;
+        overflow: visible !important;
+      }
+      .slide {
+        display: block !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        box-sizing: border-box !important;
+        margin: 0 0 1.5rem 0 !important;
+        padding: 0 !important;
+        clear: both !important;
+        page-break-before: always !important;
+        break-before: page !important;
+      }
+      .slide:first-of-type {
+        page-break-before: auto !important;
+        break-before: auto !important;
+      }
+      .slide > div {
+        opacity: 1 !important;
+        visibility: visible !important;
+        border-radius: 1.25rem !important;
+        box-shadow: none !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        zoom: 0.80 !important;
+        padding: 1.5rem 2rem !important;
+      }
+      
+      /* Mantem cards internos sem quebra no meio do card */
+      .slide .grid > div,
+      .slide .space-y-2 > div,
+      .slide .space-y-2.5 > div {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+    }
+    /* Mobile & Continuous Scroll Mode */
+    body.scroll-mode .slide {
+      display: block !important;
+      opacity: 1 !important;
+      transform: none !important;
+      margin-bottom: 2rem !important;
+    }
+    body.scroll-mode .desktop-slide-nav,
+    body.scroll-mode .mobile-slide-nav,
+    body.scroll-mode footer {
+      display: none !important;
+    }
+    body.scroll-mode main {
+      display: block !important;
+      padding-bottom: 3rem !important;
+    }
+    @media (max-width: 768px) {
+      body { padding-bottom: 4.5rem; }
+      .slide > div { padding: 1.25rem !important; border-radius: 1.25rem !important; }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-emerald-200">
+
+  <!-- TOPO: Barra de Navegação Executiva -->
+  <header class="no-print bg-white/90 backdrop-blur border-b border-emerald-100 sticky top-0 z-50 px-6 py-3">
+    <div class="max-w-6xl mx-auto flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-emerald-800 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          GO
+        </div>
+        <div>
+          <h1 class="text-sm font-bold text-slate-900 tracking-tight leading-tight">SECRETARIA DA ECONOMIA</h1>
+          <p class="text-xs text-emerald-800 font-semibold tracking-wide uppercase">Alta Gestão • Cenário Orçamentário 2027</p>
+        </div>
+      </div>
+
+      <!-- Indicador de Slide e Controles -->
+      <div class="flex items-center gap-4">
+                <!-- Alternador de Versão Executiva V1 / V2 -->
+        <div class="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-xs font-semibold border border-slate-200" title="Alternar Versão da Apresentação">
+          <span class="bg-emerald-800 text-white px-2 py-0.5 rounded shadow-xs text-[10px] font-bold">V1 (R$ 47,45M)</span>
+          <a href="apresentacao_alta_gestao_v2.html" class="text-slate-600 hover:text-emerald-800 px-2 py-0.5 rounded text-[10px] transition font-medium">V2 (R$ 45,26M)</a>
+        </div>
+
+        <div class="flex items-center gap-1.5 bg-slate-100 py-1 px-2.5 rounded-full text-xs font-semibold text-slate-600">
+          <span id="slide-num-current" class="text-emerald-800 font-bold">1</span>
+          <span class="text-slate-400">/</span>
+          <span id="slide-num-total">13</span>
+        </div>
+
+        <div class="flex items-center gap-1">
+          <button onclick="prevSlide()" class="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-emerald-800 transition" title="Slide Anterior (←)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+          </button>
+          <button onclick="nextSlide()" class="p-1.5 rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white transition shadow-sm" title="Próximo Slide (→)">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+
+        <button id="toggle-view-btn" onclick="toggleViewMode()" class="text-xs font-semibold text-emerald-900 bg-emerald-50 hover:bg-emerald-100 flex items-center gap-1.5 border border-emerald-200 px-2.5 py-1.5 rounded-lg transition" title="Alternar entre modo apresentação e modo leitura vertical contínua">
+          <span id="toggle-view-icon">📱</span>
+          <span id="toggle-view-text" class="hidden sm:inline">Modo Leitura Vertical</span>
+        </button>
+
+        <button onclick="window.print()" class="text-xs font-medium text-slate-500 hover:text-emerald-800 flex items-center gap-1 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:border-emerald-300 transition">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <span class="hidden sm:inline">PDF</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTEÚDO PRINCIPAL (SLIDES DECK) -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-4 md:p-8 flex items-center justify-center">
+
+    <!-- SLIDE 1: CAPA EXECUTIVA -->
+    <section class="slide active w-full" id="slide-1">
+      <div class="relative overflow-hidden rounded-3xl bg-gradient-forest text-white p-8 md:p-14 shadow-2xl">
+        <!-- Detalhes de Fundo SVG -->
+        <div class="absolute -right-20 -bottom-20 w-96 h-96 rounded-full bg-emerald-500/20 blur-3xl pointer-events-none"></div>
+        <div class="absolute top-10 right-10 opacity-10 pointer-events-none">
+          <svg class="w-64 h-64" viewBox="0 0 100 100" fill="currentColor"><circle cx="50" cy="50" r="40"/></svg>
+        </div>
+
+        <div class="relative z-10 max-w-3xl">
+          <div class="inline-flex items-center gap-2 bg-emerald-900/60 text-emerald-100 border border-emerald-400/30 px-3.5 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider mb-6">
+            <span class="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+            Diagnóstico Orçamentário • Exercício 2027
+          </div>
+          
+          <h2 class="text-3xl md:text-5xl font-extrabold tracking-tight leading-tight mb-4 text-white">
+            O Desafio da Cota Orçamentária 2027
+          </h2>
+          <p class="text-xl md:text-2xl text-emerald-100 font-light leading-relaxed mb-8">
+            O desafio de adequação e corte orçamentário diante da cota fixada na PLOA 2027 (<strong class="text-white font-semibold">R$ 144,1 Mi</strong>) e da predominância de despesas de caráter continuado.
+          </p>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6 border-t border-emerald-600/40 text-xs text-emerald-200">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-white uppercase tracking-wider">Fonte Oficial:</span>
+              <span class="font-extrabold text-white bg-emerald-800/80 px-2 py-0.5 rounded tracking-widest border border-emerald-400/40">SIAFIC</span>
+            </div>
+            <div class="flex items-center gap-2 justify-start md:justify-end">
+              <span class="w-2 h-2 rounded-full bg-emerald-300"></span>
+              <span>Posição consolidada com liquidações até <strong>04/11/2026</strong></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: TRAJETÓRIA DAS COTAS (2024–2027) -->
+    <section class="slide w-full" id="slide-2">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-4 border-b border-slate-100">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Cotas Orçamentárias Disponibilizadas</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Evolução da Cota Orçamentária Disponibilizada (2024–2027)</h3>
+            <p class="text-sm text-slate-500 mt-1">Comparativo das cotas fixadas ao final de cada exercício e o recuo na PLOA 2027.</p>
+          </div>
+          <div class="mt-4 md:mt-0 flex gap-3 text-xs font-medium">
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              Fonte Oficial: SIAFIC
+            </span>
+          </div>
+        </div>
+
+        <!-- Cards das 4 Cotas -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          
+          <!-- Cota 2024 -->
+          <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-500">COTA 2024</span>
+              <span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">Base Histórica</span>
+            </div>
+            <div class="text-2xl font-extrabold text-slate-800 mb-1">R$ 155,1 Mi</div>
+            <p class="text-[11px] text-slate-500 leading-tight">R$ 155.094.475,00</p>
+          </div>
+
+          <!-- Cota 2025 -->
+          <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-500">COTA 2025</span>
+              <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+19,8%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-slate-800 mb-1">R$ 185,8 Mi</div>
+            <p class="text-[11px] text-slate-500 leading-tight">R$ 185.848.369,24</p>
+          </div>
+
+          <!-- Cota 2026 -->
+          <div class="rounded-2xl border border-slate-200 p-4 bg-slate-50/60">
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-slate-500">COTA 2026</span>
+              <span class="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">+11,6%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-slate-800 mb-1">R$ 207,5 Mi</div>
+            <p class="text-[11px] text-slate-500 leading-tight">R$ 207.478.836,89</p>
+          </div>
+
+          <!-- Cota 2027 (PLOA) -->
+          <div class="rounded-2xl border-2 border-emerald-800 p-4 bg-emerald-50/50 shadow-md relative">
+            <div class="absolute -top-3 right-3 bg-emerald-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">
+              Recuo na PLOA
+            </div>
+            <div class="flex justify-between items-center mb-2">
+              <span class="text-xs font-bold text-emerald-950">PLOA 2027</span>
+              <span class="text-[10px] bg-emerald-200 text-emerald-950 px-2 py-0.5 rounded-full font-extrabold">-30,5%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-emerald-950 mb-1">R$ 144,1 Mi</div>
+            <p class="text-[11px] text-emerald-800 leading-tight">R$ 144.089.232,70</p>
+            <div class="mt-3 pt-2 border-t border-emerald-200 text-[11px] font-bold text-emerald-900">
+              Redução de -R$ 63,4 Mi vs. 2026
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Diagnóstico da Cota -->
+        <div class="bg-slate-100 border-l-4 border-emerald-900 p-3 rounded-r-xl text-xs text-slate-800 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-emerald-900 flex-shrink-0">▪</span>
+          <div class="leading-snug">
+            <strong class="text-emerald-950 font-bold uppercase tracking-wide">Diagnóstico da Cota:</strong>
+            A cota de 2027 (R$ 144,1 Mi) recua <strong>-30,5% (-R$ 63,4 Mi)</strong> frente a 2026 e fica <strong>R$ 11,0 Mi abaixo de 2024</strong>, desconsiderando a inflação acumulada e a maturação dos contratos continuados.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 3: COTA VS. DESPESAS ESSENCIAIS 2027 -->
+    <section class="slide w-full" id="slide-3">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">O Número Mágico da Necessidade • PLOA 2027</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">O Número Mágico da Necessidade (R$ 191,54 Mi) vs. Cota PLOA (R$ 144,1 Mi)</h3>
+            <p class="text-sm text-slate-500 mt-1">A necessidade básica estimada para manter a Secretaria funcionando supera a cota disponível na PLOA em R$ 47,45 Milhões.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              Fonte Oficial: SIAFIC
+            </span>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          
+          <!-- Card Piso de Despesas Essenciais: O NÚMERO MÁGICO -->
+          <div class="md:col-span-2 rounded-2xl bg-gradient-to-b from-emerald-50/60 to-slate-50 border-2 border-emerald-500/50 p-6 flex flex-col justify-between shadow-sm relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-36 h-36 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-extrabold text-amber-950 bg-amber-400 px-3 py-1 rounded-full uppercase tracking-wider shadow-xs flex items-center gap-1">
+                  <span>★</span> O Número Mágico da Necessidade
+                </span>
+                <span class="text-xs text-emerald-900 font-extrabold bg-emerald-100/90 border border-emerald-300/80 px-2.5 py-0.5 rounded-full">164 Itens Contratados</span>
+              </div>
+              <div class="flex items-baseline gap-2 mb-3">
+                <span class="text-3xl font-black text-slate-900 tracking-tight">R$ 191,54 Mi</span>
+                <span class="text-xs text-slate-500 font-bold uppercase">(Piso Mínimo Estimado)</span>
+              </div>
+              
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs mb-4">
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Gestão Integrada (SGI)</div>
+                  <div class="font-extrabold text-slate-900 text-sm">R$ 91,60 Mi</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Tecnologia da Informação</div>
+                  <div class="font-extrabold text-slate-900 text-sm">R$ 60,57 Mi</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200">
+                  <div class="text-[11px] text-slate-500">Receita Estadual</div>
+                  <div class="font-extrabold text-slate-900 text-sm">R$ 36,76 Mi</div>
+                </div>
+                <div class="bg-white p-2.5 rounded-lg border border-slate-200 col-span-2 sm:col-span-3">
+                  <div class="flex justify-between items-center text-[11px]">
+                    <span class="text-slate-500">Demais Unidades (Tesouro e Planejamento):</span>
+                    <span class="font-bold text-slate-800">R$ 2,61 Mi</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Barra de Ocupação da Cota -->
+            <div class="space-y-1.5 text-xs pt-2 border-t border-slate-200">
+              <div class="flex justify-between font-semibold">
+                <span class="text-slate-700">Cobertura da Cota PLOA frente ao Essencial</span>
+                <span class="text-emerald-950 font-bold">R$ 144,1 Mi de R$ 191,54 Mi (75,2%)</span>
+              </div>
+              <div class="w-full bg-slate-200 h-3 rounded-full overflow-hidden">
+                <div class="bg-emerald-800 h-full rounded-full" style="width: 75.2%"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-500 pt-0.5">
+                <span>Dotação coberta pela cota atual</span>
+                <span class="font-bold text-slate-700">Déficit no Essencial: - R$ 47,45 Mi</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Comparativo Cota vs Essencial: IMPACTO VISUAL DO DÉFICIT -->
+          <div class="rounded-2xl bg-gradient-to-br from-rose-50 via-white to-amber-50/40 border-2 border-rose-300 p-6 flex flex-col justify-between shadow-sm relative overflow-hidden">
+            <div class="absolute -right-6 -bottom-6 text-rose-200/30 font-black text-8xl select-none pointer-events-none">GAP</div>
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-black text-rose-800 bg-rose-100 border border-rose-200 px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                  Gap Orçamentário
+                </span>
+                <span class="text-[10px] font-bold text-rose-900 bg-rose-200/60 px-2 py-0.5 rounded">Faltam 24,8%</span>
+              </div>
+              
+              <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mt-3">Déficit no Núcleo Essencial</h4>
+              
+              <!-- Valor com Destaque Máximo -->
+              <div class="text-3xl md:text-4xl font-black text-rose-700 tracking-tight mt-1 mb-1">
+                - R$ 47,45 Mi
+              </div>
+              <p class="text-[11px] font-semibold text-rose-900/80 leading-tight">
+                Cobre apenas 9 meses de operação (falta 1 trimestre para fechar o ano).
+              </p>
+            </div>
+
+            <!-- Síntese Visual Direta -->
+            <div class="mt-4 pt-3 border-t border-rose-200/80 space-y-2 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600 font-medium">Necessidade Mínima:</span>
+                <span class="font-extrabold text-slate-900">R$ 191,54 Mi</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-slate-600 font-medium">Cota Fixada PLOA:</span>
+                <span class="font-extrabold text-emerald-900">R$ 144,09 Mi</span>
+              </div>
+              <div class="bg-rose-100/90 rounded-xl p-2.5 flex justify-between items-center font-bold text-rose-950 border border-rose-300/80">
+                <span class="text-[11px]">Cobertura da Cota:</span>
+                <span class="text-rose-700 font-black text-sm">75,2%</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 4: SUPRESSÕES PROPOSTAS NA PLOA 2027 -->
+    <section class="slide w-full" id="slide-4">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Esforço Prévio de Contenção</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Supressões Propostas na PLOA 2027: O Limite da Compressão</h3>
+            <p class="text-sm text-slate-500 mt-1">Para fixar o piso essencial em R$ 191,54 Mi, a pasta já desenhou cortes severos de R$ 78,89 Mi em 35 contratos continuados.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="bg-rose-50 text-rose-800 border border-rose-200 px-3 py-1 rounded-full text-xs font-extrabold">
+              Supressão Média: -45,3%
+            </span>
+          </div>
+        </div>
+
+        <!-- 3 Métricas Consolidadas das Supressões -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Demanda Inicial Mapeada</span>
+            <div class="text-2xl font-extrabold text-slate-800 mt-0.5">R$ 174,08 Mi</div>
+            <p class="text-[11px] text-slate-500 mt-1 leading-tight">Valor bruto demandado pelas áreas técnicas (35 contratos analisados).</p>
+          </div>
+
+          <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-3.5">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wider">Supressões Propostas</span>
+              <span class="bg-rose-200 text-rose-900 text-[10px] font-black px-1.5 py-0.5 rounded">-45,3%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-rose-700 mt-0.5">-R$ 78,89 Mi</div>
+            <p class="text-[11px] text-rose-900/80 mt-1 leading-tight">Corte drástico negociado para viabilizar o piso essencial de R$ 191,54 Mi.</p>
+          </div>
+
+          <div class="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5">
+            <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Teto Ajustado dos Contratos</span>
+            <div class="text-2xl font-extrabold text-emerald-950 mt-0.5">R$ 95,18 Mi</div>
+            <p class="text-[11px] text-emerald-800/80 mt-1 leading-tight">Custo mínimo sobrevivente da carteira suprimida para operação estrita.</p>
+          </div>
+        </div>
+
+        <!-- Detalhamento por Unidade e Principais Contratos Impactados -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          
+          <!-- Bloco SGI -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Gestão Integrada</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">SGI (-R$ 52,46 Mi)</h4>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">-44,5%</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mb-2">Demanda: <strong>R$ 117,99 Mi</strong> → Teto: <strong>R$ 65,53 Mi</strong></p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Apoio Operacional Médio (038/2024)</span>
+                    <span class="text-rose-700">-R$ 14,51 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Corte de 38% com eliminação de 125 postos de trabalho.</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Apoio Superior Especializado (039/2024)</span>
+                    <span class="text-rose-700">-R$ 15,20 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Redução de quase 50% para fixação no teto de 85 vagas.</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Vigilância Armada & Limpeza Predial</span>
+                    <span class="text-rose-700">-R$ 4,63 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Supressão de 33% na vigilância (-2,3M) e 36% na limpeza (-2,3M).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Veículos Operacionais & Frotas</span>
+                    <span class="text-rose-700">-R$ 3,59 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Devolução forçada de picapes e supressão de 40% a 100% de lotes.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco STI -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Tecnologia da Informação</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">STI (-R$ 22,12 Mi)</h4>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">-52,2%</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mb-2">Demanda: <strong>R$ 42,37 Mi</strong> → Teto: <strong>R$ 20,26 Mi</strong></p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Fábrica de Software & Sustentação</span>
+                    <span class="text-rose-700">-R$ 14,47 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Supressão superior a 50% nas ordens de serviço de TI.</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Business Analytics & Inteligência Fiscal</span>
+                    <span class="text-rose-700">-R$ 5,70 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Corte de 60% nas plataformas de analytics e ciência de dados.</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Infraestrutura e Licenciamento TIC</span>
+                    <span class="text-rose-700">-R$ 1,95 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Cancelamento de novas esteiras e congelamento de capacidade.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco RECEITA -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Receita Estadual</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">RECEITA (-R$ 4,32 Mi)</h4>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">-31,5%</span>
+              </div>
+              <p class="text-[11px] text-slate-500 mb-2">Demanda: <strong>R$ 13,72 Mi</strong> → Teto: <strong>R$ 9,39 Mi</strong></p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Sistemas OCR Fixos e Móveis</span>
+                    <span class="text-rose-700">-R$ 4,32 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Cancelamento de expansão de radares e câmeras de fiscalização.</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Fiscalização de Trânsito Tributário</span>
+                    <span class="text-amber-800 font-semibold">Escopo Restrito</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Operação concentrada estritamente nos postos de divisa existentes.</p>
+                </div>
+
+                <div class="bg-emerald-50/80 p-2 rounded-xl border border-emerald-200">
+                  <div class="font-bold text-emerald-950">Foco na Arrecadação Básica</div>
+                  <p class="text-emerald-800 text-[9px] mt-0.5">Preservação do núcleo de fiscalização para evitar perda de receita.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box de Conflito e Dificuldade da Alta Gestão -->
+        <div class="bg-amber-50 border-l-4 border-amber-600 p-3 rounded-r-xl text-xs text-amber-950 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-amber-700 flex-shrink-0">⚠</span>
+          <div class="leading-snug">
+            <strong class="font-bold text-amber-950 uppercase tracking-wide">Dilema da Alta Gestão:</strong>
+            As supressões de R$ 78,89 Mi já atingem o limite operacional (demissões, frotas e TI). <strong>Não há margem para absorver o corte adicional de R$ 47,45 Mi exigido pela cota.</strong>
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 5: TRANSIÇÃO ESTRUTURAL (SALDOS EMPENHADO E LIQUIDADO) -->
+    <section class="slide w-full" id="slide-5">
+      <div class="bg-white rounded-3xl border border-slate-200 p-8 md:p-10 shadow-sm">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-3">
+          <div>
+            <span class="text-xs font-bold text-slate-600 uppercase tracking-widest">Evidência Orçamentária • SIAFIC</span>
+            <h3 class="text-xl md:text-2xl font-extrabold text-slate-900 mt-1">Transição de Investimentos para Gestão e Manutenção</h3>
+            <p class="text-sm text-slate-500 mt-1">Comparativo analítico individual dos saldos empenhados e liquidados entre 2024 e 2026.</p>
+          </div>
+          <div class="mt-2 md:mt-0 flex-shrink-0">
+            <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-800 px-3 py-1 rounded-full text-xs font-bold border border-slate-300 whitespace-nowrap shadow-xs">
+              <span class="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+              Custeio vs. Investimento (GND 3 / 4)
+            </span>
+          </div>
+        </div>
+
+        <!-- Grid de Comparação Individual: Empenhado vs Liquidado -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-5">
+          
+          <!-- Bloco 1: Análise Individual do Saldo Empenhado -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-slate-800 text-white flex items-center justify-center text-xs font-bold">1</span>
+                  <h4 class="font-bold text-slate-900 text-sm">Comportamento do Saldo Empenhado</h4>
+                </div>
+                <span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold uppercase">Empenhado</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-3 leading-relaxed">
+                Evolução dos valores comprometidos orçamentariamente por exercício:
+              </p>
+
+              <!-- Cards por Ano (Empenhado) -->
+              <div class="space-y-2 text-xs">
+                
+                <!-- 2024 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-800 text-xs">Exercício 2024</span>
+                    <span class="text-[11px] font-bold text-slate-700">Total: R$ 143,0 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Custeio (Manutenção):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 109,0 Mi (76,3%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 33,9 Mi (23,7%)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2025 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-900 text-xs">Exercício 2025 (Pico de Projetos)</span>
+                    <span class="text-[11px] font-bold text-slate-800">Total: R$ 186,1 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Custeio (Manutenção):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 120,2 Mi (64,6%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-600 font-semibold">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-900 whitespace-nowrap">R$ 65,9 Mi (35,4%)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2026 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-900 text-xs">Exercício 2026 (SIAFIC Oficial)</span>
+                    <span class="text-[11px] font-bold text-slate-800">Total: R$ 195,92 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-emerald-100/70 p-1.5 rounded border border-emerald-300 shadow-xs">
+                      <span class="text-emerald-950 font-bold">Custeio (Manutenção):</span>
+                      <div class="font-extrabold text-emerald-950 whitespace-nowrap">R$ 161,27 Mi (82,3%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 34,66 Mi (17,7%)</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-slate-200 text-[11px] text-slate-600">
+              ▲ <strong>Empenho em Custeio saltou para 82,3%</strong> (R$ 161,27 Mi de R$ 195,92 Mi).
+            </div>
+          </div>
+
+          <!-- Bloco 2: Análise Individual do Saldo Liquidado -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-slate-800 text-white flex items-center justify-center text-xs font-bold">2</span>
+                  <h4 class="font-bold text-slate-900 text-sm">Comportamento do Saldo Liquidado</h4>
+                </div>
+                <span class="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold uppercase">Liquidado</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-3 leading-relaxed">
+                Evolução dos serviços e bens efetivamente entregues e atestados:
+              </p>
+
+              <!-- Cards por Ano (Liquidado) -->
+              <div class="space-y-2 text-xs">
+                
+                <!-- 2024 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-800 text-xs">Exercício 2024</span>
+                    <span class="text-[11px] font-bold text-slate-700">Total: R$ 143,0 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Custeio (Manutenção):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 109,0 Mi (76,3%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 33,9 Mi (23,7%)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2025 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-900 text-xs">Exercício 2025 (Pico de Projetos)</span>
+                    <span class="text-[11px] font-bold text-slate-800">Total: R$ 162,63 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Custeio (Manutenção):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 116,89 Mi (71,9%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-600 font-semibold">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-900 whitespace-nowrap">R$ 45,74 Mi (28,1%)</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2026 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1">
+                    <span class="font-extrabold text-slate-900 text-xs">Exercício 2026 (SIAFIC até 04/11/2026)</span>
+                    <span class="text-[11px] font-bold text-slate-800">Total: R$ 135,13 Mi</span>
+                  </div>
+                  <div class="grid grid-cols-2 gap-2 text-[11px]">
+                    <div class="bg-emerald-100/70 p-1.5 rounded border border-emerald-300 shadow-xs">
+                      <span class="text-emerald-950 font-bold">Custeio (Manutenção):</span>
+                      <div class="font-extrabold text-emerald-950 whitespace-nowrap">R$ 113,64 Mi (84,1%)</div>
+                    </div>
+                    <div class="bg-slate-50 p-1.5 rounded border border-slate-200">
+                      <span class="text-slate-500">Investimento (Projetos):</span>
+                      <div class="font-bold text-slate-800 whitespace-nowrap">R$ 21,49 Mi (15,9%)</div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2 border-t border-slate-200 text-[11px] text-slate-600">
+              ▲ <strong>Participação de Custeio no Liquidado atinge 84,1%</strong> (R$ 113,64 Mi de R$ 135,13 Mi).
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Síntese do Slide -->
+        <div class="bg-slate-100 border-l-4 border-slate-700 p-3 rounded-r-xl text-xs text-slate-800 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-slate-700 flex-shrink-0">▪</span>
+          <div class="leading-snug">
+            <strong class="text-slate-900 font-bold uppercase tracking-wide">Conclusão SIAFIC:</strong>
+            Encerrado o ciclo de investimentos (2024–2025), mais de <strong>84% do orçamento</strong> é absorvido pela operação do legado. O piso de 2027 (R$ 191,54 Mi) destina-se <strong>100% à manutenção contínua</strong>.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-slate-800">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 6: DINÂMICA E EXECUÇÃO DO CUSTEIO EM 2026 -->
+    <section class="slide w-full" id="slide-6">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Execução Orçamentária 2026 • SIAFIC até 04/11/2026</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Dinâmica e Execução do Custeio em 2026</h3>
+            <p class="text-sm text-slate-500 mt-1">Liquidações de NFs referem-se à competência até setembro/2026: execução de 70,5% está dentro da meta pro-rata (75% em 9/12 meses), considerando o delay de apresentação em TI.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-extrabold shadow-xs">
+              70,5% Liquidado • Dentro da Média (Meta 9/12: 75%)
+            </span>
+          </div>
+        </div>
+
+        <!-- 3 Cards Superiores de Desempenho do Custeio -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Empenhado em Custeio (GND 3)</span>
+            <div class="text-2xl font-extrabold text-slate-900 mt-0.5">R$ 161,27 Mi</div>
+            <p class="text-[11px] text-slate-500 mt-1 leading-tight">Representa 82,3% de todo o orçamento empenhado da pasta em 2026.</p>
+          </div>
+
+          <div class="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Liquidado até 04/11/2026</span>
+              <span class="bg-emerald-200 text-emerald-900 text-[10px] font-black px-1.5 py-0.5 rounded">70,5%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-emerald-950 mt-0.5">R$ 113,64 Mi</div>
+            <p class="text-[11px] text-emerald-800/80 mt-1 leading-tight">
+              <strong>Dentro da média</strong>: cobre competências até set/2026 (meta pro-rata 9/12 = 75,0%), com delay de NFs de TI.
+            </p>
+          </div>
+
+          <div class="bg-blue-50/80 border border-blue-200 rounded-2xl p-3.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-blue-800 uppercase tracking-wider">Saldo Pendente de Liquidação</span>
+              <span class="bg-blue-200 text-blue-900 text-[10px] font-black px-1.5 py-0.5 rounded">29,5%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-blue-900 mt-0.5">R$ 47,63 Mi</div>
+            <p class="text-[11px] text-blue-800/80 mt-1 leading-tight">Faturas mensais de Nov/Dez.</p>
+          </div>
+
+        </div>
+
+        <!-- 3 Blocos de Execução do Custeio Continuado -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          
+          <!-- Bloco 1: Mão de Obra e Apoio -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Pessoal e Apoio</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 10,72 Mi no Bimestre</h4>
+                </div>
+                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Serviços Continuados</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Dinâmica:</strong> Serviços contínuos com liquidação mensal vinculada à entrega das folhas de ponto, GFIP/FGTS e provisão obrigatória do <strong>13º salário</strong> dos terceirizados.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Apoio Operacional Médio (038/2024)</span>
+                    <span class="text-blue-900">R$ 5,62 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 20,92M | Liq: R$ 15,29M (postos administrativos em todo o Estado).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Apoio Superior Especializado (039/2024)</span>
+                    <span class="text-blue-900">R$ 2,26 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 6,95M | Liq: R$ 4,69M (técnicos, analistas e especialistas).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Apoio em Atendimento / Call Center</span>
+                    <span class="text-blue-900">R$ 2,84 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Atendimento fazendário e funções operacionais de suporte.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 2: Serviços Prediais, Frotas e Segurança -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Logística e Manutenção</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 6,68 Mi no Bimestre</h4>
+                </div>
+                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">Operação Diária</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Dinâmica:</strong> Contratos continuados medidos mensalmente por postos efetivos de vigilância, metros quadrados de conservação e quilometragem/diárias de veículos em serviço.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Locação de Veículos / Frotas</span>
+                    <span class="text-blue-900">R$ 3,42 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 13,30M | Liq: R$ 9,87M (frotas de fiscalização e viaturas).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Limpeza, Asseio e Conservação</span>
+                    <span class="text-blue-900">R$ 2,13 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 8,33M | Liq: R$ 6,20M (complexo, delegacias e agências).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Segurança e Vigilância Armada</span>
+                    <span class="text-blue-900">R$ 1,13 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 6,21M | Liq: R$ 5,09M (postos armados 24h em unidades fiscais).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 3: TIC, Arrecadação e Cidadania (Com destaque de Delay em TI) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">TI, Arrecadação e Cidadania</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 10,21 Mi no Bimestre</h4>
+                </div>
+                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">Delay de NF em TI</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Dinâmica e Delay em TI:</strong> Licenciamento SaaS, links de dados, OCR e prêmios da Nota Goiana. Em TI, a aferição técnica de UST e relatórios de medição gera um <strong>delay natural de 30 a 45 dias</strong> para emissão da NF.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Suporte e Manutenção TIC (Custeio)</span>
+                    <span class="text-blue-900">R$ 3,02 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 4,96M | Liq: R$ 1,94M (medições de OS em homologação).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Prêmios Nota Fiscal Goiana (2590)</span>
+                    <span class="text-blue-900">R$ 2,89 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 6,84M | Liq: R$ 3,95M (sorteios previstos de fim de ano).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Radares OCR & Telecomunicações</span>
+                    <span class="text-blue-900">R$ 2,97 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">OCR de trânsito (R$ 1,79M) e links de dados das delegacias (R$ 1,18M).</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box de Síntese e Comparativo com Investimento -->
+        <div class="bg-emerald-50 border-l-4 border-emerald-700 p-3 rounded-r-xl text-xs text-emerald-950 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-emerald-800 flex-shrink-0">✓</span>
+          <div class="leading-snug">
+            <strong class="font-bold text-emerald-950 uppercase tracking-wide">Ritmo de Execução:</strong>
+            A taxa de <strong>70,5% liquidada até setembro</strong> está alinhada à meta linear (75,0%), dado o delay habitual de ateste de NFs em TI. Os <strong>R$ 47,63 Mi a liquidar</strong> cobrem compromissos inadiáveis do 4º trimestre, sem sobras.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 7: DIFICULDADES NA LIQUIDAÇÃO DE INVESTIMENTOS EM 2026 -->
+    <section class="slide w-full" id="slide-7">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Execução Orçamentária 2026 • SIAFIC até 04/11/2026</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Dificuldades na Liquidação de Investimentos em 2026</h3>
+            <p class="text-sm text-slate-500 mt-1">Dos R$ 34,66 Mi empenhados em investimento (GND 4), R$ 13,17 Mi (38,0%) ainda não foram liquidados devido a entraves de entrega, medição e homologação.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1 rounded-full text-xs font-extrabold shadow-xs">
+              R$ 13,17 Mi Não Liquidados (38,0%)
+            </span>
+          </div>
+        </div>
+
+        <!-- 3 Cards Superiores de Desempenho de Investimento -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3.5">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Empenhado em Investimento (GND 4)</span>
+            <div class="text-2xl font-extrabold text-slate-900 mt-0.5">R$ 34,66 Mi</div>
+            <p class="text-[11px] text-slate-500 mt-1 leading-tight">Valor bruto comprometido no SIAFIC (17,7% do empenhado total).</p>
+          </div>
+
+          <div class="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-3.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">Liquidado Efetivamente</span>
+              <span class="bg-emerald-200 text-emerald-900 text-[10px] font-black px-1.5 py-0.5 rounded">62,0%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-emerald-950 mt-0.5">R$ 21,49 Mi</div>
+            <p class="text-[11px] text-emerald-800/80 mt-1 leading-tight">Serviços e bens com ateste definitivo realizado até 04/11/2026.</p>
+          </div>
+
+          <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-3.5">
+            <div class="flex justify-between items-center">
+              <span class="text-[11px] font-bold text-rose-800 uppercase tracking-wider">Saldo Pendente de Liquidação</span>
+              <span class="bg-rose-200 text-rose-900 text-[10px] font-black px-1.5 py-0.5 rounded">38,0%</span>
+            </div>
+            <div class="text-2xl font-extrabold text-rose-700 mt-0.5">R$ 13,17 Mi</div>
+            <p class="text-[11px] text-rose-900/80 mt-1 leading-tight">Recursos travados em etapas burocráticas, técnicas e de entrega.</p>
+          </div>
+
+        </div>
+
+        <!-- 3 Blocos de Dificuldades Operacionais e Contratos Impactados -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          
+          <!-- Bloco 1: TI e Software -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fábrica de Software e TI</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 5,41 Mi Pendentes</h4>
+                </div>
+                <span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">41% do Saldo</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Entraves:</strong> Ciclos longos de desenvolvimento, rito de Ordens de Serviço (OS), métricas de pontos de função, homologação técnica rigorosa e testes de aceite antes do faturamento.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Fábrica TIC Desenv. (013/2024)</span>
+                    <span class="text-rose-700">R$ 3,27 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 7,23M | Liq: R$ 3,96M (sprints fiscais em homologação).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Business Analytics Cloudera (022/2022)</span>
+                    <span class="text-rose-700">R$ 1,84 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 3,66M | Liq: R$ 1,82M (suporte Hadoop e Big Data).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Novo Desenvolvimento TI (Proj 4491)</span>
+                    <span class="text-rose-700">R$ 1,52 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Empenho integral sem liquidação por fase de implantação.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 2: Obras e Reformas -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Obras e Reformas Físicas</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 1,89 Mi Pendentes</h4>
+                </div>
+                <span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded">14% do Saldo</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Entraves:</strong> Rito burocrático de medições físicas de engenharia <em>in loco</em>, emissão de Boletins de Medição (BM), adequações de projetos durante a execução e fiscalização predial.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Reforma do Complexo (012/2026)</span>
+                    <span class="text-rose-700">R$ 1,66 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 1,81M | Liq: R$ 0,15M (apenas 8,3% liquidado até o momento).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Modernização Postos Fiscais (5650)</span>
+                    <span class="text-rose-700">R$ 0,23 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 0,48M | Liq: R$ 0,25M (pendência de laudo de entrega).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Adequações Civis Regionais</span>
+                    <span class="text-slate-600">R$ 0,07 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Serviços menores em delegacias do interior.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 3: Bens e Mobiliário -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
+                <div>
+                  <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aquisições e Mobiliário</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">R$ 5,87 Mi Pendentes</h4>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">45% do Saldo</span>
+              </div>
+              <p class="text-[11px] text-slate-600 mb-2 leading-tight">
+                <strong>Entraves:</strong> Atrasos na cadeia de fornecedores, cronograma de montagem de móveis sob medida em MDF nas delegacias e tempo de tombamento patrimonial antes do atesto.
+              </p>
+              
+              <div class="space-y-1.5 text-[10px]">
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Máquinas e Equipamentos (Ação 4243)</span>
+                    <span class="text-rose-700">R$ 1,71 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 2,12M | Liq: R$ 0,41M (bens em fase de recebimento).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Mobiliário MDF Sedes (040 e 050/2025)</span>
+                    <span class="text-rose-700">R$ 1,49 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Emp: R$ 1,71M | Liq: R$ 0,22M (montagem física nos prédios).</p>
+                </div>
+
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="flex justify-between font-bold text-slate-800">
+                    <span>Equipamentos Operacionais Diversos</span>
+                    <span class="text-rose-700">R$ 0,46 Mi</span>
+                  </div>
+                  <p class="text-slate-500 text-[9px] mt-0.5">Aparelhos, utensílios e equipamentos audiovisuais.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box de Síntese e Impacto Institucional -->
+        <div class="bg-amber-50 border-l-4 border-amber-600 p-3 rounded-r-xl text-xs text-amber-950 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-amber-700 flex-shrink-0">⚠</span>
+          <div class="leading-snug">
+            <strong class="font-bold text-amber-950 uppercase tracking-wide">Risco em Investimentos:</strong>
+            <strong>R$ 13,17 Mi represados (38%)</strong> evidenciam os entraves de homologação em TI e obras, com risco de inscrição em Restos a Pagar (RAP). Isso reforça o acerto da cota 2027 priorizar 91% em custeio.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 8: COMPOSIÇÃO DA COTA LOA 2027 - PREDOMINÂNCIA DO CUSTEIO (ENXUTO E SUCINTO) -->
+    <section class="slide w-full" id="slide-8">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <!-- Cabeçalho do Slide -->
+        <div class="mb-5 pb-4 border-b border-slate-100">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Estrutura Orçamentária • LOA 2027</span>
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 text-[11px] font-bold px-3 py-1 rounded-full flex items-center gap-1.5 shadow-xs">
+              <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+              Fonte Oficial: SIAFIC
+            </span>
+          </div>
+          <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Composição da Cota 2027: Predominância Absoluta do Custeio</h3>
+          <p class="text-sm text-slate-500 mt-1">
+            Com <strong>91,0%</strong> da cota fixada em Custeio (R$ 131,13 Mi) e apenas <strong>9,0%</strong> em Investimento (R$ 12,96 Mi), qualquer exigência de corte recai compulsoriamente sobre a manutenção básica.
+          </p>
+        </div>
+
+        <!-- 3 Cards dos Dados Oficiais LOA 2027 -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+          
+          <!-- Card 1: Custeio (GND 3) -->
+          <div class="bg-emerald-50/90 border-2 border-emerald-500/70 rounded-2xl p-4 shadow-xs relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 text-emerald-200/40 font-black text-7xl select-none pointer-events-none">91%</div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[11px] font-bold text-emerald-900 uppercase tracking-wider">03 - Custeio (Manutenção)</span>
+              <span class="bg-emerald-700 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">91,01%</span>
+            </div>
+            <div class="text-2xl md:text-3xl font-black text-emerald-950 tracking-tight">R$ 131.132.310,47</div>
+            <p class="text-[11px] text-emerald-900/90 mt-1.5 leading-tight font-medium">
+              Manutenção essencial: telecomunicações, nuvem, sistemas tributários, limpeza e vigilância.
+            </p>
+          </div>
+
+          <!-- Card 2: Investimento (GND 4) -->
+          <div class="bg-slate-50 border border-slate-300 rounded-2xl p-4 shadow-xs relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 text-slate-200/60 font-black text-7xl select-none pointer-events-none">9%</div>
+            <div class="flex justify-between items-center mb-1">
+              <span class="text-[11px] font-bold text-slate-700 uppercase tracking-wider">04 - Investimento (Expansão)</span>
+              <span class="bg-slate-200 text-slate-800 text-[10px] font-black px-2 py-0.5 rounded-full">8,99%</span>
+            </div>
+            <div class="text-2xl md:text-3xl font-black text-slate-800 tracking-tight">R$ 12.956.921,99</div>
+            <p class="text-[11px] text-slate-600 mt-1.5 leading-tight">
+              Margem residual para modernização de postos fiscais e conclusão de reformas.
+            </p>
+          </div>
+
+          <!-- Card 3: Total LOA 2027 -->
+          <div class="bg-gradient-forest text-white rounded-2xl p-4 shadow-md flex flex-col justify-between">
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <span class="text-[11px] font-bold text-emerald-200 uppercase tracking-wider">Orçamento LOA 2027</span>
+                <span class="bg-white/20 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full">100,0%</span>
+              </div>
+              <div class="text-2xl md:text-3xl font-black text-white tracking-tight">R$ 144.089.232,46</div>
+            </div>
+            <p class="text-[11px] text-emerald-100/90 mt-1.5 leading-tight">
+              Teto global fixado para 2027: retração real de <strong>-30,5%</strong> frente a 2026.
+            </p>
+          </div>
+
+        </div>
+
+        <!-- 2 Blocos de Análise Estratégica (Enxutos e Sucintos) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          
+          <!-- Bloco A: Por que o Investimento foi Comprimido? -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div class="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-200">
+              <span class="w-6 h-6 rounded-lg bg-amber-600 text-white flex items-center justify-center text-xs font-bold">1</span>
+              <h4 class="font-bold text-slate-900 text-xs md:text-sm">Lição dos Investimentos em 2026</h4>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-snug mb-2">
+              Dificuldades crônicas na liquidação de projetos (homologação de TI e obras) retêm <strong>38% (R$ 13,17 Mi)</strong> a dois meses do fim de 2026.
+            </p>
+            <div class="bg-white p-2 rounded-xl border border-slate-200 text-[10px] text-slate-600">
+              <strong class="text-slate-800">Sem Margem em Investimento:</strong> A cota 2027 já eliminou qualquer folga em projetos (apenas R$ 12,96 Mi). Não há mais de onde cortar nessa rubrica.
+            </div>
+          </div>
+
+          <!-- Bloco B: A Consequência Fiscal Direta -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+            <div class="flex items-center gap-2 mb-2 pb-1.5 border-b border-slate-200">
+              <span class="w-6 h-6 rounded-lg bg-emerald-800 text-white flex items-center justify-center text-xs font-bold">2</span>
+              <h4 class="font-bold text-slate-900 text-xs md:text-sm">Inflexibilidade da Despesa</h4>
+            </div>
+            <p class="text-[11px] text-slate-700 leading-snug mb-2">
+              Com <strong>91,0% (R$ 131,13 Mi) em custeio</strong>, qualquer exigência de bloqueio ou corte incidirá compulsoriamente sobre despesas continuadas.
+            </p>
+            <div class="bg-white p-2 rounded-xl border border-slate-200 text-[10px] text-slate-600">
+              <strong class="text-slate-800">Impacto Operacional:</strong> Ajustes fiscais não atingem "obras ou expansão", mas desmobilizam postos de trabalho e sistemas vitais de arrecadação.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 9: POR QUE É DIFÍCIL CORTAR EM 2027? (CONTRATOS CONTINUADOS) -->
+    <section class="slide w-full" id="slide-9">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100">
+          <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Inflexibilidade da Despesa</span>
+          <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Por que é Difícil Cortar Orçamento em 2027?</h3>
+          <p class="text-sm text-slate-500 mt-1">O orçamento não é composto por despesas discricionárias, mas por contratos essenciais de caráter continuado.</p>
+        </div>
+
+        <!-- Destaque: Rigidez e Inflexibilidade do Custeio -->
+        <div class="bg-emerald-50/80 border border-emerald-200 rounded-xl p-3 mb-5 flex items-center gap-2.5 text-xs">
+          <span class="bg-emerald-900 text-white font-bold px-2.5 py-0.5 rounded text-[10px] uppercase tracking-wider whitespace-nowrap flex-shrink-0">Rigidez Orçamentária</span>
+          <span class="text-emerald-950 font-medium">
+            O orçamento da pasta é <strong>predominantemente composto por contratos de custeio continuado (Grupo 3)</strong>.
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-4">
+          
+          <!-- Bloco 1: TI e Arrecadação -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-200">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">1</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">Sustentação Tecnológica e Arrecadação</h4>
+                </div>
+                <span class="text-[10px] text-slate-500 font-medium">Comparativo Individual 2024 → 2026</span>
+              </div>
+
+              <div class="space-y-2">
+                
+                <!-- Item 1 (Custeio GND 3) -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Telecomunicações e Conectividade (Links de Dados)</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">1,5M → 5,8M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+297%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">1,5M → 4,1M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+179%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 2 (Custeio GND 3) -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Manutenção e Suporte de Softwares (Custeio TIC)</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">4,0M → 13,3M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+236%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">4,0M → 9,2M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+134%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 3 (Custeio GND 3) -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Locação de Equipamentos e Infraestrutura TIC</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,0M → 0,6M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+100%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,0M → 0,4M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+100%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 4 (Custeio GND 3) -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Locação de Softwares e Serviços em Nuvem (SaaS)</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">1,5M → 3,1M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+102%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">1,5M → 1,4M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">Estável</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 5 (Custeio GND 3) -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Gestão, Planejamento e Segurança da Informação</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,0M → 3,2M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+100%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,0M → 3,2M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+100%</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Bloco 2: Serviços Prediais e Operacionais -->
+          <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2 pb-2 border-b border-slate-200">
+                <div class="flex items-center gap-2">
+                  <span class="w-6 h-6 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">2</span>
+                  <h4 class="font-bold text-slate-900 text-xs md:text-sm">Serviços Prediais, Logística e Transporte</h4>
+                </div>
+                <span class="text-[10px] text-slate-500 font-medium">Comparativo Individual 2024 → 2026</span>
+              </div>
+
+              <div class="space-y-2">
+                
+                <!-- Item 6 -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Combustível Automotivo</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,4M → 1,2M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+223%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">0,4M → 0,9M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+146%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 7 -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Locação de Imóveis</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">2,3M → 6,6M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+181%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">2,3M → 5,3M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+125%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 8 -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Locação de Veículos</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">5,5M → 13,4M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+141%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">5,5M → 9,9M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+79%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 9 -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Segurança, Guarda e Vigilância Armada</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">3,0M → 6,2M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+107%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">3,0M → 5,1M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+70%</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Item 10 -->
+                <div class="bg-white p-2 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-800 text-[11px] mb-1">Terceirização de Apoio Operacional</div>
+                  <div class="grid grid-cols-2 gap-1.5 text-[10px]">
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Empenhado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">20,7M → 32,4M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+57%</span>
+                    </div>
+                    <div class="bg-slate-50 p-1 rounded border border-slate-100 flex justify-between items-center">
+                      <div><span class="text-slate-400 font-semibold uppercase text-[9px]">Liquidado:</span> <span class="font-bold text-slate-700 whitespace-nowrap">20,7M → 22,7M</span></div>
+                      <span class="bg-emerald-100 text-emerald-900 font-extrabold px-1 rounded text-[9px]">+10%</span>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box de Impacto Prático -->
+        <div class="bg-emerald-900 text-white p-3 rounded-xl text-xs flex items-start gap-2.5 shadow-sm">
+          <div class="w-5 h-5 rounded-full bg-emerald-700 text-white flex-shrink-0 flex items-center justify-center font-bold text-[11px] mt-0.5">ℹ</div>
+          <div class="leading-snug">
+            <strong class="font-bold uppercase tracking-wide text-emerald-200">Impacto Real dos Cortes:</strong>
+            Reduzir despesas continuadas significa demitir terceirizados (TI, limpeza e vigilância), devolver veículos e rescindir locações, gerando alto desgaste e risco de interrupção operacional.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 10: LINHA DO TEMPO DA NECESSIDADE DE CRÉDITO ADICIONAL -->
+    <section class="slide w-full" id="slide-10">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Cronograma de Suplementação • Exercício 2027</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Necessidade de Crédito Adicional Prevista: Linha do Tempo</h3>
+            <p class="text-sm text-slate-500 mt-1">Cronograma de desembolso e vencimento do déficit de R$ 47,45 Mi mapeado ao longo de 2027.</p>
+          </div>
+          <div class="flex-shrink-0">
+            <span class="bg-amber-100 text-amber-900 border border-amber-300 px-3 py-1 rounded-full text-xs font-extrabold shadow-xs">
+              83,0% no 1º Trimestre (Imediato a Março: R$ 39,40 Mi)
+            </span>
+          </div>
+        </div>
+
+        <!-- 4 Cards Superiores de Síntese Temporal -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+          
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Déficit Total Mapeado</span>
+            <div class="text-xl md:text-2xl font-extrabold text-slate-900 mt-0.5">R$ 47,45 Mi</div>
+            <p class="text-[10px] text-slate-500 mt-0.5 leading-tight">19 demandas indispensáveis</p>
+          </div>
+
+          <div class="bg-rose-50/80 border border-rose-200 rounded-2xl p-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-bold text-rose-800 uppercase tracking-wider">1º Trimestre (Imediato a Mar)</span>
+              <span class="bg-rose-200 text-rose-900 text-[9px] font-black px-1.5 py-0.2 rounded">83,0%</span>
+            </div>
+            <div class="text-xl md:text-2xl font-extrabold text-rose-700 mt-0.5">R$ 39,40 Mi</div>
+            <p class="text-[10px] text-rose-900/80 mt-0.5 leading-tight">Inclui Imediato (3,74M) + Jan a Mar (35,66M)</p>
+          </div>
+
+          <div class="bg-blue-50/80 border border-blue-200 rounded-2xl p-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-bold text-blue-800 uppercase tracking-wider">Fechamento 1º Semestre</span>
+              <span class="bg-blue-200 text-blue-900 text-[9px] font-black px-1.5 py-0.2 rounded">7,5%</span>
+            </div>
+            <div class="text-xl md:text-2xl font-extrabold text-blue-900 mt-0.5">R$ 3,54 Mi</div>
+            <p class="text-[10px] text-blue-800/80 mt-0.5 leading-tight">Junho: TIC Infra e Monitoramento</p>
+          </div>
+
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-3">
+            <div class="flex justify-between items-center">
+              <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider">2º Semestre (Set–Out)</span>
+              <span class="bg-slate-200 text-slate-700 text-[9px] font-black px-1.5 py-0.2 rounded">9,5%</span>
+            </div>
+            <div class="text-xl md:text-2xl font-extrabold text-slate-800 mt-0.5">R$ 4,51 Mi</div>
+            <p class="text-[10px] text-slate-500 mt-0.5 leading-tight">Prorrogações de Apoio e Microsoft</p>
+          </div>
+
+        </div>
+
+        <!-- Linha do Tempo Detalhada por Mês / Período (Bolinhas Pretas Homogêneas) -->
+        <div class="space-y-2 mb-4">
+
+          <!-- 1. Imediato -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <span class="font-extrabold text-slate-900">Imediato</span>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-black text-slate-900 text-sm">
+              R$ 3,74 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600">
+              <strong class="text-slate-800">Business Analytics</strong> (Nova contratação: R$ 3,10 Mi), <strong class="text-slate-800">IA em Nuvem</strong> (R$ 0,49 Mi) e <strong class="text-slate-800">SAP</strong> (R$ 0,15 Mi).
+            </div>
+          </div>
+
+          <!-- 2. Janeiro/2027 -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <span class="font-extrabold text-slate-900">Janeiro / 2027</span>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-black text-slate-900 text-sm md:text-base">
+              R$ 24,16 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600 leading-snug">
+              <strong class="text-slate-800">Terceirização TIC - Desenvolvimento de Software:</strong> R$ 22,95 Mi (R$ 12,95 Mi regular + R$ 10,00 Mi desconsideradas no PROFISCO); mais <strong class="text-slate-800">Convênio SEFAZ/RS</strong> (R$ 0,51 Mi), <strong class="text-slate-800">GOVTECH</strong> (R$ 0,36 Mi) e satélite.
+            </div>
+          </div>
+
+          <!-- 3. Fevereiro/2027 -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <span class="font-extrabold text-slate-900">Fevereiro / 2027</span>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-black text-slate-900 text-sm">
+              R$ 11,24 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600">
+              <strong class="text-slate-800">Serviços Gerais e Limpeza</strong> (Prorrogação: R$ 5,58 Mi), <strong class="text-slate-800">OCR Fixo Trânsito</strong> (Nova contratação: R$ 3,38 Mi) e <strong class="text-slate-800">Call Center Atendimento</strong> (R$ 2,28 Mi).
+            </div>
+          </div>
+
+          <!-- 4. Março/2027 -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <span class="font-bold text-slate-800">Março / 2027</span>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-bold text-slate-900 text-xs">
+              R$ 0,26 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600">
+              Manutenção e layout de furgões da fiscalização (R$ 0,23 Mi) e capacitação técnica (R$ 0,02 Mi).
+            </div>
+          </div>
+
+          <!-- 5. Junho/2027 -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <span class="font-extrabold text-slate-900">Junho / 2027</span>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-black text-slate-900 text-sm">
+              R$ 3,54 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600">
+              <strong class="text-slate-800">Terceirização TIC - Infraestrutura</strong> (Nova contratação: R$ 2,40 Mi) e <strong class="text-slate-800">Monitoramento Eletrônico</strong> (R$ 1,14 Mi).
+            </div>
+          </div>
+
+          <!-- 6. 2º Semestre (Setembro e Outubro/2027) -->
+          <div class="grid grid-cols-12 gap-2 items-center bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs">
+            <div class="col-span-12 sm:col-span-3 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-slate-900 flex-shrink-0"></span>
+              <div>
+                <span class="font-extrabold text-slate-900">Setembro e Outubro</span>
+                <span class="block text-[9px] text-slate-500">2º Semestre 2027</span>
+              </div>
+            </div>
+            <div class="col-span-4 sm:col-span-2 text-left sm:text-right font-black text-slate-900 text-sm">
+              R$ 4,51 Mi
+            </div>
+            <div class="col-span-8 sm:col-span-7 text-[11px] text-slate-600">
+              <strong class="text-slate-800">Terceirização Nível Superior</strong> (R$ 1,91 Mi), <strong class="text-slate-800">Microsoft Software Assurance</strong> (R$ 1,35 Mi) e <strong class="text-slate-800">Terceirização Nível Médio</strong> (R$ 1,26 Mi).
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Box de Conclusão Estratégica -->
+        <div class="bg-amber-50 border-l-4 border-amber-600 p-3 rounded-r-xl text-xs text-amber-950 flex items-start gap-2.5 shadow-xs">
+          <span class="text-base font-bold text-amber-700 flex-shrink-0">⚠</span>
+          <div class="leading-snug">
+            <strong class="font-bold text-amber-950 uppercase tracking-wide">Urgência da Suplementação:</strong>
+            <strong>83,0% do déficit (R$ 39,40 Mi)</strong> vence no 1º trimestre (imediato, fábrica de TI e serviços gerais). O déficit total mapeado de R$ 47,45 Mi <strong>depende do êxito das supressões pactuadas</strong>; sem a suplementação tempestiva, há risco de paralisação dos sistemas arrecadadores.
+          </div>
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 11: LINHA DO TEMPO DETALHADA DAS DESPESAS DO DÉFICIT -->
+    <section class="slide w-full" id="slide-11">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Detalhamento Analítico • Exercício 2027</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Linha do Tempo Detalhada do Déficit Orçamentário</h3>
+            <p class="text-sm text-slate-500 mt-1">Discriminação analítica de todas as 19 despesas com necessidade de suplementação por período de contratação.</p>
+          </div>
+          <div class="flex-shrink-0 flex items-center gap-2">
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
+              19 Demandas • R$ 47,45 Mi
+            </span>
+          </div>
+        </div>
+
+        <!-- Grid de 3 Colunas Cronológicas com todos os 19 itens detalhados -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          
+          <!-- Coluna 1: Imediato & Janeiro/2027 (R$ 27,90 Mi • 58,8%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 1 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Imediato & Janeiro</span>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 27,90 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Imediato -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Imediato (Urgente)</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,74 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Business Analytics</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 3,10 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>IA em Nuvem</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 494,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>SAP</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 148,2 mil</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Janeiro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Janeiro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 24,16 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Desenvolvimento</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 12,95 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Desenv.</strong> (Desconsid. PROFISCO)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 10,00 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Convênio SEFAZ/RS</strong> (Virtual Migração)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 514,6 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>GOVTECH</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 361,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Internet Satélite</strong> (Vigente)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 241,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Locação Empilhadeiras</strong> (Nova)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 85,0 mil</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Concentra 58,8% do déficit orçamentário anual no primeiro mês de exercício.
+            </div>
+          </div>
+
+          <!-- Coluna 2: Fevereiro & Março/2027 (R$ 11,50 Mi • 24,2%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 2 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Fevereiro & Março</span>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 11,50 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Fevereiro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Fevereiro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 11,24 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Serviços Gerais e Limpeza</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 5,58 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>OCR Fixo de Trânsito</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 3,38 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Call Center Atendimento</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 2,28 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Março/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Março / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 0,26 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Layout de Furgões</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 234,0 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Capacitação Técnica</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 24,8 mil</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Box Destaque 1º Tri -->
+                <div class="bg-amber-100/70 p-2.5 rounded-xl border border-amber-300">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-extrabold text-amber-950 uppercase text-[10px]">Acumulado 1º Trimestre</span>
+                    <span class="font-black text-amber-950">R$ 39,40 Mi (83,0%)</span>
+                  </div>
+                  <p class="text-[9px] text-amber-900 mt-0.5 leading-tight">
+                    14 das 19 demandas essenciais necessitam de dotação orçamentária até março.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Sustentação dos serviços continuados de apoio predial e fiscalização no trânsito.
+            </div>
+          </div>
+
+          <!-- Coluna 3: Junho, Setembro & Outubro/2027 (R$ 8,05 Mi • 17,0%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 3 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Junho, Setembro & Outubro</span>
+                </div>
+                <span class="bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 8,05 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Junho/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Junho / 2027 (1º Semestre)</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,54 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Infraestrutura</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 2,40 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Monitoramento Eletrônico</strong> (Nova)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,14 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Setembro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Setembro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,25 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Apoio Nível Superior</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,91 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Microsoft Assurance</strong> (Vigente)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,35 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Outubro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Outubro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 1,26 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Apoio Nível Médio</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,26 Mi</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Contratos do 2º semestre somam R$ 4,51 Mi (9,5%), com prorrogações essenciais de terceirizados e software.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 12: SÍNTESE TÉCNICA E REFLEXÃO ESTRATÉGICA -->
+    <section class="slide w-full" id="slide-12">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-6 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Tomada de Decisão Estratégica</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Síntese Técnica e Reflexão para a Gestão</h3>
+            <p class="text-sm text-slate-500 mt-1">A equação orçamentária de 2027: conciliação entre o teto fixado e a sustentação dos serviços fazendários.</p>
+          </div>
+          <div class="mt-3 md:mt-0">
+            <span class="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
+              Conclusão Executiva
+            </span>
+          </div>
+        </div>
+
+        <!-- Grid de 2 Colunas: Fatos Técnicos vs Impacto das Escolhas (ENXUTO E SUCINTO) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+          
+          <!-- Coluna 1: Síntese dos Fatos Técnicos -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                <span class="w-6 h-6 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">1</span>
+                <h4 class="font-bold text-slate-900 text-xs md:text-sm">Fatos Técnicos Incontornáveis</h4>
+              </div>
+
+              <div class="space-y-2.5 text-xs text-slate-700">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-0.5">Novos Contratos com Escopo Maior</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    A expansão de 2024 a 2026 (R$ 155,1M → R$ 207,5M) decorreu de novos contratos com escopo maior.
+                  </p>
+                </div>
+
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-0.5">Recuo Severo da Cota para 2027</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    Fixada em R$ 144,1 Mi (-30,5%), a cota recuou abaixo de 2024 (R$ 155,1M), desconsiderando 3 anos de inflação e a expansão física e tecnológica da pasta.
+                  </p>
+                </div>
+
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-0.5">Déficit Imediato no Piso Essencial</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    O piso essencial mapeado é de <strong>R$ 191,54 Mi</strong>. A cota fixada cobre apenas 75,2% das despesas vitais, impondo um gap de <strong>-R$ 47,45 Mi</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Coluna 2: Reflexão Estratégica e Consequências -->
+          <div class="rounded-2xl bg-slate-50 border border-slate-200 p-5 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-3 pb-2 border-b border-slate-200">
+                <span class="w-6 h-6 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">2</span>
+                <h4 class="font-bold text-slate-900 text-xs md:text-sm">Reflexão Estratégica para Decisão</h4>
+              </div>
+
+              <div class="space-y-2.5 text-xs text-slate-700">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-emerald-950 text-xs mb-0.5">Impacto Direto em Pessoas</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    Absorver o déficit exigirá demissões de pessoal terceirizado (TI, vigilância e limpeza), gerando forte desgaste institucional e ruído operacional.
+                  </p>
+                </div>
+
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-emerald-950 text-xs mb-0.5">Risco à Arrecadação Própria</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    Cortes adicionais forçam a devolução de viaturas da fiscalização e devolução de prédios locados, enfraquecendo a presença fiscal.
+                  </p>
+                </div>
+
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-emerald-950 text-xs mb-0.5">Vulnerabilidade dos Sistemas Vitais</div>
+                  <p class="text-slate-600 leading-snug text-[11px]">
+                    Limitar links de dados e licenças ameaça a estabilidade de plataformas estruturantes do Estado, como arrecadação tributária e NFe.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-4 mt-8 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 13: ENCAMINHAMENTO ESTRATÉGICO PARA A GESTÃO -->
+    <section class="slide w-full" id="slide-13">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-6 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Tomada de Decisão Estratégica</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Encaminhamento Estratégico para a Gestão</h3>
+            <p class="text-sm text-slate-500 mt-1">Cenários de tomada de decisão para compatibilização da execução orçamentária do exercício de 2027.</p>
+          </div>
+          <div class="mt-3 md:mt-0">
+            <span class="bg-emerald-100 text-emerald-900 px-3 py-1 rounded-full text-xs font-bold border border-emerald-200">
+              Diretrizes de Ação
+            </span>
+          </div>
+        </div>
+
+        <!-- Grid de 2 Grandes Cenários de Decisão com Monitoramento Mensal Estimado vs Liquidado -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
+          
+          <!-- Diretriz A: Preservação Operacional -->
+          <div class="rounded-2xl border-2 border-emerald-800 p-5 bg-emerald-50/40 flex flex-col justify-between shadow-sm relative">
+            <div class="absolute -top-3 right-4 bg-emerald-900 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">
+              Recomendação Técnica
+            </div>
+            <div>
+              <div class="flex items-center gap-2 mb-2 pb-2 border-b border-emerald-200">
+                <span class="w-7 h-7 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">A</span>
+                <h4 class="font-bold text-emerald-950 text-base">Preservação Operacional e Suplementação</h4>
+              </div>
+              <p class="text-xs text-emerald-900 font-semibold mb-3 leading-tight">
+                Pactuação prévia de suplementação orçamentária escalonada para cobertura do déficit essencial.
+              </p>
+
+              <div class="space-y-2 text-xs">
+                <div class="bg-white p-3.5 rounded-xl border-2 border-emerald-700 shadow-md ring-2 ring-emerald-600/15">
+                  <div class="flex justify-between items-center mb-1">
+                    <div class="flex items-center gap-1.5">
+                      <span class="w-2.5 h-2.5 rounded-full bg-emerald-700 animate-pulse"></span>
+                      <span class="font-black text-emerald-950 text-xs uppercase tracking-wider">Montante Necessário</span>
+                    </div>
+                    <span class="text-emerald-950 font-black text-base md:text-lg bg-emerald-100/90 px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-sm">R$ 47,45 Mi</span>
+                  </div>
+                  <p class="text-slate-600 text-[11px] leading-tight">
+                    Cobertura do gap entre a cota (R$ 144,1 Mi) e o piso essencial (R$ 191,54 Mi).
+                  </p>
+                </div>
+
+                <!-- Monitoramento Mensal Estimado vs Liquidado (Rotina Vigente) -->
+                <div class="bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-300">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-extrabold text-emerald-950 text-xs">Governança Vigente: Estimado vs. Liquidado</span>
+                    <span class="bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">Rotina da Pasta</span>
+                  </div>
+                  <p class="text-emerald-900 text-[11px] leading-tight">
+                    <strong>Monitoramento mensal contínuo do estimado vs. liquidado:</strong> eventuais sobras orçamentárias verificadas na execução de cada contrato são prontamente abatidas, reduzindo o pleito de suplementação ao estritamente liquidado.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-emerald-200 text-[11px] text-emerald-900 font-semibold">
+              ✓ Mitiga colapso operacional e demanda recursos estritamente vinculados ao que for liquidado mês a mês.
+            </div>
+          </div>
+
+          <!-- Diretriz B: Ajuste Forçado à Cota -->
+          <div class="rounded-2xl border border-slate-300 p-5 bg-slate-50 flex flex-col justify-between">
+            <div>
+              <div class="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
+                <span class="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center text-xs font-bold">B</span>
+                <h4 class="font-bold text-slate-900 text-base">Ajuste Forçado à Cota PLOA (R$ 144,1 Mi)</h4>
+              </div>
+              <p class="text-xs text-slate-600 font-semibold mb-3 leading-tight">
+                Enquadramento estrito na cota disponibilizada, exigindo plano deliberado de desmobilização.
+              </p>
+
+              <div class="space-y-2 text-xs">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-0.5">Exigência Prévia Indispensável</div>
+                  <p class="text-slate-600 text-[11px] leading-tight">
+                    Submeter previamente à Alta Cúpula a <strong>escolha explícita dos contratos e postos a descontinuar</strong>, com assunção compartilhada dos impactos.
+                  </p>
+                </div>
+
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-1">Medidas Necessárias de Corte</div>
+                  <ul class="text-slate-600 text-[11px] space-y-0.5 list-disc list-inside">
+                    <li>Mais demissões expressivas de mão de obra de TI e apoio operacional.</li>
+                    <li>Mais devoluções de veículos fiscais.</li>
+                    <li>Devolver prédios alugados.</li>
+                  </ul>
+                </div>
+
+                <!-- Monitoramento Mensal Estimado vs Liquidado (Rotina Vigente) -->
+                <div class="bg-slate-200/70 p-2.5 rounded-xl border border-slate-300">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-extrabold text-slate-900 text-xs">Governança Vigente: Estimado vs. Liquidado</span>
+                    <span class="bg-slate-700 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">Rotina da Pasta</span>
+                  </div>
+                  <p class="text-slate-700 text-[11px] leading-tight">
+                    <strong>Monitoramento mensal contínuo do estimado vs. liquidado:</strong> identificação tempestiva de sobras orçamentárias nos contratos em vigor para remanejamentos internos, amortecendo os cortes e adiando demissões.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-slate-200 text-[11px] text-rose-800 font-semibold">
+              ⚠ Gera elevado ruído institucional, desgaste com prestadores/sindicatos e risco concreto de perda de receita fiscal.
+            </div>
+          </div>
+
+        </div>
+
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-4 mt-6 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- RODAPÉ DE NAVEGAÇÃO -->
+  <footer class="no-print max-w-6xl w-full mx-auto p-4 flex items-center justify-between text-xs text-slate-500">
+    <div class="flex items-center gap-2">
+      <span class="inline-block w-2 h-2 rounded-full bg-emerald-700"></span>
+      <span>Use as setas do teclado (<strong>←</strong> / <strong>→</strong>) ou os botões para navegar</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <button onclick="goToSlide(1)" class="w-2.5 h-2.5 rounded-full bg-emerald-800 dot-indicator" id="dot-1"></button>
+      <button onclick="goToSlide(2)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-2"></button>
+      <button onclick="goToSlide(3)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-3"></button>
+      <button onclick="goToSlide(4)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-4"></button>
+      <button onclick="goToSlide(5)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-5"></button>
+      <button onclick="goToSlide(6)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-6"></button>
+      <button onclick="goToSlide(7)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-7"></button>
+      <button onclick="goToSlide(8)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-8"></button>
+      <button onclick="goToSlide(9)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-9"></button>
+      <button onclick="goToSlide(10)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-10"></button>
+      <button onclick="goToSlide(11)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-11"></button>
+      <button onclick="goToSlide(12)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-12"></button>
+      <button onclick="goToSlide(13)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-13"></button>
+    </div>
+  </footer>
+
+  <!-- SCRIPT DE NAVEGAÇÃO INTERATIVA -->
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 13;
+
+    function updateSlide() {
+      // Atualiza visibilidade dos slides
+      for (let i = 1; i <= totalSlides; i++) {
+        const slide = document.getElementById(`slide-${i}`);
+        const dot = document.getElementById(`dot-${i}`);
+        if (slide) {
+          if (i === currentSlide) {
+            slide.classList.add('active');
+          } else {
+            slide.classList.remove('active');
+          }
+        }
+        if (dot) {
+          if (i === currentSlide) {
+            dot.className = "w-5 h-2.5 rounded-full bg-emerald-800 dot-indicator transition-all";
+          } else {
+            dot.className = "w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator transition-all hover:bg-slate-400";
+          }
+        }
+      }
+      
+      // Atualiza contador
+      document.getElementById('slide-num-current').innerText = currentSlide;
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlide();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlide();
+      }
+    }
+
+    function goToSlide(n) {
+      if (n >= 1 && n <= totalSlides) {
+        currentSlide = n;
+        updateSlide();
+      }
+    }
+
+    // Navegação por teclado
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'Space') {
+        nextSlide();
+      } else if (e.key === 'ArrowLeft') {
+        prevSlide();
+      }
+    });
+
+    // Suporte a Toque e Swipe no Celular (Deslizar o dedo)
+    let touchStartX = 0;
+    let touchEndX = 0;
+    let touchStartY = 0;
+    let touchEndY = 0;
+
+    document.addEventListener('touchstart', (e) => {
+      touchStartX = e.changedTouches[0].screenX;
+      touchStartY = e.changedTouches[0].screenY;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+      touchEndX = e.changedTouches[0].screenX;
+      touchEndY = e.changedTouches[0].screenY;
+      handleSwipe();
+    }, { passive: true });
+
+    function handleSwipe() {
+      // Ignora se estiver no modo de rolagem contínua
+      if (document.body.classList.contains('scroll-mode')) return;
+      
+      const diffX = touchEndX - touchStartX;
+      const diffY = touchEndY - touchStartY;
+      
+      // Só dispara se o swipe horizontal for predominante
+      if (Math.abs(diffX) > 45 && Math.abs(diffX) > Math.abs(diffY) * 1.5) {
+        if (diffX < 0) {
+          nextSlide(); // Deslizou para esquerda -> próximo
+        } else {
+          prevSlide(); // Deslizou para direita -> anterior
+        }
+      }
+    }
+
+    // Alternar entre Modo Apresentação (Slides) e Modo Leitura Vertical Contínua (Celular)
+    let isScrollMode = false;
+    function toggleViewMode() {
+      isScrollMode = !isScrollMode;
+      const btnText = document.getElementById('toggle-view-text');
+      const btnIcon = document.getElementById('toggle-view-icon');
+      
+      if (isScrollMode) {
+        document.body.classList.add('scroll-mode');
+        if (btnText) btnText.innerText = "Modo Apresentação";
+        if (btnIcon) btnIcon.innerText = "🖥️";
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        document.body.classList.remove('scroll-mode');
+        if (btnText) btnText.innerText = "Modo Leitura Vertical";
+        if (btnIcon) btnIcon.innerText = "📱";
+        updateSlide();
+      }
+    }
+
+    // Atualiza também o contador mobile
+    const originalUpdateSlide = updateSlide;
+    updateSlide = function() {
+      originalUpdateSlide();
+      const mobCounter = document.getElementById('mobile-current-slide');
+      if (mobCounter) mobCounter.innerText = currentSlide;
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    // Inicialização
+    updateSlide();
+  </script>
+  <!-- BARRA FLUTUANTE DE NAVEGAÇÃO MOBILE (Para Celular) -->
+  <div class="mobile-slide-nav no-print md:hidden fixed bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/90 p-2 shadow-2xl flex items-center justify-between z-50">
+    <button onclick="prevSlide()" class="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 active:scale-95 transition">
+      <span>◀</span>
+      <span>Anterior</span>
+    </button>
+    <div class="text-center">
+      <span class="text-xs font-bold text-emerald-900"><span id="mobile-current-slide">1</span> de 12</span>
+      <p class="text-[9px] text-slate-400">Deslize para o lado ⇄</p>
+    </div>
+    <button onclick="nextSlide()" class="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1 shadow-md active:scale-95 transition">
+      <span>Próximo</span>
+      <span>▶</span>
+    </button>
+  </div>
+</body>
+</html>
