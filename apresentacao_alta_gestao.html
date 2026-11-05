@@ -1758,79 +1758,101 @@
           </div>
         </div>
 
-        <!-- Grid de 2 Grandes Cenários de Decisão -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        <!-- Grid de 2 Grandes Cenários de Decisão com Monitoramento Mensal Estimado vs Liquidado -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           
           <!-- Diretriz A: Preservação Operacional -->
-          <div class="rounded-2xl border-2 border-emerald-800 p-6 bg-emerald-50/40 flex flex-col justify-between shadow-sm relative">
+          <div class="rounded-2xl border-2 border-emerald-800 p-5 bg-emerald-50/40 flex flex-col justify-between shadow-sm relative">
             <div class="absolute -top-3 right-4 bg-emerald-900 text-white text-[10px] font-bold px-3 py-0.5 rounded-full uppercase tracking-wider">
               Recomendação Técnica
             </div>
             <div>
-              <div class="flex items-center gap-2 mb-3">
+              <div class="flex items-center gap-2 mb-2 pb-2 border-b border-emerald-200">
                 <span class="w-7 h-7 rounded-lg bg-emerald-900 text-white flex items-center justify-center text-xs font-bold">A</span>
                 <h4 class="font-bold text-emerald-950 text-base">Preservação Operacional e Suplementação</h4>
               </div>
-              <p class="text-xs text-emerald-900 font-semibold mb-4 leading-relaxed">
-                Pleito formal e pactuação prévia de suplementação orçamentária para cobertura do déficit do núcleo essencial.
+              <p class="text-xs text-emerald-900 font-semibold mb-3 leading-tight">
+                Pactuação prévia de suplementação orçamentária escalonada para cobertura do déficit essencial.
               </p>
 
-              <div class="space-y-2.5 text-xs">
-                <div class="bg-white p-3 rounded-xl border border-emerald-200">
-                  <div class="font-bold text-emerald-950 text-xs mb-1">Montante Necessário</div>
-                  <div class="text-emerald-900 font-extrabold text-sm mb-0.5">R$ 47,45 Mi</div>
-                  <p class="text-slate-600 text-[11px] leading-relaxed">
-                    Suplementação escalonada ao longo do exercício de 2027 para cobrir o déficit de <strong>R$ 47,45 Mi</strong> entre a cota (R$ 144,1 Mi) e o piso essencial (<strong>R$ 191,54 Mi</strong>).
+              <div class="space-y-2 text-xs">
+                <div class="bg-white p-2.5 rounded-xl border border-emerald-200">
+                  <div class="flex justify-between items-center mb-0.5">
+                    <span class="font-bold text-emerald-950 text-xs">Montante Necessário</span>
+                    <span class="text-emerald-900 font-extrabold text-sm">R$ 47,45 Mi</span>
+                  </div>
+                  <p class="text-slate-600 text-[11px] leading-tight">
+                    Cobertura do gap entre a cota (R$ 144,1 Mi) e o piso essencial (R$ 191,54 Mi).
                   </p>
                 </div>
 
-                <div class="bg-white p-3 rounded-xl border border-emerald-200">
+                <div class="bg-white p-2.5 rounded-xl border border-emerald-200">
                   <div class="font-bold text-emerald-950 text-xs mb-1">Garantia da Operação Mínima</div>
-                  <ul class="text-slate-600 text-[11px] space-y-1 list-disc list-inside">
-                    <li>Evita demissões e cortes ainda mais drásticos no <strong>pessoal terceirizado e serviços essenciais</strong>, além das supressões severas já previstas na PLOA (que já propõem corte de 125 vagas de apoio operacional, 33% em vigilância armada e 36% em limpeza).</li>
-                    <li>Sustentação da capacidade mínima da <strong>fiscalização de tributos</strong> (preservando frotas remanescentes e combustível após supressões).</li>
-                    <li>Continuidade e estabilidade operacional dos <strong>sistemas estruturantes</strong> (SIAFIC, NFe, arrecadação).</li>
+                  <ul class="text-slate-600 text-[11px] space-y-0.5 list-disc list-inside">
+                    <li>Evita demissões adicionais de terceirizados e mantém frotas de fiscalização.</li>
+                    <li>Assegura estabilidade nos sistemas vitais (SIAFIC, arrecadação e NFe).</li>
                   </ul>
+                </div>
+
+                <!-- Monitoramento Mensal Estimado vs Liquidado (Rotina Vigente) -->
+                <div class="bg-emerald-100/60 p-2.5 rounded-xl border border-emerald-300">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-extrabold text-emerald-950 text-xs">Governança Vigente: Estimado vs. Liquidado</span>
+                    <span class="bg-emerald-700 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">Rotina da Pasta</span>
+                  </div>
+                  <p class="text-emerald-900 text-[11px] leading-tight">
+                    <strong>Monitoramento mensal contínuo do estimado vs. liquidado:</strong> eventuais sobras orçamentárias verificadas na execução de cada contrato são prontamente abatidas, reduzindo o pleito de suplementação ao estritamente liquidado.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-emerald-200 text-[11px] text-emerald-900 font-medium">
-              ✓ Assegura a governabilidade mínima e mitiga o risco de colapso operacional, operando no patamar estrito do núcleo essencial já depurado pelas supressões.
+            <div class="mt-3 pt-2.5 border-t border-emerald-200 text-[11px] text-emerald-900 font-semibold">
+              ✓ Mitiga colapso operacional e demanda recursos estritamente vinculados ao que for liquidado mês a mês.
             </div>
           </div>
 
-          <!-- Diretriz B: Ajuste Deliberado à Cota -->
-          <div class="rounded-2xl border border-slate-300 p-6 bg-slate-50 flex flex-col justify-between">
+          <!-- Diretriz B: Ajuste Forçado à Cota -->
+          <div class="rounded-2xl border border-slate-300 p-5 bg-slate-50 flex flex-col justify-between">
             <div>
-              <div class="flex items-center gap-2 mb-3">
+              <div class="flex items-center gap-2 mb-2 pb-2 border-b border-slate-200">
                 <span class="w-7 h-7 rounded-lg bg-slate-700 text-white flex items-center justify-center text-xs font-bold">B</span>
                 <h4 class="font-bold text-slate-900 text-base">Ajuste Forçado à Cota PLOA (R$ 144,1 Mi)</h4>
               </div>
-              <p class="text-xs text-slate-600 font-semibold mb-4 leading-relaxed">
-                Enquadramento estrito na cota disponibilizada, exigindo plano deliberado de desmobilização e supressão contratual.
+              <p class="text-xs text-slate-600 font-semibold mb-3 leading-tight">
+                Enquadramento estrito na cota disponibilizada, exigindo plano deliberado de desmobilização.
               </p>
 
-              <div class="space-y-2.5 text-xs">
-                <div class="bg-white p-3 rounded-xl border border-slate-200">
-                  <div class="font-bold text-slate-900 text-xs mb-1">Exigência Prévia Indispensável</div>
-                  <p class="text-slate-600 text-[11px] leading-relaxed">
-                    Submeter previamente à Alta Cúpula do Governo a <strong>escolha explícita dos contratos e postos a descontinuar</strong>, formalizando a assunção compartilhada das consequências operacionais e institucionais.
+              <div class="space-y-2 text-xs">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="font-bold text-slate-900 text-xs mb-0.5">Exigência Prévia Indispensável</div>
+                  <p class="text-slate-600 text-[11px] leading-tight">
+                    Submeter previamente à Alta Cúpula a <strong>escolha explícita dos contratos e postos a descontinuar</strong>, com assunção compartilhada dos impactos.
                   </p>
                 </div>
 
-                <div class="bg-white p-3 rounded-xl border border-slate-200">
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
                   <div class="font-bold text-slate-900 text-xs mb-1">Medidas Necessárias de Corte</div>
-                  <ul class="text-slate-600 text-[11px] space-y-1 list-disc list-inside">
-                    <li>Demissão expressiva de <strong>mão de obra técnica de TIC e apoio operacional</strong>.</li>
-                    <li>Devolução de <strong>veículos operacionais</strong> de fiscalização de trânsito e tributos.</li>
-                    <li>Renegociação compulsória ou rescisão de contratos contínuos de suporte e manutenção.</li>
+                  <ul class="text-slate-600 text-[11px] space-y-0.5 list-disc list-inside">
+                    <li>Demissão expressiva de mão de obra de TI e apoio operacional.</li>
+                    <li>Devolução de veículos fiscais e fechamento de agências fazendárias no interior.</li>
                   </ul>
+                </div>
+
+                <!-- Monitoramento Mensal Estimado vs Liquidado (Rotina Vigente) -->
+                <div class="bg-slate-200/70 p-2.5 rounded-xl border border-slate-300">
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="font-extrabold text-slate-900 text-xs">Governança Vigente: Estimado vs. Liquidado</span>
+                    <span class="bg-slate-700 text-white text-[9px] font-bold px-1.5 py-0.2 rounded">Rotina da Pasta</span>
+                  </div>
+                  <p class="text-slate-700 text-[11px] leading-tight">
+                    <strong>Monitoramento mensal contínuo do estimado vs. liquidado:</strong> identificação tempestiva de sobras orçamentárias nos contratos em vigor para remanejamentos internos, amortecendo os cortes e adiando demissões.
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div class="mt-4 pt-3 border-t border-slate-200 text-[11px] text-rose-800 font-semibold">
+            <div class="mt-3 pt-2.5 border-t border-slate-200 text-[11px] text-rose-800 font-semibold">
               ⚠ Gera elevado ruído institucional, desgaste com prestadores/sindicatos e risco concreto de perda de receita fiscal.
             </div>
           </div>
