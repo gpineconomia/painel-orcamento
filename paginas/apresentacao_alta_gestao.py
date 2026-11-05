@@ -23,12 +23,20 @@ if versao == "Versão 1 (Original)":
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v1.html"
     download_name = "apresentacao_alta_gestao_v1_deficit_47_45M.html"
+    pptx_file = BASE_DIR / "apresentacao_alta_gestao_v1.pptx"
+    if not pptx_file.exists():
+        pptx_file = BRAIN_DIR / "apresentacao_alta_gestao_v1.pptx"
+    pptx_name = "apresentacao_alta_gestao_v1_deficit_47_45M.pptx"
     metric_label = "V1 (Base): Déficit R$ 47,45 Mi • Piso Essencial R$ 191,54 Mi • Serviços Gerais R$ 5,58 Mi"
 else:
     html_file = BASE_DIR / "apresentacao_alta_gestao_v2.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v2.html"
     download_name = "apresentacao_alta_gestao_v2_deficit_45_26M.html"
+    pptx_file = BASE_DIR / "apresentacao_alta_gestao_v2.pptx"
+    if not pptx_file.exists():
+        pptx_file = BRAIN_DIR / "apresentacao_alta_gestao_v2.pptx"
+    pptx_name = "apresentacao_alta_gestao_v2_deficit_45_26M.pptx"
     metric_label = "V2 (Atualizada): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
 
 if not html_file.exists():
@@ -47,17 +55,26 @@ with col_info:
     )
 
 # Botões de utilidade no Streamlit
-col_t1, col_t2 = st.columns([3, 1])
+col_t1, col_t2, col_t3 = st.columns([2.2, 1, 1.2])
 with col_t1:
-    st.caption("Apresentação interativa com 13 slides adaptada para computadores, tablets e smartphones (com suporte a toque/swipe).")
+    st.caption("Apresentação com 13 slides adaptada para computadores, tablets e smartphones (HTML interativo e PowerPoint nativo).")
 with col_t2:
     st.download_button(
-        label=f"📥 Baixar {versao} (HTML)",
+        label=f"📥 Baixar HTML ({'V1' if '1' in versao else 'V2'})",
         data=html_content,
         file_name=download_name,
         mime="text/html",
         use_container_width=True
     )
+with col_t3:
+    if pptx_file.exists():
+        st.download_button(
+            label=f"📊 Baixar PowerPoint (.pptx)",
+            data=pptx_file.read_bytes(),
+            file_name=pptx_name,
+            mime="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            use_container_width=True
+        )
 
 # Renderiza o HTML com altura dinâmica
 components.html(html_content, height=920, scrolling=True)

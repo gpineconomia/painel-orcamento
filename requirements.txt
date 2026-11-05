@@ -7,3 +7,4 @@ python-dotenv>=1.0
 streamlit-autorefresh>=1.0.1
 truststore>=0.9
 requests-negotiate-sspi>=0.5; sys_platform == 'win32'
+python-pptx>=1.0
