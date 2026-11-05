@@ -36,7 +36,7 @@
       box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.08), 0 8px 10px -6px rgba(5, 150, 105, 0.04);
     }
     
-                                                                            /* Print / PDF view mode - Sem cortes: fluxo natural com quebra entre slides */
+                                                                                /* Print / PDF view mode - Sem cortes: fluxo natural com quebra entre slides */
     @page {
       size: A4 landscape;
       margin: 8mm 10mm;
@@ -150,7 +150,7 @@
         <div class="flex items-center gap-1.5 bg-slate-100 py-1 px-2.5 rounded-full text-xs font-semibold text-slate-600">
           <span id="slide-num-current" class="text-emerald-800 font-bold">1</span>
           <span class="text-slate-400">/</span>
-          <span id="slide-num-total">12</span>
+          <span id="slide-num-total">13</span>
         </div>
 
         <div class="flex items-center gap-1">
@@ -1700,8 +1700,256 @@
       </div>
     </section>
 
-    <!-- SLIDE 11: SÍNTESE TÉCNICA E REFLEXÃO ESTRATÉGICA -->
+    <!-- SLIDE 11: LINHA DO TEMPO DETALHADA DAS DESPESAS DO DÉFICIT -->
     <section class="slide w-full" id="slide-11">
+      <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
+        
+        <div class="mb-5 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between gap-2">
+          <div>
+            <span class="text-xs font-bold text-emerald-800 uppercase tracking-widest">Detalhamento Analítico • Exercício 2027</span>
+            <h3 class="text-2xl md:text-3xl font-extrabold text-slate-900 mt-1">Linha do Tempo Detalhada do Déficit Orçamentário</h3>
+            <p class="text-sm text-slate-500 mt-1">Discriminação analítica de todas as 19 despesas com necessidade de suplementação por período de contratação.</p>
+          </div>
+          <div class="flex-shrink-0 flex items-center gap-2">
+            <span class="bg-emerald-100 text-emerald-900 border border-emerald-300 px-3 py-1 rounded-full text-xs font-black shadow-xs">
+              19 Demandas • R$ 47,45 Mi
+            </span>
+          </div>
+        </div>
+
+        <!-- Grid de 3 Colunas Cronológicas com todos os 19 itens detalhados -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          
+          <!-- Coluna 1: Imediato & Janeiro/2027 (R$ 27,90 Mi • 58,8%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 1 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Imediato & Janeiro</span>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 27,90 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Imediato -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Imediato (Urgente)</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,74 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Business Analytics</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 3,10 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>IA em Nuvem</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 494,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>SAP</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 148,2 mil</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Janeiro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Janeiro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 24,16 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Desenvolvimento</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 12,95 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Desenv.</strong> (Desconsid. PROFISCO)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 10,00 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Convênio SEFAZ/RS</strong> (Virtual Migração)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 514,6 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>GOVTECH</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 361,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Internet Satélite</strong> (Vigente)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 241,5 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Locação Empilhadeiras</strong> (Nova)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 85,0 mil</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Concentra 58,8% do déficit orçamentário anual no primeiro mês de exercício.
+            </div>
+          </div>
+
+          <!-- Coluna 2: Fevereiro & Março/2027 (R$ 11,50 Mi • 24,2%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 2 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Fevereiro & Março</span>
+                </div>
+                <span class="bg-rose-100 text-rose-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 11,50 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Fevereiro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Fevereiro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 11,24 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Serviços Gerais e Limpeza</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 5,58 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>OCR Fixo de Trânsito</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 3,38 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Call Center Atendimento</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 2,28 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Março/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Março / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 0,26 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Layout de Furgões</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 234,0 mil</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Capacitação Técnica</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 24,8 mil</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Box Destaque 1º Tri -->
+                <div class="bg-amber-100/70 p-2.5 rounded-xl border border-amber-300">
+                  <div class="flex justify-between items-center text-xs">
+                    <span class="font-extrabold text-amber-950 uppercase text-[10px]">Acumulado 1º Trimestre</span>
+                    <span class="font-black text-amber-950">R$ 39,40 Mi (83,0%)</span>
+                  </div>
+                  <p class="text-[9px] text-amber-900 mt-0.5 leading-tight">
+                    14 das 19 demandas essenciais necessitam de dotação orçamentária até março.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Sustentação dos serviços continuados de apoio predial e fiscalização no trânsito.
+            </div>
+          </div>
+
+          <!-- Coluna 3: Junho, Setembro & Outubro/2027 (R$ 8,05 Mi • 17,0%) -->
+          <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col justify-between">
+            <div>
+              <!-- Cabeçalho Coluna 3 -->
+              <div class="flex items-center justify-between pb-2 mb-2.5 border-b border-slate-200">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2.5 h-2.5 rounded-full bg-slate-900"></span>
+                  <span class="font-extrabold text-slate-900 text-xs uppercase tracking-wide">Junho, Setembro & Outubro</span>
+                </div>
+                <span class="bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded">R$ 8,05 Mi</span>
+              </div>
+
+              <div class="space-y-2 text-xs">
+                <!-- Bloco Junho/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Junho / 2027 (1º Semestre)</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,54 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>TIC Infraestrutura</strong> (Nova Contratação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 2,40 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Monitoramento Eletrônico</strong> (Nova)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,14 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Setembro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Setembro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 3,25 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Apoio Nível Superior</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,91 Mi</span>
+                    </div>
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Microsoft Assurance</strong> (Vigente)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,35 Mi</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Bloco Outubro/2027 -->
+                <div class="bg-white p-2.5 rounded-xl border border-slate-200">
+                  <div class="flex justify-between items-center mb-1.5 pb-1 border-b border-slate-100">
+                    <span class="font-black text-slate-900 text-[11px] uppercase tracking-wider">Outubro / 2027</span>
+                    <span class="font-black text-slate-900 text-xs">R$ 1,26 Mi</span>
+                  </div>
+                  <div class="space-y-1 text-[10px]">
+                    <div class="flex justify-between items-start gap-1">
+                      <span class="text-slate-700"><strong>Apoio Nível Médio</strong> (Prorrogação)</span>
+                      <span class="font-bold text-slate-900 whitespace-nowrap">R$ 1,26 Mi</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mt-2.5 pt-2 border-t border-slate-200 text-[10px] text-slate-500 font-medium">
+              Contratos do 2º semestre somam R$ 4,51 Mi (9,5%), com prorrogações essenciais de terceirizados e software.
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Rodapé Institucional -->
+        <div class="flex items-center justify-between pt-3 mt-4 border-t border-slate-100 text-xs text-slate-500">
+          <span><strong class="font-semibold text-slate-700">Fonte Oficial: SIAFIC</strong> • Relatório Técnico para a Alta Gestão • Exercício 2027</span>
+          <span class="font-bold text-emerald-900">Secretaria de Estado da Economia de Goiás</span>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SLIDE 12: SÍNTESE TÉCNICA E REFLEXÃO ESTRATÉGICA -->
+    <section class="slide w-full" id="slide-12">
       <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
         
         <div class="mb-6 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between">
@@ -1797,8 +2045,8 @@
       </div>
     </section>
 
-    <!-- SLIDE 12: ENCAMINHAMENTO ESTRATÉGICO PARA A GESTÃO -->
-    <section class="slide w-full" id="slide-12">
+    <!-- SLIDE 13: ENCAMINHAMENTO ESTRATÉGICO PARA A GESTÃO -->
+    <section class="slide w-full" id="slide-13">
       <div class="bg-white rounded-3xl border border-emerald-100 p-8 md:p-10 shadow-green-soft">
         
         <div class="mb-6 pb-4 border-b border-slate-100 flex flex-col md:flex-row md:items-end justify-between">
@@ -1942,13 +2190,14 @@
       <button onclick="goToSlide(10)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-10"></button>
       <button onclick="goToSlide(11)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-11"></button>
       <button onclick="goToSlide(12)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-12"></button>
+      <button onclick="goToSlide(13)" class="w-2.5 h-2.5 rounded-full bg-slate-300 dot-indicator" id="dot-13"></button>
     </div>
   </footer>
 
   <!-- SCRIPT DE NAVEGAÇÃO INTERATIVA -->
   <script>
     let currentSlide = 1;
-    const totalSlides = 12;
+    const totalSlides = 13;
 
     function updateSlide() {
       // Atualiza visibilidade dos slides
