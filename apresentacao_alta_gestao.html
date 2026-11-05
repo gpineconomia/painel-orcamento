@@ -128,6 +128,137 @@
       body { padding-bottom: 4.5rem; }
       .slide > div { padding: 1.25rem !important; border-radius: 1.25rem !important; }
     }
+  
+    /* ===================================================
+       ADAPTAÇÃO MOBILE-FIRST AUTOMÁTICA
+       Garante responsividade perfeita em qualquer smartphone
+       =================================================== */
+    html, body {
+      max-width: 100vw !important;
+      overflow-x: hidden !important;
+      -webkit-text-size-adjust: 100%;
+    }
+
+    /* Corrige o alinhamento flex no desktop vs mobile */
+    main {
+      transition: all 0.2s ease;
+    }
+
+    @media (max-width: 768px) {
+      /* 1. Remove corte vertical por causa de flexbox no mobile */
+      body {
+        padding-bottom: 5rem !important;
+        display: block !important;
+      }
+      
+      main {
+        display: block !important;
+        align-items: flex-start !important;
+        justify-content: flex-start !important;
+        padding: 0.5rem 0.5rem 5.5rem 0.5rem !important;
+        margin: 0 auto !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-height: auto !important;
+      }
+
+      /* 2. Cartões de Slide: 100% da largura útil sem overflow */
+      .slide {
+        width: 100% !important;
+        margin: 0 !important;
+      }
+      .slide > div {
+        padding: 1.15rem 0.85rem !important;
+        border-radius: 1.25rem !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+        overflow-x: hidden !important;
+      }
+
+      /* 3. Reorganização de Grids para Fluxo Vertical no Celular */
+      .grid-cols-3,
+      .grid-cols-4,
+      .grid-cols-5,
+      .grid-cols-6,
+      .grid-cols-12 {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+      }
+
+      /* Em telas muito estreitas, 2 colunas também viram pilha vertical para não espremer */
+      @media (max-width: 520px) {
+        .grid-cols-2 {
+          display: flex !important;
+          flex-direction: column !important;
+          gap: 0.65rem !important;
+        }
+      }
+
+      /* Classes col-span passam a ocupar 100% da largura */
+      [class*="col-span-"] {
+        width: 100% !important;
+      }
+
+      /* 4. Tipografia Inteligente e Responsiva */
+      h2, .text-3xl, .text-4xl, .text-5xl {
+        font-size: 1.35rem !important;
+        line-height: 1.25 !important;
+        margin-bottom: 0.5rem !important;
+        word-break: break-word;
+      }
+      h3, .text-2xl {
+        font-size: 1.15rem !important;
+        line-height: 1.3 !important;
+        word-break: break-word;
+      }
+      .text-xl {
+        font-size: 1rem !important;
+      }
+      p, li {
+        font-size: 0.825rem !important;
+        line-height: 1.4 !important;
+      }
+
+      /* 5. Tabelas: Rolagem horizontal suave com touch */
+      table {
+        display: block !important;
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+      }
+      th, td {
+        padding: 0.4rem 0.5rem !important;
+        font-size: 0.75rem !important;
+      }
+
+      /* 6. Header Mobile Otimizado */
+      header {
+        padding: 0.5rem 0.75rem !important;
+      }
+      .header-hide-mobile {
+        display: none !important;
+      }
+      .header-title-box h1 {
+        font-size: 0.75rem !important;
+      }
+      .header-title-box p {
+        font-size: 0.65rem !important;
+      }
+
+      /* 7. Barra Flutuante Mobile Sempre Visível */
+      .mobile-slide-nav {
+        display: flex !important;
+      }
+    }
+
+    /* Rodapé Desktop some no mobile */
+    @media (max-width: 768px) {
+      footer.desktop-slide-nav {
+        display: none !important;
+      }
+    }
+
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col justify-between selection:bg-emerald-200">
@@ -173,7 +304,7 @@
           <span id="toggle-view-text" class="hidden sm:inline">Modo Leitura Vertical</span>
         </button>
 
-        <button onclick="window.print()" class="text-xs font-medium text-slate-500 hover:text-emerald-800 flex items-center gap-1 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:border-emerald-300 transition">
+        <button onclick="window.print()" class="text-xs font-medium text-slate-500 hover:text-emerald-800 flex items-center gap-1 border border-slate-200 px-2.5 py-1.5 rounded-lg hover:border-emerald-300 transition header-hide-mobile">
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
           <span class="hidden sm:inline">PDF</span>
         </button>
@@ -2333,7 +2464,7 @@
       <span>Anterior</span>
     </button>
     <div class="text-center">
-      <span class="text-xs font-bold text-emerald-900"><span id="mobile-current-slide">1</span> de 12</span>
+      <span class="text-xs font-bold text-emerald-900"><span id="mobile-current-slide">1</span> de 13</span>
       <p class="text-[9px] text-slate-400">Deslize para o lado ⇄</p>
     </div>
     <button onclick="nextSlide()" class="px-3.5 py-2 rounded-xl bg-emerald-800 hover:bg-emerald-900 text-white font-bold text-xs flex items-center gap-1 shadow-md active:scale-95 transition">
