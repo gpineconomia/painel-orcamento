@@ -36,10 +36,10 @@
       box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.08), 0 8px 10px -6px rgba(5, 150, 105, 0.04);
     }
     
-                                                                    /* Print / PDF view mode - Otimizado para Landscape A4 (Exatamente 1 slide por pagina sem cortes) */
+                                                                            /* Print / PDF view mode - Sem cortes: fluxo natural com quebra entre slides */
     @page {
       size: A4 landscape;
-      margin: 4mm 6mm;
+      margin: 8mm 10mm;
     }
     @media print {
       html, body {
@@ -50,6 +50,7 @@
         min-height: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
+        overflow: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
@@ -64,26 +65,27 @@
         margin: 0 !important;
         border: none !important;
         min-height: 0 !important;
+        overflow: visible !important;
       }
       .slide {
-        display: flex !important;
-        flex-direction: column !important;
-        justify-content: center !important;
+        display: block !important;
         opacity: 1 !important;
         visibility: visible !important;
         transform: none !important;
-        page-break-inside: avoid !important;
-        break-inside: avoid !important;
-        height: 98vh !important;
-        max-height: 98vh !important;
-        overflow: hidden !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
         box-sizing: border-box !important;
-        margin: 0 !important;
+        margin: 0 0 1.5rem 0 !important;
         padding: 0 !important;
-      }
-      .slide + .slide {
+        clear: both !important;
         page-break-before: always !important;
         break-before: page !important;
+      }
+      .slide:first-of-type {
+        page-break-before: auto !important;
+        break-before: auto !important;
       }
       .slide > div {
         opacity: 1 !important;
@@ -91,42 +93,19 @@
         border-radius: 1.25rem !important;
         box-shadow: none !important;
         box-sizing: border-box !important;
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+        zoom: 0.80 !important;
+        padding: 1.5rem 2rem !important;
       }
       
-      /* Reducao de espacamentos verticais na impressao para evitar cortes */
-      .slide .mb-8, .slide .mb-6, .slide .mb-5 {
-        margin-bottom: 0.45rem !important;
-      }
-      .slide .mt-8, .slide .mt-6 {
-        margin-top: 0.45rem !important;
-      }
-      .slide .pb-4 {
-        padding-bottom: 0.3rem !important;
-      }
-      .slide .pt-4 {
-        padding-top: 0.3rem !important;
-      }
-
-      /* Slides padrao (menos densos: 1, 2, 3, 8, 10, 11, 12) */
-      #slide-1 > div,
-      #slide-2 > div,
-      #slide-3 > div,
-      #slide-8 > div,
-      #slide-10 > div,
-      #slide-11 > div,
-      #slide-12 > div {
-        zoom: 0.68 !important;
-        padding: 1.25rem 1.75rem !important;
-      }
-
-      /* Slides densos (4, 5, 6, 7 e 9) com zoom calibrado e margem de seguranca */
-      #slide-4 > div,
-      #slide-5 > div,
-      #slide-6 > div,
-      #slide-7 > div,
-      #slide-9 > div {
-        zoom: 0.52 !important;
-        padding: 0.8rem 1.25rem !important;
+      /* Mantem cards internos sem quebra no meio do card */
+      .slide .grid > div,
+      .slide .space-y-2 > div,
+      .slide .space-y-2.5 > div {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
     /* Mobile & Continuous Scroll Mode */
