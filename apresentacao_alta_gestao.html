@@ -36,7 +36,7 @@
       box-shadow: 0 10px 25px -5px rgba(5, 150, 105, 0.08), 0 8px 10px -6px rgba(5, 150, 105, 0.04);
     }
     
-                                                        /* Print / PDF view mode - Otimizado para Landscape A4 (Exatamente 1 slide por pagina) */
+                                                            /* Print / PDF view mode - Otimizado para Landscape A4 (Exatamente 1 slide por pagina) */
     @page {
       size: A4 landscape;
       margin: 4mm 6mm;
@@ -70,6 +70,9 @@
         display: flex !important;
         flex-direction: column !important;
         justify-content: center !important;
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: none !important;
         page-break-inside: avoid !important;
         break-inside: avoid !important;
         height: 98vh !important;
@@ -85,6 +88,8 @@
       }
       .slide > div {
         zoom: 0.72 !important;
+        opacity: 1 !important;
+        visibility: visible !important;
         padding: 1.25rem 1.75rem !important;
         border-radius: 1.25rem !important;
         box-shadow: none !important;
