@@ -9,12 +9,12 @@ BASE_DIR = Path(__file__).parent.parent
 BRAIN_DIR = Path(r"C:\Users\joao.veronez\.gemini\antigravity\brain\1c42b43d-4384-4107-b309-7bf1a885bf28")
 
 # Seletor de Versão da Apresentação
-col_sel, col_info = st.columns([1, 2])
+col_sel, col_info = st.columns([1.1, 1.9])
 with col_sel:
     versao = st.segmented_control(
         "Selecione a Versão",
-        options=["Versão 2 (Atualizada)", "Versão 1 (Original)"],
-        default="Versão 2 (Atualizada)",
+        options=["Versão 3 (Atualizada)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
+        default="Versão 3 (Atualizada)",
         key="versao_apresentacao"
     )
 
@@ -23,13 +23,19 @@ if versao == "Versão 1 (Original)":
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v1.html"
     download_name = "apresentacao_alta_gestao_v1_deficit_47_45M.html"
-    metric_label = "V1 (Base): Déficit R$ 47,45 Mi • Piso Essencial R$ 191,54 Mi • Serviços Gerais R$ 5,58 Mi"
-else:
+    metric_label = "V1 (Base Original): Déficit R$ 47,45 Mi • Piso Essencial R$ 191,54 Mi • 19 Demandas"
+elif versao == "Versão 2 (Intermediária)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v2.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v2.html"
     download_name = "apresentacao_alta_gestao_v2_deficit_45_26M.html"
-    metric_label = "V2 (Atualizada): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
+    metric_label = "V2 (Intermediária): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
+else:
+    html_file = BASE_DIR / "apresentacao_alta_gestao_v3.html"
+    if not html_file.exists():
+        html_file = BRAIN_DIR / "apresentacao_alta_gestao_v3.html"
+    download_name = "apresentacao_alta_gestao_v3_deficit_44_54M.html"
+    metric_label = "V3 (Nova Atualização): Déficit R$ 44,54 Mi • Piso Essencial R$ 188,63 Mi • 18 Demandas"
 
 if not html_file.exists():
     html_file = BASE_DIR / "apresentacao_alta_gestao.html"
