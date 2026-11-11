@@ -9,12 +9,12 @@ BASE_DIR = Path(__file__).parent.parent
 BRAIN_DIR = Path(r"C:\Users\joao.veronez\.gemini\antigravity\brain\1c42b43d-4384-4107-b309-7bf1a885bf28")
 
 # Seletor de Versão da Apresentação
-col_sel, col_info = st.columns([1.1, 1.9])
+col_sel, col_info = st.columns([1.2, 1.8])
 with col_sel:
     versao = st.segmented_control(
         "Selecione a Versão",
-        options=["Versão 3 (Atualizada)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
-        default="Versão 3 (Atualizada)",
+        options=["Versão 4 (Atualizada)", "Versão 3 (06/11)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
+        default="Versão 4 (Atualizada)",
         key="versao_apresentacao"
     )
 
@@ -30,12 +30,18 @@ elif versao == "Versão 2 (Intermediária)":
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v2.html"
     download_name = "apresentacao_alta_gestao_v2_deficit_45_26M.html"
     metric_label = "V2 (Intermediária): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
-else:
+elif versao == "Versão 3 (06/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v3.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v3.html"
     download_name = "apresentacao_alta_gestao_v3_deficit_44_54M.html"
-    metric_label = "V3 (Nova Atualização): Déficit R$ 44,54 Mi • Piso Essencial R$ 188,63 Mi • 18 Demandas"
+    metric_label = "V3 (06/11): Déficit R$ 44,54 Mi • Piso Essencial R$ 188,63 Mi • 18 Demandas"
+else:
+    html_file = BASE_DIR / "apresentacao_alta_gestao_v4.html"
+    if not html_file.exists():
+        html_file = BRAIN_DIR / "apresentacao_alta_gestao_v4.html"
+    download_name = "apresentacao_alta_gestao_v4_deficit_43_66M.html"
+    metric_label = "V4 (Nova Atualização): Déficit R$ 43,66 Mi • Piso Essencial R$ 187,75 Mi • 18 Demandas (Serviços Gerais R$ 2,51 Mi)"
 
 if not html_file.exists():
     html_file = BASE_DIR / "apresentacao_alta_gestao.html"
