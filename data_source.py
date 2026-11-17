@@ -307,6 +307,7 @@ def load_deficit_2027() -> tuple[pd.DataFrame, datetime, str | None]:
         "satélite": "Receita",
         "satelite": "Receita",
         "govtech": "Receita",
+        "comando volante": "Receita",
         "capacitação": "Gestão Integrada",
         "capacitacao": "Gestão Integrada",
         "serviços gerais": "Gestão Integrada",

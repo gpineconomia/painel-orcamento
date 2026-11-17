@@ -9,12 +9,12 @@ BASE_DIR = Path(__file__).parent.parent
 BRAIN_DIR = Path(r"C:\Users\joao.veronez\.gemini\antigravity\brain\1c42b43d-4384-4107-b309-7bf1a885bf28")
 
 # Seletor de Versão da Apresentação
-col_sel, col_info = st.columns([1.3, 1.7])
+col_sel, col_info = st.columns([1.35, 1.65])
 with col_sel:
     versao = st.segmented_control(
         "Selecione a Versão",
-        options=["Versão 5 (Atualizada)", "Versão 4 (11/11)", "Versão 3 (06/11)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
-        default="Versão 5 (Atualizada)",
+        options=["Versão 6 (Atualizada)", "Versão 5 (16/11)", "Versão 4 (11/11)", "Versão 3 (06/11)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
+        default="Versão 6 (Atualizada)",
         key="versao_apresentacao"
     )
 
@@ -42,12 +42,18 @@ elif versao == "Versão 4 (11/11)":
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v4.html"
     download_name = "apresentacao_alta_gestao_v4_deficit_43_66M.html"
     metric_label = "V4 (11/11): Déficit R$ 43,66 Mi • Piso Essencial R$ 187,75 Mi • 18 Demandas (Serviços Gerais R$ 2,51 Mi)"
-else:
+elif versao == "Versão 5 (16/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v5.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v5.html"
     download_name = "apresentacao_alta_gestao_v5_deficit_42_57M.html"
-    metric_label = "V5 (Nova Atualização): Déficit R$ 42,57 Mi • Piso Essencial R$ 186,66 Mi • 18 Demandas (Serviços Gerais R$ 1,43 Mi)"
+    metric_label = "V5 (16/11): Déficit R$ 42,57 Mi • Piso Essencial R$ 186,66 Mi • 18 Demandas (Serviços Gerais R$ 1,43 Mi)"
+else:
+    html_file = BASE_DIR / "apresentacao_alta_gestao_v6.html"
+    if not html_file.exists():
+        html_file = BRAIN_DIR / "apresentacao_alta_gestao_v6.html"
+    download_name = "apresentacao_alta_gestao_v6_deficit_42_46M.html"
+    metric_label = "V6 (Nova Atualização): Déficit R$ 42,46 Mi • Piso Essencial R$ 186,54 Mi • 18 Demandas (Comando Volante R$ 221,5 mil • SAP R$ 175,7 mil)"
 
 if not html_file.exists():
     html_file = BASE_DIR / "apresentacao_alta_gestao.html"

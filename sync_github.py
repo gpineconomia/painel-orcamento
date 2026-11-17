@@ -47,6 +47,7 @@ FILES_TO_SYNC = [
     "apresentacao_alta_gestao_v3.html",
     "apresentacao_alta_gestao_v4.html",
     "apresentacao_alta_gestao_v5.html",
+    "apresentacao_alta_gestao_v6.html",
     "oraculo.py",
     "pca_data.py",
     "liquidado_mensal_data.py",
