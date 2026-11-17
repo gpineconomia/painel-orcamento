@@ -13,47 +13,47 @@ col_sel, col_info = st.columns([1.35, 1.65])
 with col_sel:
     versao = st.segmented_control(
         "Selecione a Versão",
-        options=["Versão 6 (Atualizada)", "Versão 5 (16/11)", "Versão 4 (11/11)", "Versão 3 (06/11)", "Versão 2 (Intermediária)", "Versão 1 (Original)"],
-        default="Versão 6 (Atualizada)",
+        options=["Versão 6 (17/11)", "Versão 5 (16/11)", "Versão 4 (11/11)", "Versão 3 (06/11)", "Versão 2 (05/11)", "Versão 1 (04/11)"],
+        default="Versão 6 (17/11)",
         key="versao_apresentacao"
     )
 
-if versao == "Versão 1 (Original)":
+if versao == "Versão 1 (04/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v1.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v1.html"
-    download_name = "apresentacao_alta_gestao_v1_deficit_47_45M.html"
-    metric_label = "V1 (Base Original): Déficit R$ 47,45 Mi • Piso Essencial R$ 191,54 Mi • 19 Demandas"
-elif versao == "Versão 2 (Intermediária)":
+    download_name = "apresentacao_alta_gestao_v1_04_11.html"
+    metric_label = "V1 (04/11/2026): Déficit R$ 47,45 Mi • Piso Essencial R$ 191,54 Mi • 19 Demandas"
+elif versao == "Versão 2 (05/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v2.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v2.html"
-    download_name = "apresentacao_alta_gestao_v2_deficit_45_26M.html"
-    metric_label = "V2 (Intermediária): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
+    download_name = "apresentacao_alta_gestao_v2_05_11.html"
+    metric_label = "V2 (05/11/2026): Déficit R$ 45,26 Mi • Piso Essencial R$ 189,35 Mi • Serviços Gerais R$ 3,39 Mi"
 elif versao == "Versão 3 (06/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v3.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v3.html"
-    download_name = "apresentacao_alta_gestao_v3_deficit_44_54M.html"
-    metric_label = "V3 (06/11): Déficit R$ 44,54 Mi • Piso Essencial R$ 188,63 Mi • 18 Demandas"
+    download_name = "apresentacao_alta_gestao_v3_06_11.html"
+    metric_label = "V3 (06/11/2026): Déficit R$ 44,54 Mi • Piso Essencial R$ 188,63 Mi • 18 Demandas"
 elif versao == "Versão 4 (11/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v4.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v4.html"
-    download_name = "apresentacao_alta_gestao_v4_deficit_43_66M.html"
-    metric_label = "V4 (11/11): Déficit R$ 43,66 Mi • Piso Essencial R$ 187,75 Mi • 18 Demandas (Serviços Gerais R$ 2,51 Mi)"
+    download_name = "apresentacao_alta_gestao_v4_11_11.html"
+    metric_label = "V4 (11/11/2026): Déficit R$ 43,66 Mi • Piso Essencial R$ 187,75 Mi • 18 Demandas (Serviços Gerais R$ 2,51 Mi)"
 elif versao == "Versão 5 (16/11)":
     html_file = BASE_DIR / "apresentacao_alta_gestao_v5.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v5.html"
-    download_name = "apresentacao_alta_gestao_v5_deficit_42_57M.html"
-    metric_label = "V5 (16/11): Déficit R$ 42,57 Mi • Piso Essencial R$ 186,66 Mi • 18 Demandas (Serviços Gerais R$ 1,43 Mi)"
+    download_name = "apresentacao_alta_gestao_v5_16_11.html"
+    metric_label = "V5 (16/11/2026): Déficit R$ 42,57 Mi • Piso Essencial R$ 186,66 Mi • 18 Demandas (Serviços Gerais R$ 1,43 Mi)"
 else:
     html_file = BASE_DIR / "apresentacao_alta_gestao_v6.html"
     if not html_file.exists():
         html_file = BRAIN_DIR / "apresentacao_alta_gestao_v6.html"
-    download_name = "apresentacao_alta_gestao_v6_deficit_42_46M.html"
-    metric_label = "V6 (Nova Atualização): Déficit R$ 42,46 Mi • Piso Essencial R$ 186,54 Mi • 18 Demandas (Comando Volante R$ 221,5 mil • SAP R$ 175,7 mil)"
+    download_name = "apresentacao_alta_gestao_v6_17_11.html"
+    metric_label = "V6 (17/11/2026): Déficit R$ 42,46 Mi • Piso Essencial R$ 186,54 Mi • 18 Demandas (Comando Volante R$ 221,5 mil • SAP R$ 175,7 mil)"
 
 if not html_file.exists():
     html_file = BASE_DIR / "apresentacao_alta_gestao.html"
